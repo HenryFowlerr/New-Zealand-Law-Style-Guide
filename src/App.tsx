@@ -7,7 +7,6 @@ import {
   getVisibleFields,
   missingRequiredFields,
   prefillCitation,
-  sourceExamples,
   sourceTypeMap,
   sourceTypes,
   type CitationData,
@@ -364,13 +363,6 @@ function App() {
     setReviewRequired(false);
   };
 
-  const fillExample = () => {
-    if (!selectedType) return;
-    setData(sourceExamples[selectedType]);
-    setReviewRequired(false);
-    setReviewConfirmed(false);
-  };
-
   // Keyboard accelerators inside the builder: Cmd/Ctrl+Enter copies a ready
   // citation, Escape steps back to the chooser.
   useEffect(() => {
@@ -580,18 +572,9 @@ function App() {
                     <h2>{definition.name}</h2>
                     <p>{definition.description}</p>
                   </div>
-                  <div className="form-heading-actions">
-                    <button
-                      className="text-button"
-                      onClick={fillExample}
-                      type="button"
-                    >
-                      Fill an example
-                    </button>
-                    <a href={definition.ruleUrl} rel="noreferrer" target="_blank">
-                      Read rule ↗
-                    </a>
-                  </div>
+                  <a href={definition.ruleUrl} rel="noreferrer" target="_blank">
+                    Read rule ↗
+                  </a>
                 </div>
 
                 {reviewRequired && (

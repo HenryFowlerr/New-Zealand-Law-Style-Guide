@@ -7,24 +7,8 @@ import {
   extractedFields,
   missingRequiredFields,
   prefillCitation,
-  sourceExamples,
   sourceTypes,
-  type CitationTypeId,
 } from "../src/citationEngine.ts";
-
-test("every format has a worked example that builds to a ready citation", () => {
-  const ids = sourceTypes.map((sourceType) => sourceType.id);
-  for (const id of ids) {
-    assert.ok(sourceExamples[id], `${id} is missing a worked example`);
-    const result = buildCitation(id, sourceExamples[id]);
-    assert.equal(result.status, "ready", `${id} example did not build`);
-    assert.ok(result.text.endsWith("."), `${id} example lacks a final stop`);
-  }
-  // No example references a type that no longer exists.
-  for (const key of Object.keys(sourceExamples) as CitationTypeId[]) {
-    assert.ok(ids.includes(key), `example for unknown type ${key}`);
-  }
-});
 
 test("every published format has unique fields and official rule provenance", () => {
   assert.equal(new Set(sourceTypes.map((item) => item.id)).size, sourceTypes.length);

@@ -73,8 +73,6 @@ extracted field is unverified until you confirm it against the source.
 - **Keyboard flow** — the build-from-details search selects the first result on
   Enter; inside a form, `Ctrl`/`⌘`+`Enter` copies a ready citation and `Esc`
   steps back.
-- **Fill an example** — every format offers a one-click, Style-Guide-correct
-  worked example to learn its shape or sanity-check the tool.
 - **Footnote composer** — collect several authorities into one footnote with the
   correct semicolons, final “and”, and single full stop; it persists on your
   device.

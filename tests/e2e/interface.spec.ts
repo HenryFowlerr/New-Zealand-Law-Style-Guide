@@ -91,15 +91,6 @@ test("the footnote composer collects an authority and persists it", async ({ pag
   await expect(page.locator(".authority-list li")).toHaveCount(1);
 });
 
-test("Fill an example produces a ready citation in one click", async ({ page }) => {
-  await page.getByRole("tab", { name: /Build from details/ }).click();
-  await page.locator(".search-field input").fill("thesis");
-  await page.locator(".search-field input").press("Enter");
-  await page.getByRole("button", { name: /Fill an example/ }).click();
-  await expect(page.locator(".result-status.ready")).toBeVisible();
-  await expect(page.locator(".citation-preview p")).toContainText("LLM Thesis");
-});
-
 test("the build-from-details picker exposes every verified format", async ({ page }) => {
   await page.getByRole("tab", { name: /Build from details/ }).click();
   await expect(page.locator(".type-card")).toHaveCount(17);
