@@ -922,6 +922,142 @@ export const sourceTypeMap = Object.fromEntries(
   sourceTypes.map((sourceType) => [sourceType.id, sourceType]),
 ) as Record<CitationTypeId, SourceTypeDefinition>;
 
+/**
+ * One correct, worked example per format. These are the same field sets the
+ * test suite pins, so "fill an example" always produces a Style-Guide-correct
+ * citation students can learn from or use to sanity-check the tool.
+ */
+export const sourceExamples: Record<CitationTypeId, CitationData> = {
+  journal: {
+    author: "Peter Watts",
+    title: "Birks’ Unjust Enrichment",
+    year: "2005",
+    yearRole: "independent-volume",
+    volume: "121",
+    journal: "LQR",
+    startPage: "163",
+    pinpoint: "165",
+  },
+  book: {
+    author: "Ross Carter",
+    title: "Burrows and Carter Statute Law in New Zealand",
+    edition: "5th",
+    publisher: "LexisNexis",
+    place: "Wellington",
+    year: "2015",
+    pinpoint: "311",
+  },
+  chapter: {
+    author: "Robin Cooke",
+    title: "Tort and Contract",
+    editor: "PD Finn",
+    bookTitle: "Essays on Contract",
+    edition: "2nd",
+    publisher: "Law Book Company",
+    place: "Sydney",
+    year: "1987",
+    startPage: "222",
+    pinpoint: "229",
+  },
+  looseleaf: {
+    author: "Billie Little and others",
+    title: "Personal Injury in New Zealand",
+    editionType: "online",
+    publisher: "Thomson Reuters",
+    pinpoint: "[AC21.02]",
+  },
+  report: {
+    author: "Labour Market Policy Group",
+    title: "Cover for Mental Injury",
+    officialCitation: "00/001872",
+    date: "24 March 2000",
+  },
+  newspaper: {
+    author: "Anne Smith",
+    title: "New Court Rules Announced",
+    newspaper: "The New Zealand Herald",
+    place: "Auckland",
+    date: "24 September 2009",
+    pinpoint: "3",
+  },
+  internet: {
+    author: "Ministry of Justice",
+    title: "Annual Report 2018",
+    date: "2018",
+    url: "www.justice.govt.nz",
+  },
+  thesis: {
+    author: "Jane Doe",
+    title: "The Rule Against Perpetuities",
+    qualification: "LLM Thesis",
+    institution: "Victoria University of Wellington",
+    year: "2016",
+    pinpoint: "40",
+  },
+  conference: {
+    author: "John Smith",
+    title: "Reforming the Law of Trusts",
+    conference: "New Zealand Law Conference",
+    place: "Auckland",
+    date: "October 2018",
+  },
+  act: {
+    title: "Evidence Act",
+    year: "2006",
+    referenceType: "s",
+    reference: "43",
+  },
+  bill: {
+    title: "Evidence Bill",
+    year: "2005",
+    billNumber: "256-1",
+    clause: "5",
+  },
+  "case-reported": {
+    caseName: "Z v Dental Complaints Assessment Committee",
+    neutralCitation: "[2008] NZSC 55",
+    reportYear: "2009",
+    yearRole: "essential",
+    volume: "1",
+    reportSeries: "NZLR",
+    startPage: "1",
+    pinpoint: "[26]",
+  },
+  "case-neutral": {
+    caseName: "Attorney-General v X",
+    year: "2007",
+    court: "NZCA",
+    judgmentNumber: "388",
+    pinpoint: "[70]",
+  },
+  "case-unreported": {
+    caseName: "R v Tuhou",
+    court: "HC",
+    registry: "Napier",
+    fileNumber: "CRI-2007-020-2820",
+    date: "11 September 2008",
+    pinpoint: "[13]",
+  },
+  hansard: {
+    date: "21 September 2010",
+    volume: "666",
+    page: "14104",
+    speaker: "Hon Simon Power",
+  },
+  "press-release": {
+    author: "New Zealand Law Society",
+    title: "Access to Justice",
+    date: "5 May 2018",
+  },
+  subsequent: {
+    sourceCategory: "text",
+    context: "not-obvious",
+    label: "Todd",
+    earlierFootnote: "8",
+    pinpoint: "50",
+  },
+};
+
 export function getVisibleFields(
   definition: SourceTypeDefinition,
   data: CitationData,
