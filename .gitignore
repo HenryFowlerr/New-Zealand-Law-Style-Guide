@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+outputs/
+work/
+
+# Unused scaffolding left over from the generator
+.vinext/
+.wrangler/
+.openai/
+drizzle/
+examples/

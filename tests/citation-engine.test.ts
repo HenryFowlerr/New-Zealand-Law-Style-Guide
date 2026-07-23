@@ -1,0 +1,362 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  analyseCitation,
+  buildCitation,
+  composeFootnote,
+  prefillCitation,
+  sourceTypes,
+} from "../src/citationEngine.ts";
+
+test("every published format has unique fields and official rule provenance", () => {
+  assert.equal(new Set(sourceTypes.map((item) => item.id)).size, sourceTypes.length);
+  for (const sourceType of sourceTypes) {
+    assert.match(sourceType.ruleUrl, /^https:\/\/lawfoundation\.org\.nz\/style-guide2019\//);
+    const fieldIds = sourceType.fields.map((field) => field.id);
+    assert.equal(
+      new Set(fieldIds).size,
+      fieldIds.length,
+      `${sourceType.id} has duplicate fields`,
+    );
+  }
+});
+
+test("journal article uses round brackets for independent volumes", () => {
+  const result = buildCitation("journal", {
+    author: "Peter Watts",
+    title: "Birks’ Unjust Enrichment",
+    year: "2005",
+    yearRole: "independent-volume",
+    volume: "121",
+    journal: "L.Q.R.",
+    startPage: "163",
+    pinpoint: "165",
+  });
+  assert.equal(result.status, "ready");
+  assert.equal(
+    result.text,
+    "Peter Watts “Birks’ Unjust Enrichment” (2005) 121 LQR 163 at 165.",
+  );
+});
+
+test("journal article uses square brackets when the year is the volume", () => {
+  const result = buildCitation("journal", {
+    author: "Jessica Palmer",
+    title: "Theories of the Trust",
+    year: "2010",
+    yearRole: "year-is-volume",
+    journal: "NZ L Rev",
+    startPage: "541",
+  });
+  assert.equal(
+    result.text,
+    "Jessica Palmer “Theories of the Trust” [2010] NZ L Rev 541.",
+  );
+});
+
+test("journal issue appears only when pages restart", () => {
+  const result = buildCitation("journal", {
+    author: "Ben Mathews and Kerryann Walsh",
+    title: "At the Cutting Edge",
+    year: "2004",
+    yearRole: "independent-volume",
+    volume: "9",
+    pagesRestart: true,
+    issue: "2",
+    journal: "Australia & New Zealand Journal of Law & Education",
+    startPage: "3",
+  });
+  assert.equal(
+    result.text,
+    "Ben Mathews and Kerryann Walsh “At the Cutting Edge” (2004) 9(2) Australia & New Zealand Journal of Law & Education 3.",
+  );
+});
+
+test("journal generation fails closed without the volume decision", () => {
+  const result = buildCitation("journal", {
+    author: "A Author",
+    title: "A Title",
+    year: "2020",
+    journal: "NZLJ",
+    startPage: "12",
+  });
+  assert.equal(result.status, "incomplete");
+  assert.equal(result.text, "");
+  assert.ok(result.issues.some((issue) => issue.field === "yearRole"));
+});
+
+test("et al is normalised to and others with a visible note", () => {
+  const result = buildCitation("journal", {
+    author: "Smith et al.",
+    title: "A Title",
+    year: "2020",
+    yearRole: "independent-volume",
+    volume: "4",
+    journal: "NZLJ",
+    startPage: "12",
+  });
+  assert.equal(result.text, "Smith and others “A Title” (2020) 4 NZLJ 12.");
+  assert.ok(result.issues.some((issue) => issue.level === "note"));
+});
+
+test("book output preserves an italic semantic token", () => {
+  const result = buildCitation("book", {
+    author: "Ross Carter",
+    title: "Burrows and Carter Statute Law in New Zealand",
+    edition: "5th",
+    publisher: "LexisNexis",
+    place: "Wellington",
+    year: "2015",
+    pinpoint: "311",
+  });
+  assert.equal(
+    result.text,
+    "Ross Carter Burrows and Carter Statute Law in New Zealand (5th ed, LexisNexis, Wellington, 2015) at 311.",
+  );
+  assert.match(
+    result.html,
+    /<em>Burrows and Carter Statute Law in New Zealand<\/em>/,
+  );
+});
+
+test("chapter output adds in, editor designation, and starting page", () => {
+  const result = buildCitation("chapter", {
+    author: "Robin Cooke",
+    title: "Tort and Contract",
+    editor: "PD Finn",
+    bookTitle: "Essays on Contract",
+    publisher: "Law Book Company",
+    place: "Sydney",
+    year: "1987",
+    startPage: "222",
+    pinpoint: "229",
+  });
+  assert.equal(
+    result.text,
+    "Robin Cooke “Tort and Contract” in PD Finn (ed) Essays on Contract (Law Book Company, Sydney, 1987) 222 at 229.",
+  );
+});
+
+test("looseleaf output uses only the guide-approved edition labels", () => {
+  const result = buildCitation("looseleaf", {
+    author: "Billie Little and others",
+    title: "Personal Injury in New Zealand",
+    editionType: "online",
+    publisher: "Thomson Reuters",
+    pinpoint: "[AC21.02]",
+  });
+  assert.equal(
+    result.text,
+    "Billie Little and others Personal Injury in New Zealand (online ed, Thomson Reuters) at [AC21.02].",
+  );
+});
+
+test("report output omits absent publisher without leaving doubled punctuation", () => {
+  const result = buildCitation("report", {
+    author: "Labour Market Policy Group",
+    title: "Cover for Mental Injury Arising from Witnessing a Traumatic Incident",
+    officialCitation: "00/001872",
+    date: "24 March 2000",
+  });
+  assert.equal(
+    result.text,
+    "Labour Market Policy Group Cover for Mental Injury Arising from Witnessing a Traumatic Incident (00/001872, 24 March 2000).",
+  );
+});
+
+test("New Zealand legislation omits the country identifier", () => {
+  const result = buildCitation("act", {
+    title: "Evidence Act",
+    year: "2006",
+    jurisdiction: "NZ",
+    referenceType: "s",
+    reference: "43",
+  });
+  assert.equal(result.text, "Evidence Act 2006, s 43.");
+  assert.ok(result.issues.some((issue) => issue.level === "note"));
+});
+
+test("foreign legislation retains its jurisdiction identifier", () => {
+  const result = buildCitation("act", {
+    title: "Counter-Terrorism Act",
+    year: "2008",
+    jurisdiction: "UK",
+    referenceType: "s",
+    reference: "92",
+  });
+  assert.equal(result.text, "Counter-Terrorism Act 2008 (UK), s 92.");
+});
+
+test("reported case places neutral citation before the report citation", () => {
+  const result = buildCitation("case-reported", {
+    caseName: "Z v Dental Complaints Assessment Committee",
+    neutralCitation: "[2008] NZSC 55",
+    reportYear: "2009",
+    yearRole: "essential",
+    volume: "1",
+    reportSeries: "NZLR",
+    startPage: "1",
+    pinpoint: "[26]",
+  });
+  assert.equal(
+    result.text,
+    "Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26].",
+  );
+  assert.match(
+    result.html,
+    /^<em>Z v Dental Complaints Assessment Committee<\/em>/,
+  );
+});
+
+test("invalid neutral citation blocks reported-case output", () => {
+  const result = buildCitation("case-reported", {
+    caseName: "Example v Example",
+    neutralCitation: "2008 NZSC 55",
+    reportYear: "2009",
+    yearRole: "essential",
+    reportSeries: "NZLR",
+    startPage: "1",
+  });
+  assert.equal(result.status, "incomplete");
+  assert.equal(result.text, "");
+});
+
+test("neutral-only case follows year court judgment order", () => {
+  const result = buildCitation("case-neutral", {
+    caseName: "Attorney-General v X",
+    year: "2007",
+    court: "NZCA",
+    judgmentNumber: "388",
+    pinpoint: "[70]",
+  });
+  assert.equal(result.text, "Attorney-General v X [2007] NZCA 388 at [70].");
+});
+
+test("unreported case includes court, registry, file, and date", () => {
+  const result = buildCitation("case-unreported", {
+    caseName: "R v Tuhou",
+    court: "HC",
+    registry: "Napier",
+    fileNumber: "CRI-2007-020-2820",
+    date: "11 September 2008",
+    pinpoint: "[13]",
+  });
+  assert.equal(
+    result.text,
+    "R v Tuhou HC Napier CRI-2007-020-2820, 11 September 2008 at [13].",
+  );
+});
+
+test("non-obvious later text citation uses above n", () => {
+  const result = buildCitation("subsequent", {
+    sourceCategory: "text",
+    context: "not-obvious",
+    label: "Todd",
+    earlierFootnote: "8",
+    pinpoint: "50",
+  });
+  assert.equal(result.text, "Todd, above n 8, at 50.");
+});
+
+test("obvious later citation uses only the pinpoint and never ibid", () => {
+  const result = buildCitation("subsequent", {
+    sourceCategory: "text",
+    context: "obvious",
+    pinpoint: "92",
+  });
+  assert.equal(result.text, "At 92.");
+  assert.doesNotMatch(result.text, /ibid/i);
+});
+
+test("later legislation never uses above n", () => {
+  const result = buildCitation("subsequent", {
+    sourceCategory: "legislation",
+    context: "not-obvious",
+    label: "Securities Act",
+    referenceType: "s",
+    pinpoint: "63",
+  });
+  assert.equal(result.text, "Securities Act, s 63.");
+  assert.doesNotMatch(result.text, /above n/);
+});
+
+test("footnote composer applies semicolons, final and, and one full stop", () => {
+  const first = buildCitation("journal", {
+    author: "Simon Connell",
+    title: "ACC infects the criminal law?",
+    year: "2012",
+    yearRole: "independent-volume",
+    volume: "4",
+    journal: "NZLJ",
+    startPage: "135",
+    pinpoint: "136",
+  });
+  const second = buildCitation("journal", {
+    author: "Chris Gallavin",
+    title: "Fraud vitiating consent",
+    year: "2012",
+    yearRole: "independent-volume",
+    volume: "5",
+    journal: "NZLJ",
+    startPage: "156",
+    pinpoint: "156",
+  });
+  const third = buildCitation("subsequent", {
+    sourceCategory: "text",
+    context: "not-obvious",
+    label: "Todd",
+    earlierFootnote: "8",
+    pinpoint: "50",
+  });
+  const footnote = composeFootnote([first, second, third]);
+  assert.equal(
+    footnote.text,
+    "Simon Connell “ACC infects the criminal law?” (2012) 4 NZLJ 135 at 136; Chris Gallavin “Fraud vitiating consent” (2012) 5 NZLJ 156 at 156; and Todd, above n 8, at 50.",
+  );
+  assert.equal((footnote.text.match(/\.$/g) ?? []).length, 1);
+});
+
+test("detector identifies the supplied journal structure", () => {
+  const suggestions = analyseCitation(
+    'Burrows “Liability for Psychiatric Illness: Where Should the Line be Drawn?” (1995) 3 Tort L Rev 220.',
+  );
+  assert.equal(suggestions[0]?.type, "journal");
+  assert.equal(suggestions[0]?.confidence, "high");
+});
+
+test("detector refuses to guess from title and date alone", () => {
+  const suggestions = analyseCitation("An uncertain title 24 March 2000");
+  assert.deepEqual(suggestions, []);
+});
+
+test("prefill parses a journal but still leaves confirmation to the interface", () => {
+  const data = prefillCitation(
+    "journal",
+    'Peter Watts “Birks’ Unjust Enrichment” (2005) 121 LQR 163 at 165.',
+  );
+  assert.deepEqual(data, {
+    author: "Peter Watts",
+    title: "Birks’ Unjust Enrichment",
+    year: "2005",
+    yearRole: "independent-volume",
+    volume: "121",
+    pagesRestart: false,
+    issue: "",
+    journal: "LQR",
+    startPage: "163",
+    pinpoint: "165",
+  });
+});
+
+test("HTML output escapes user-supplied markup", () => {
+  const result = buildCitation("book", {
+    author: "<script>alert(1)</script>",
+    title: "A & B",
+    publisher: "Publisher",
+    place: "Wellington",
+    year: "2020",
+  });
+  assert.doesNotMatch(result.html, /<script>/);
+  assert.match(result.html, /&lt;script&gt;/);
+  assert.match(result.html, /A &amp; B/);
+});
