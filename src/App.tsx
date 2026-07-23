@@ -369,6 +369,11 @@ function App() {
     if (!selectedType) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        // Do not discard a form the user is typing into; let the field keep
+        // Escape (a search box clears, etc.).
+        const active = document.activeElement;
+        const tag = active?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
         goBack();
         return;
       }
