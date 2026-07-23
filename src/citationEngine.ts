@@ -398,7 +398,7 @@ export const sourceTypes: SourceTypeDefinition[] = [
     name: "Act or legislative instrument",
     shortName: "Legislation",
     description:
-      "An Act, regulation, rule, or order, with an optional section, clause, or other pinpoint.",
+      "An Act, statute, regulation, rule, or order, with an optional section, clause, or other pinpoint.",
     group: "Cases & legislation",
     rule: "4.1.1",
     ruleUrl: `${GUIDE_ROOT}/chapter-4.html#4.1.1`,

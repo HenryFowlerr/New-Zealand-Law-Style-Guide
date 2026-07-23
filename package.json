@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "check": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
+    "test:e2e": "playwright test",
     "verify": "npm run check && npm test && npm run build"
   },
   "dependencies": {
@@ -19,6 +20,7 @@
     "react-dom": "19.2.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",

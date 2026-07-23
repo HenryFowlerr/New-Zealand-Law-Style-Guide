@@ -223,6 +223,15 @@ test("New Zealand legislation omits the country identifier", () => {
   assert.ok(result.issues.some((issue) => issue.level === "note"));
 });
 
+test("legislation format stays discoverable by common search terms", () => {
+  const act = sourceTypes.find((sourceType) => sourceType.id === "act");
+  assert.ok(act);
+  const haystack = `${act.name} ${act.description} ${act.group}`.toLowerCase();
+  for (const term of ["statute", "act", "regulation", "rule", "legislation"]) {
+    assert.ok(haystack.includes(term), `legislation not findable by "${term}"`);
+  }
+});
+
 test("delegated legislation cites like an Act with a regulation pinpoint", () => {
   const result = buildCitation("act", {
     title: "Health and Safety in Employment Regulations",
