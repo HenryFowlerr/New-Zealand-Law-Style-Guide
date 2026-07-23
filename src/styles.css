@@ -712,6 +712,30 @@ footer {
   line-height: 1.45;
 }
 
+.needed-pill {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--amber-pale);
+  color: var(--amber);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.field-needed input,
+.field-needed select {
+  border-color: var(--amber);
+  background: #fffdf6;
+}
+
+.extraction-summary .needed-list {
+  color: var(--amber);
+  font-weight: 800;
+}
+
 .check-field {
   min-height: 68px;
   display: flex;

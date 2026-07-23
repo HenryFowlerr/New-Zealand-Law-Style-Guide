@@ -35,6 +35,17 @@ any institution-specific requirements that depart from Appendix 7.
 The interface also composes multiple authorities into a single footnote using
 semicolons, “and” before the final source, and one final full stop.
 
+## Starting from an existing reference
+
+Paste a reference in any of the verified formats and NZ Law Cite reads back the
+details it can identify from the text — author, title, year, publisher, court,
+neutral citation, pinpoint, and so on. It then shows which parts it found and
+prompts you for anything still required before a citation is generated. Where a
+detail cannot be split unambiguously from unformatted text (for example the
+author and title of a book once italics are lost), the field is left blank and
+flagged as needed rather than guessed. Every extracted field is unverified
+until you confirm it against the source.
+
 ## Local development
 
 Requires Node.js 22.13 or newer.

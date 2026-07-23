@@ -4,6 +4,8 @@ import {
   analyseCitation,
   buildCitation,
   composeFootnote,
+  extractedFields,
+  missingRequiredFields,
   prefillCitation,
   sourceTypes,
 } from "../src/citationEngine.ts";
@@ -346,6 +348,104 @@ test("prefill parses a journal but still leaves confirmation to the interface", 
     startPage: "163",
     pinpoint: "165",
   });
+});
+
+test("prefill reads a chapter and round-trips to the same citation", () => {
+  const data = prefillCitation(
+    "chapter",
+    "Robin Cooke “Tort and Contract” in PD Finn (ed) Essays on Contract (2nd ed, Law Book Company, Sydney, 1987) 222 at 229.",
+  );
+  assert.deepEqual(data, {
+    author: "Robin Cooke",
+    title: "Tort and Contract",
+    editor: "PD Finn",
+    bookTitle: "Essays on Contract",
+    edition: "2nd",
+    publisher: "Law Book Company",
+    place: "Sydney",
+    year: "1987",
+    startPage: "222",
+    pinpoint: "229",
+  });
+  assert.equal(
+    buildCitation("chapter", data).text,
+    "Robin Cooke “Tort and Contract” in PD Finn (ed) Essays on Contract (2nd ed, Law Book Company, Sydney, 1987) 222 at 229.",
+  );
+});
+
+test("prefill reads a reported case including the neutral citation", () => {
+  const data = prefillCitation(
+    "case-reported",
+    "Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26].",
+  );
+  assert.equal(data.caseName, "Z v Dental Complaints Assessment Committee");
+  assert.equal(data.neutralCitation, "[2008] NZSC 55");
+  assert.equal(data.reportYear, "2009");
+  assert.equal(data.yearRole, "essential");
+  assert.equal(data.volume, "1");
+  assert.equal(data.reportSeries, "NZLR");
+  assert.equal(data.startPage, "1");
+  assert.equal(
+    buildCitation("case-reported", data).text,
+    "Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26].",
+  );
+});
+
+test("prefill reads an unreported case with registry and file number", () => {
+  const data = prefillCitation(
+    "case-unreported",
+    "R v Tuhou HC Napier CRI-2007-020-2820, 11 September 2008 at [13].",
+  );
+  assert.deepEqual(data, {
+    caseName: "R v Tuhou",
+    court: "HC",
+    registry: "Napier",
+    fileNumber: "CRI-2007-020-2820",
+    date: "11 September 2008",
+    pinpoint: "[13]",
+  });
+});
+
+test("prefill reads book publication details but leaves the ambiguous author and title", () => {
+  const data = prefillCitation(
+    "book",
+    "Ross Carter Burrows and Carter Statute Law in New Zealand (5th ed, LexisNexis, Wellington, 2015) at 311.",
+  );
+  assert.equal(data.edition, "5th");
+  assert.equal(data.publisher, "LexisNexis");
+  assert.equal(data.place, "Wellington");
+  assert.equal(data.year, "2015");
+  assert.equal(data.pinpoint, "311");
+  assert.equal(data.author, undefined);
+  assert.equal(data.title, undefined);
+});
+
+test("prefill reads the looseleaf edition type and publisher", () => {
+  const data = prefillCitation(
+    "looseleaf",
+    "Billie Little and others Personal Injury in New Zealand (online ed, Thomson Reuters) at [AC21.02].",
+  );
+  assert.equal(data.editionType, "online");
+  assert.equal(data.publisher, "Thomson Reuters");
+  assert.equal(data.pinpoint, "[AC21.02]");
+});
+
+test("missingRequiredFields reports only the parts a reference did not supply", () => {
+  const data = prefillCitation(
+    "book",
+    "Ross Carter Some Title (LexisNexis, Wellington, 2015).",
+  );
+  const missing = missingRequiredFields("book", data).map((field) => field.id);
+  assert.deepEqual(missing, ["author", "title"]);
+  assert.ok(extractedFields("book", data).some((field) => field.id === "year"));
+});
+
+test("missingRequiredFields is empty once every required field is present", () => {
+  const data = prefillCitation(
+    "case-unreported",
+    "R v Tuhou HC Napier CRI-2007-020-2820, 11 September 2008.",
+  );
+  assert.deepEqual(missingRequiredFields("case-unreported", data), []);
 });
 
 test("HTML output escapes user-supplied markup", () => {

@@ -653,6 +653,35 @@ export function getVisibleFields(
   return definition.fields.filter((field) => !field.when || field.when(data));
 }
 
+/**
+ * Required fields that are currently visible but still empty. This drives the
+ * "still needed" prompt: the interface asks the user for each missing part
+ * before a citation is generated.
+ */
+export function missingRequiredFields(
+  type: CitationTypeId,
+  data: CitationData,
+): FieldDefinition[] {
+  const definition = sourceTypeMap[type];
+  return getVisibleFields(definition, data).filter(
+    (field) => field.required === true && !value(data, field.id),
+  );
+}
+
+/**
+ * Visible non-checkbox fields that already carry a value. Used to report how
+ * many details were read from a pasted reference.
+ */
+export function extractedFields(
+  type: CitationTypeId,
+  data: CitationData,
+): FieldDefinition[] {
+  const definition = sourceTypeMap[type];
+  return getVisibleFields(definition, data).filter(
+    (field) => field.type !== "checkbox" && Boolean(value(data, field.id)),
+  );
+}
+
 function value(data: CitationData, key: string): string {
   const raw = data[key];
   return typeof raw === "string" ? raw.trim().replace(/\s+/g, " ") : "";
@@ -1197,11 +1226,22 @@ export function analyseCitation(input: string): CitationSuggestion[] {
     add("chapter", "high", "It contains a quoted chapter title followed by “in”.");
   }
   if (/\bv\b/.test(raw) && /\[\d{4}\]\s+NZ[A-Z]+\s+\d+/.test(raw)) {
-    if (/,\s*[\[(]\d{4}[\])]\s+\d*\s*NZLR\s+\d+/i.test(raw)) {
+    if (/,\s*[\[(]\d{4}[\])]\s+\d*\s*[A-Z][A-Za-z]*\s+\d+/.test(raw)) {
       add("case-reported", "high", "It contains both a neutral and reported citation.");
     } else {
       add("case-neutral", "high", "It contains a New Zealand neutral citation.");
     }
+  }
+  if (
+    /\bv\b/.test(raw) &&
+    !/\[\d{4}\]\s+NZ[A-Z]+\s+\d+/.test(raw) &&
+    /[[(]\d{4}[\])]\s+\d*\s*[A-Z][A-Za-z]*\s+\d+/.test(raw)
+  ) {
+    add(
+      "case-reported",
+      "possible",
+      "It resembles a case name followed by a reported citation.",
+    );
   }
   if (
     /\bv\b/.test(raw) &&
@@ -1219,6 +1259,43 @@ export function analyseCitation(input: string): CitationSuggestion[] {
   }
 
   return suggestions;
+}
+
+/**
+ * Split a book/chapter publication parenthetical such as
+ * "5th ed, LexisNexis, Wellington, 2015" into its component fields. Only the
+ * confidently delimited parts are returned; anything ambiguous is left for the
+ * user to supply.
+ */
+function parsePublicationDetails(inner: string): {
+  edition?: string;
+  publisher?: string;
+  place?: string;
+  year?: string;
+} {
+  const parts = inner
+    .split(/,\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const result: {
+    edition?: string;
+    publisher?: string;
+    place?: string;
+    year?: string;
+  } = {};
+  if (parts.length && /^\d{4}$/.test(parts[parts.length - 1])) {
+    result.year = parts.pop();
+  }
+  if (parts.length && /\bed$/i.test(parts[0])) {
+    result.edition = parts.shift()!.replace(/\s+ed$/i, "");
+  }
+  if (parts.length >= 2) {
+    result.publisher = parts[0];
+    result.place = parts.slice(1).join(", ");
+  } else if (parts.length === 1) {
+    result.publisher = parts[0];
+  }
+  return result;
 }
 
 export function prefillCitation(
@@ -1290,6 +1367,101 @@ export function prefillCitation(
         court: match[3],
         judgmentNumber: match[4],
         pinpoint: match[5] ?? "",
+      };
+    }
+  }
+
+  if (type === "chapter") {
+    const match = raw.match(
+      /^(.+?)\s+[“"](.+?)[”"]\s+in\s+(.+?)\s+\(eds?\)\s+(.+?)\s+\(([^)]*\d{4})\)\s+(\d+[A-Za-z]?)(?:\s+at\s+(.+))?$/u,
+    );
+    if (match) {
+      const details = parsePublicationDetails(match[5]);
+      return {
+        author: match[1],
+        title: match[2],
+        editor: match[3],
+        bookTitle: match[4],
+        edition: details.edition ?? "",
+        publisher: details.publisher ?? "",
+        place: details.place ?? "",
+        year: details.year ?? "",
+        startPage: match[6],
+        pinpoint: match[7] ?? "",
+      };
+    }
+  }
+
+  if (type === "book") {
+    // The author and title run together without a delimiter once italics are
+    // lost, so only the reliably delimited publication details are extracted.
+    const match = raw.match(
+      /^.+?\s+\(([^)]*\d{4})\)(?:\s+vol\s+(\S+))?(?:\s+at\s+(.+))?$/u,
+    );
+    if (match) {
+      const details = parsePublicationDetails(match[1]);
+      if (details.year) {
+        return {
+          edition: details.edition ?? "",
+          publisher: details.publisher ?? "",
+          place: details.place ?? "",
+          year: details.year,
+          volume: match[2] ?? "",
+          pinpoint: match[3] ?? "",
+        };
+      }
+    }
+  }
+
+  if (type === "looseleaf") {
+    const match = raw.match(
+      /^.+?\s+\((looseleaf|online)\s+ed(?:,\s*(.+?))?\)(?:\s+at\s+(.+))?$/iu,
+    );
+    if (match) {
+      const rest = (match[2] ?? "")
+        .split(/,\s*/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      return {
+        editionType: match[1].toLowerCase(),
+        publisher: rest[0] ?? "",
+        accessDetail: rest.slice(1).join(", "),
+        pinpoint: match[3] ?? "",
+      };
+    }
+  }
+
+  if (type === "case-reported") {
+    const match = raw.match(
+      /^(.+?\bv\b.+?)\s+(?:(\[\d{4}\]\s+[A-Z][A-Za-z0-9]*\s+\d+[A-Za-z]?),\s+)?([[(])(\d{4})[\])]\s+(?:(\d+)\s+)?([A-Za-z][A-Za-z '.]*?)\s+(\d+[A-Za-z]?)(?:\s+\(([^)]+)\))?(?:\s+at\s+(.+))?$/u,
+    );
+    if (match) {
+      return {
+        caseName: match[1],
+        neutralCitation: match[2] ?? "",
+        reportYear: match[4],
+        yearRole: match[3] === "[" ? "essential" : "descriptive",
+        volume: match[5] ?? "",
+        reportSeries: match[6].trim(),
+        startPage: match[7],
+        court: match[8] ?? "",
+        pinpoint: match[9] ?? "",
+      };
+    }
+  }
+
+  if (type === "case-unreported") {
+    const match = raw.match(
+      /^(.+?\bv\b.+?)\s+([A-Z][A-Za-z]*)\s+(?:([A-Z][a-z]+)\s+)?(\S*\d\S*),\s+(.+?)(?:\s+at\s+(.+))?$/u,
+    );
+    if (match) {
+      return {
+        caseName: match[1],
+        court: match[2],
+        registry: match[3] ?? "",
+        fileNumber: match[4],
+        date: match[5],
+        pinpoint: match[6] ?? "",
       };
     }
   }

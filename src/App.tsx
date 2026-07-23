@@ -3,7 +3,9 @@ import {
   analyseCitation,
   buildCitation,
   composeFootnote,
+  extractedFields,
   getVisibleFields,
+  missingRequiredFields,
   prefillCitation,
   sourceTypeMap,
   sourceTypes,
@@ -61,13 +63,17 @@ function Field({
   field,
   data,
   onChange,
+  flagMissing = false,
 }: {
   field: FieldDefinition;
   data: CitationData;
   onChange: (field: string, value: string | boolean) => void;
+  flagMissing?: boolean;
 }) {
   const helpId = `${field.id}-help`;
   const current = data[field.id];
+  const isEmpty = !(typeof current === "string" && current.trim());
+  const needed = flagMissing && field.required === true && isEmpty;
 
   if (field.type === "checkbox") {
     return (
@@ -86,10 +92,11 @@ function Field({
   }
 
   return (
-    <label className="field">
+    <label className={needed ? "field field-needed" : "field"}>
       <span className="field-label">
         {field.label}
         {field.required && <span aria-hidden="true"> *</span>}
+        {needed && <span className="needed-pill">Needed</span>}
       </span>
       {field.type === "select" ? (
         <select
@@ -245,6 +252,8 @@ function App() {
   );
   const copyReady =
     result?.status === "ready" && (!reviewRequired || reviewConfirmed);
+  const extracted = selectedType ? extractedFields(selectedType, data) : [];
+  const missing = selectedType ? missingRequiredFields(selectedType, data) : [];
   const footnote = useMemo(
     () => composeFootnote(footnoteItems),
     [footnoteItems],
@@ -487,12 +496,28 @@ function App() {
                 </div>
 
                 {reviewRequired && (
-                  <div className="review-banner">
-                    <strong>Unverified extraction</strong>
-                    <span>
-                      Pasted text may be incomplete or ambiguous. Check every
-                      field against the source.
-                    </span>
+                  <div className="review-banner extraction-summary">
+                    <strong>
+                      {extracted.length > 0
+                        ? `${extracted.length} ${
+                            extracted.length === 1 ? "detail" : "details"
+                          } read from your reference`
+                        : "No details could be read automatically"}
+                    </strong>
+                    {missing.length > 0 ? (
+                      <span>
+                        Still needed before a citation is generated:{" "}
+                        <strong className="needed-list">
+                          {missing.map((field) => field.label).join(", ")}
+                        </strong>
+                        . Check every field against the source.
+                      </span>
+                    ) : (
+                      <span>
+                        Every required field was found. Check each one against
+                        the source, then confirm below.
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -501,6 +526,7 @@ function App() {
                     <Field
                       data={data}
                       field={field}
+                      flagMissing={reviewRequired}
                       key={field.id}
                       onChange={updateField}
                     />
