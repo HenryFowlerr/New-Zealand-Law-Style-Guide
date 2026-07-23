@@ -990,9 +990,15 @@ function normaliseAbbreviation(input: string): string {
   return input.replaceAll(".", "").replace(/\s+/g, " ").trim();
 }
 
+function isFirstEdition(input: string): boolean {
+  const cleaned = input.trim().replace(/\s+ed\.?$/i, "");
+  return /^(1st|1|first)$/i.test(cleaned);
+}
+
 function normaliseEdition(input: string): string {
   const cleaned = input.trim().replace(/\s+ed\.?$/i, "");
-  return cleaned ? `${cleaned} ed` : "";
+  if (!cleaned || isFirstEdition(cleaned)) return "";
+  return `${cleaned} ed`;
 }
 
 function normalisePinpoint(input: string): string {
@@ -1417,6 +1423,14 @@ function validate(type: CitationTypeId, data: CitationData): CitationIssue[] {
       level: "note",
       field: "author",
       message: "“et al” will be changed to the NZLSG form “and others”.",
+    });
+  }
+
+  if ((type === "book" || type === "chapter") && isFirstEdition(value(data, "edition"))) {
+    issues.push({
+      level: "note",
+      field: "edition",
+      message: "First editions are not shown, so this edition is omitted.",
     });
   }
 

@@ -121,6 +121,35 @@ test("book output preserves an italic semantic token", () => {
   );
 });
 
+test("first edition is omitted from a book and flagged with a note", () => {
+  const result = buildCitation("book", {
+    author: "Andrew Butler",
+    title: "Equity and Trusts in New Zealand",
+    edition: "1st",
+    publisher: "Thomson Reuters",
+    place: "Wellington",
+    year: "2009",
+  });
+  assert.equal(
+    result.text,
+    "Andrew Butler Equity and Trusts in New Zealand (Thomson Reuters, Wellington, 2009).",
+  );
+  assert.doesNotMatch(result.text, /1st ed/);
+  assert.ok(result.issues.some((issue) => issue.field === "edition" && issue.level === "note"));
+});
+
+test("later editions are still shown", () => {
+  const result = buildCitation("book", {
+    author: "Andrew Butler",
+    title: "Equity and Trusts in New Zealand",
+    edition: "2nd",
+    publisher: "Thomson Reuters",
+    place: "Wellington",
+    year: "2009",
+  });
+  assert.match(result.text, /\(2nd ed, Thomson Reuters/);
+});
+
 test("chapter output adds in, editor designation, and starting page", () => {
   const result = buildCitation("chapter", {
     author: "Robin Cooke",
