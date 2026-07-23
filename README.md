@@ -57,12 +57,27 @@ semicolons, “and” before the final source, and one final full stop.
 
 Paste a reference in any of the verified formats and NZ Law Cite reads back the
 details it can identify from the text — author, title, year, publisher, court,
-neutral citation, pinpoint, and so on. It then shows which parts it found and
-prompts you for anything still required before a citation is generated. Where a
-detail cannot be split unambiguously from unformatted text (for example the
-author and title of a book once italics are lost), the field is left blank and
-flagged as needed rather than guessed. Every extracted field is unverified
-until you confirm it against the source.
+neutral citation, pinpoint, and so on. Detection runs live as you type, so there
+is nothing to click: the top match is shown and pressing Enter opens the
+prefilled form with focus on the first still-missing field. The form then shows
+which parts were found and prompts you for anything still required before a
+citation is generated. Where a detail cannot be split unambiguously from
+unformatted text (for example the author and title of a book once italics are
+lost), the field is left blank and flagged as needed rather than guessed. Every
+extracted field is unverified until you confirm it against the source.
+
+## Working quickly
+
+- **Live detection** — paste or type a reference and the format is detected as
+  you go; Enter accepts the top match.
+- **Keyboard flow** — the build-from-details search selects the first result on
+  Enter; inside a form, `Ctrl`/`⌘`+`Enter` copies a ready citation and `Esc`
+  steps back.
+- **Fill an example** — every format offers a one-click, Style-Guide-correct
+  worked example to learn its shape or sanity-check the tool.
+- **Footnote composer** — collect several authorities into one footnote with the
+  correct semicolons, final “and”, and single full stop; it persists on your
+  device.
 
 ## Local development
 
@@ -73,11 +88,29 @@ npm install
 npm run dev
 ```
 
-Run the complete release gate:
+Run the complete release gate (type check, citation-rule tests, production
+build):
 
 ```bash
 npm run verify
 ```
+
+Run the browser-level interface tests (needs a browser; not part of the deploy
+gate):
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+### How the tests are organised
+
+- `tests/citation-engine.test.ts` — exact-output rules for every format, plus
+  extraction and footnote composition.
+- `tests/stress.test.ts` — adversarial and property-based checks: fail-closed on
+  any missing required field, well-formed output, HTML escaping, unicode, and
+  thousands of random inputs that must never throw or drift on round-trip.
+- `tests/e2e/interface.spec.ts` — the real student paths through the interface.
 
 ## Deployment
 
