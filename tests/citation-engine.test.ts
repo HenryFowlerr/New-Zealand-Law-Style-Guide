@@ -207,6 +207,43 @@ test("New Zealand legislation omits the country identifier", () => {
   assert.ok(result.issues.some((issue) => issue.level === "note"));
 });
 
+test("delegated legislation cites like an Act with a regulation pinpoint", () => {
+  const result = buildCitation("act", {
+    title: "Health and Safety in Employment Regulations",
+    year: "1995",
+    referenceType: "reg",
+    reference: "3",
+  });
+  assert.equal(result.text, "Health and Safety in Employment Regulations 1995, reg 3.");
+});
+
+test("detector and prefill handle a regulation title", () => {
+  const suggestions = analyseCitation(
+    "Health and Safety in Employment Regulations 1995, reg 3.",
+  );
+  assert.equal(suggestions[0]?.type, "act");
+  const data = prefillCitation(
+    "act",
+    "Health and Safety in Employment Regulations 1995, reg 3.",
+  );
+  assert.equal(data.title, "Health and Safety in Employment Regulations");
+  assert.equal(data.year, "1995");
+  assert.equal(data.referenceType, "reg");
+  assert.equal(data.reference, "3");
+});
+
+test("et al is normalised with a note on non-journal formats too", () => {
+  const result = buildCitation("book", {
+    author: "Andrew Smith et al",
+    title: "A Treatise",
+    publisher: "LexisNexis",
+    place: "Wellington",
+    year: "2015",
+  });
+  assert.match(result.text, /Andrew Smith and others A Treatise/);
+  assert.ok(result.issues.some((issue) => issue.field === "author" && issue.level === "note"));
+});
+
 test("foreign legislation retains its jurisdiction identifier", () => {
   const result = buildCitation("act", {
     title: "Counter-Terrorism Act",

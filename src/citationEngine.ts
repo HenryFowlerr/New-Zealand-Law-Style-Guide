@@ -395,9 +395,10 @@ export const sourceTypes: SourceTypeDefinition[] = [
   },
   {
     id: "act",
-    name: "New Zealand statute",
-    shortName: "Act",
-    description: "An Act, with an optional section, schedule, part, or other pinpoint.",
+    name: "Act or legislative instrument",
+    shortName: "Legislation",
+    description:
+      "An Act, regulation, rule, or order, with an optional section, clause, or other pinpoint.",
     group: "Cases & legislation",
     rule: "4.1.1",
     ruleUrl: `${GUIDE_ROOT}/chapter-4.html#4.1.1`,
@@ -407,6 +408,7 @@ export const sourceTypes: SourceTypeDefinition[] = [
         label: "Short title",
         required: true,
         placeholder: "Evidence Act",
+        help: "Include the type word, for example Act, Regulations, Rules, or Order.",
       },
       {
         id: "year",
@@ -1415,10 +1417,7 @@ function validate(type: CitationTypeId, data: CitationData): CitationIssue[] {
     });
   }
 
-  if (
-    type === "journal" &&
-    /\bet\s+al\.?/i.test(value(data, "author"))
-  ) {
+  if (/\bet\s+al\.?/i.test(value(data, "author"))) {
     issues.push({
       level: "note",
       field: "author",
@@ -1615,6 +1614,13 @@ export function analyseCitation(input: string): CitationSuggestion[] {
   if (/\bAct\s+\d{4}\b/.test(raw)) {
     add("act", "high", "It contains an Act title followed by an enactment year.");
   }
+  if (/\b(?:Regulations|Rules|Order|Notice)\s+\d{4}\b/.test(raw)) {
+    add(
+      "act",
+      "high",
+      "It contains a legislative instrument title followed by a year.",
+    );
+  }
   if (
     /["“].+?["”]\s+[\[(]\d{4}[\])]\s+(?:\d+(?:\(\d+\))?\s+)?[^,]+\s+\d+/u.test(
       raw,
@@ -1728,7 +1734,7 @@ export function prefillCitation(
 
   if (type === "act") {
     const match = raw.match(
-      /^(.+?\bAct)\s+(\d{4})(?:\s+\(([^)]+)\))?(?:,\s*(s|ss|sch|pt|cl|reg|r|art)\s+(.+))?$/i,
+      /^(.+?\b(?:Act|Regulations|Rules|Order|Notice))\s+(\d{4})(?:\s+\(([^)]+)\))?(?:,\s*(s|ss|sch|pt|cl|reg|r|art)\s+(.+))?$/i,
     );
     if (match) {
       return {
