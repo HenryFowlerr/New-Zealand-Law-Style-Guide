@@ -632,6 +632,68 @@ test("detector routes new source types to the right format", () => {
   );
 });
 
+test("reported-case format handles a foreign House of Lords authority", () => {
+  const result = buildCitation("case-reported", {
+    caseName: "Donoghue v Stevenson",
+    reportYear: "1932",
+    yearRole: "essential",
+    reportSeries: "AC",
+    startPage: "562",
+    court: "HL",
+  });
+  assert.equal(result.text, "Donoghue v Stevenson [1932] AC 562 (HL).");
+});
+
+test("reported-case format handles an Australian authority with a round-bracket year", () => {
+  const result = buildCitation("case-reported", {
+    caseName: "Mabo v Queensland (No 2)",
+    reportYear: "1992",
+    yearRole: "descriptive",
+    volume: "175",
+    reportSeries: "CLR",
+    startPage: "1",
+  });
+  assert.equal(result.text, "Mabo v Queensland (No 2) (1992) 175 CLR 1.");
+});
+
+test("more than three authors are cited with the and-others form", () => {
+  const result = buildCitation("journal", {
+    author: "Andrew Smith et al",
+    title: "A Study",
+    year: "2020",
+    yearRole: "independent-volume",
+    volume: "4",
+    journal: "NZLJ",
+    startPage: "12",
+  });
+  assert.match(result.text, /Andrew Smith and others/);
+});
+
+test("a full worked footnote of mixed authorities is punctuated correctly", () => {
+  const act = buildCitation("act", { title: "Evidence Act", year: "2006", referenceType: "s", reference: "8" });
+  const caseCite = buildCitation("case-neutral", {
+    caseName: "Attorney-General v X",
+    year: "2007",
+    court: "NZCA",
+    judgmentNumber: "388",
+    pinpoint: "[70]",
+  });
+  const book = buildCitation("book", {
+    author: "Ross Carter",
+    title: "Burrows and Carter Statute Law in New Zealand",
+    edition: "5th",
+    publisher: "LexisNexis",
+    place: "Wellington",
+    year: "2015",
+    pinpoint: "311",
+  });
+  const footnote = composeFootnote([act, caseCite, book]);
+  assert.equal(
+    footnote.text,
+    "Evidence Act 2006, s 8; Attorney-General v X [2007] NZCA 388 at [70]; and Ross Carter Burrows and Carter Statute Law in New Zealand (5th ed, LexisNexis, Wellington, 2015) at 311.",
+  );
+});
+
 test("HTML output escapes user-supplied markup", () => {
   const result = buildCitation("book", {
     author: "<script>alert(1)</script>",
