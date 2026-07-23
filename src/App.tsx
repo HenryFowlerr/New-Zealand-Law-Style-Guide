@@ -23,6 +23,7 @@ const STORAGE_KEY = "nz-law-cite-footnote-v1";
 const groupOrder = [
   "Secondary sources",
   "Cases & legislation",
+  "Parliamentary & official",
   "Citation history",
 ] as const;
 
@@ -809,10 +810,10 @@ function App() {
             <h2>Unsupported means unsupported.</h2>
           </div>
           <p>
-            This release covers the ten highest-use rule paths shown above.
-            Remaining official, foreign, historical, and international formats
-            are added only after their renderer and edge cases pass the same
-            release gate.
+            This release covers {sourceTypes.length} verified formats spanning
+            secondary sources, cases, legislation, and parliamentary material.
+            Remaining foreign, historical, and international formats are added
+            only after their renderer and edge cases pass the same release gate.
           </p>
         </section>
       </main>

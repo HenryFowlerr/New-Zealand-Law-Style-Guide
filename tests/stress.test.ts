@@ -158,6 +158,81 @@ const validSamples: Record<CitationTypeId, CitationData[]> = {
       pinpoint: "50",
     },
   ],
+  newspaper: [
+    {
+      author: "Anne Smith",
+      title: "New Court Rules Announced",
+      newspaper: "The New Zealand Herald",
+      place: "Auckland",
+      date: "24 September 2009",
+      pinpoint: "3",
+    },
+    {
+      title: "Editorial: Justice Delayed",
+      newspaper: "The Dominion Post",
+      place: "Wellington",
+      date: "5 May 2018",
+    },
+  ],
+  internet: [
+    {
+      author: "Ministry of Justice",
+      title: "Annual Report 2018",
+      date: "2018",
+      url: "www.justice.govt.nz",
+    },
+    {
+      title: "About the Courts",
+      url: "www.courtsofnz.govt.nz",
+    },
+  ],
+  thesis: [
+    {
+      author: "Jane Doe",
+      title: "The Rule Against Perpetuities",
+      qualification: "LLM Thesis",
+      institution: "Victoria University of Wellington",
+      year: "2016",
+      pinpoint: "40",
+    },
+  ],
+  conference: [
+    {
+      author: "John Smith",
+      title: "Reforming the Law of Trusts",
+      conference: "New Zealand Law Conference",
+      place: "Auckland",
+      date: "October 2018",
+    },
+  ],
+  bill: [
+    {
+      title: "Evidence Bill",
+      year: "2005",
+      billNumber: "256-1",
+      clause: "5",
+    },
+  ],
+  hansard: [
+    {
+      date: "21 September 2010",
+      volume: "666",
+      page: "14104",
+      speaker: "Hon Simon Power",
+    },
+    {
+      date: "3 March 2009",
+      volume: "652",
+      page: "1234",
+    },
+  ],
+  "press-release": [
+    {
+      author: "New Zealand Law Society",
+      title: "Access to Justice",
+      date: "5 May 2018",
+    },
+  ],
 };
 
 /** Assert a ready citation is free of formatting artefacts. */
@@ -337,6 +412,13 @@ test("full-extraction formats round-trip render → prefill → render unchanged
     "case-reported",
     "case-neutral",
     "case-unreported",
+    "newspaper",
+    "internet",
+    "thesis",
+    "conference",
+    "bill",
+    "hansard",
+    "press-release",
   ];
   for (const type of roundTripTypes) {
     for (const sample of validSamples[type]) {

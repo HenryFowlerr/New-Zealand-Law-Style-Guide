@@ -4,10 +4,17 @@ export type CitationTypeId =
   | "chapter"
   | "looseleaf"
   | "report"
+  | "newspaper"
+  | "internet"
+  | "thesis"
+  | "conference"
   | "act"
+  | "bill"
   | "case-reported"
   | "case-neutral"
   | "case-unreported"
+  | "hansard"
+  | "press-release"
   | "subsequent";
 
 export type CitationData = Record<string, string | boolean | undefined>;
@@ -33,7 +40,11 @@ export type SourceTypeDefinition = {
   name: string;
   shortName: string;
   description: string;
-  group: "Secondary sources" | "Cases & legislation" | "Citation history";
+  group:
+    | "Secondary sources"
+    | "Cases & legislation"
+    | "Parliamentary & official"
+    | "Citation history";
   rule: string;
   ruleUrl: string;
   fields: FieldDefinition[];
@@ -576,6 +587,269 @@ export const sourceTypes: SourceTypeDefinition[] = [
     ],
   },
   {
+    id: "newspaper",
+    name: "Newspaper or news article",
+    shortName: "News article",
+    description: "An article in a newspaper or news publication.",
+    group: "Secondary sources",
+    rule: "6",
+    ruleUrl: `${GUIDE_ROOT}/chapter-6.html`,
+    fields: [
+      {
+        id: "author",
+        label: "Author",
+        placeholder: "Anne Smith",
+        help: "Leave blank when the article names no author.",
+      },
+      {
+        id: "title",
+        label: "Article title",
+        required: true,
+        placeholder: "New Court Rules Announced",
+      },
+      {
+        id: "newspaper",
+        label: "Newspaper",
+        required: true,
+        placeholder: "The New Zealand Herald",
+      },
+      {
+        id: "place",
+        label: "Place of publication",
+        required: true,
+        placeholder: "Auckland",
+      },
+      {
+        id: "date",
+        label: "Date",
+        required: true,
+        placeholder: "24 September 2009",
+      },
+      pinpointField,
+    ],
+  },
+  {
+    id: "internet",
+    name: "Internet material",
+    shortName: "Web page",
+    description:
+      "A document or page that exists only online, cited by author, title, date, and URL.",
+    group: "Secondary sources",
+    rule: "6",
+    ruleUrl: `${GUIDE_ROOT}/chapter-6.html`,
+    fields: [
+      {
+        id: "author",
+        label: "Author or organisation",
+        placeholder: "Ministry of Justice",
+        help: "Leave blank only when the page identifies no author or body.",
+      },
+      {
+        id: "title",
+        label: "Page or document title",
+        required: true,
+        placeholder: "Annual Report 2018",
+      },
+      {
+        id: "date",
+        label: "Date or access note",
+        placeholder: "2018 or accessed 5 May 2018",
+        help: "Use the document’s date, or the date accessed if it has none.",
+      },
+      {
+        id: "url",
+        label: "URL",
+        required: true,
+        placeholder: "www.justice.govt.nz",
+        help: "Enter the address only; the angle brackets are added for you.",
+      },
+    ],
+  },
+  {
+    id: "thesis",
+    name: "Dissertation or thesis",
+    shortName: "Thesis",
+    description: "An unpublished dissertation or thesis submitted for a degree.",
+    group: "Secondary sources",
+    rule: "6",
+    ruleUrl: `${GUIDE_ROOT}/chapter-6.html`,
+    fields: [
+      {
+        id: "author",
+        label: "Author",
+        required: true,
+        placeholder: "Jane Doe",
+      },
+      {
+        id: "title",
+        label: "Title",
+        required: true,
+        placeholder: "The Rule Against Perpetuities",
+      },
+      {
+        id: "qualification",
+        label: "Qualification",
+        required: true,
+        placeholder: "LLM Thesis",
+        help: "For example LLB (Hons) Dissertation, LLM Thesis, or PhD Thesis.",
+      },
+      {
+        id: "institution",
+        label: "Institution",
+        required: true,
+        placeholder: "Victoria University of Wellington",
+      },
+      {
+        id: "year",
+        label: "Year",
+        required: true,
+        placeholder: "2016",
+      },
+      pinpointField,
+    ],
+  },
+  {
+    id: "conference",
+    name: "Conference or seminar paper",
+    shortName: "Conference paper",
+    description: "A paper presented at a conference, seminar, or similar event.",
+    group: "Secondary sources",
+    rule: "6",
+    ruleUrl: `${GUIDE_ROOT}/chapter-6.html`,
+    fields: [
+      {
+        id: "author",
+        label: "Author",
+        required: true,
+        placeholder: "John Smith",
+      },
+      {
+        id: "title",
+        label: "Paper title",
+        required: true,
+        placeholder: "Reforming the Law of Trusts",
+      },
+      {
+        id: "conference",
+        label: "Conference or event",
+        required: true,
+        placeholder: "New Zealand Law Conference",
+      },
+      {
+        id: "place",
+        label: "Place",
+        placeholder: "Auckland",
+      },
+      {
+        id: "date",
+        label: "Date",
+        required: true,
+        placeholder: "October 2018",
+      },
+      pinpointField,
+    ],
+  },
+  {
+    id: "bill",
+    name: "Bill",
+    shortName: "Bill",
+    description: "A Bill before Parliament, with an optional clause pinpoint.",
+    group: "Cases & legislation",
+    rule: "4.2",
+    ruleUrl: `${GUIDE_ROOT}/chapter-4.html#4.2`,
+    fields: [
+      {
+        id: "title",
+        label: "Short title",
+        required: true,
+        placeholder: "Evidence Bill",
+        help: "Include the word “Bill”.",
+      },
+      {
+        id: "year",
+        label: "Year",
+        required: true,
+        placeholder: "2005",
+      },
+      {
+        id: "billNumber",
+        label: "Bill number",
+        required: true,
+        placeholder: "256-1",
+      },
+      {
+        id: "clause",
+        label: "Clause pinpoint",
+        placeholder: "5",
+        help: "Enter only the number; “cl” is added for you.",
+      },
+    ],
+  },
+  {
+    id: "hansard",
+    name: "Parliamentary debate (Hansard)",
+    shortName: "Hansard",
+    description: "A speech or debate reported in the New Zealand Parliamentary Debates.",
+    group: "Parliamentary & official",
+    rule: "5",
+    ruleUrl: `${GUIDE_ROOT}/chapter-5.html`,
+    fields: [
+      {
+        id: "date",
+        label: "Date of debate",
+        required: true,
+        placeholder: "21 September 2010",
+      },
+      {
+        id: "volume",
+        label: "NZPD volume",
+        required: true,
+        placeholder: "666",
+      },
+      {
+        id: "page",
+        label: "Page",
+        required: true,
+        placeholder: "14104",
+      },
+      {
+        id: "speaker",
+        label: "Speaker",
+        placeholder: "Hon Simon Power",
+        help: "Optional. Added in parentheses after the page.",
+      },
+    ],
+  },
+  {
+    id: "press-release",
+    name: "Press or media release",
+    shortName: "Press release",
+    description: "A press release, media statement, or similar announcement.",
+    group: "Parliamentary & official",
+    rule: "5",
+    ruleUrl: `${GUIDE_ROOT}/chapter-5.html`,
+    fields: [
+      {
+        id: "author",
+        label: "Author or body",
+        required: true,
+        placeholder: "New Zealand Law Society",
+      },
+      {
+        id: "title",
+        label: "Title",
+        required: true,
+        placeholder: "Access to Justice",
+      },
+      {
+        id: "date",
+        label: "Date",
+        required: true,
+        placeholder: "5 May 2018",
+      },
+    ],
+  },
+  {
     id: "subsequent",
     name: "Later reference to an earlier source",
     shortName: "Later reference",
@@ -936,6 +1210,83 @@ function renderUnreportedCase(data: CitationData): CitationToken[] {
   return withFinalPeriod(tokens);
 }
 
+function renderNewspaper(data: CitationData): CitationToken[] {
+  const author = normaliseCreator(value(data, "author"));
+  const pinpoint = normalisePinpoint(value(data, "pinpoint"));
+  const details = detailList([value(data, "place"), value(data, "date")]);
+  const tokens: CitationToken[] = [];
+  if (author) tokens.push(text(`${author} `));
+  tokens.push(text(`“${normaliseTitle(value(data, "title"))}” `));
+  tokens.push(italic(normaliseTitle(value(data, "newspaper"))));
+  tokens.push(text(` (${details})`));
+  if (pinpoint) tokens.push(text(` at ${pinpoint}`));
+  return withFinalPeriod(tokens);
+}
+
+function renderInternet(data: CitationData): CitationToken[] {
+  const author = normaliseCreator(value(data, "author"));
+  const date = value(data, "date");
+  const url = value(data, "url").replace(/^<+|>+$/g, "");
+  const tokens: CitationToken[] = [];
+  if (author) tokens.push(text(`${author} `));
+  tokens.push(text(`“${normaliseTitle(value(data, "title"))}”`));
+  if (date) tokens.push(text(` (${date})`));
+  tokens.push(text(` <${url}>`));
+  return withFinalPeriod(tokens);
+}
+
+function renderThesis(data: CitationData): CitationToken[] {
+  const details = detailList([
+    value(data, "qualification"),
+    value(data, "institution"),
+    value(data, "year"),
+  ]);
+  const pinpoint = normalisePinpoint(value(data, "pinpoint"));
+  const tokens: CitationToken[] = [
+    text(
+      `${normaliseCreator(value(data, "author"))} “${normaliseTitle(value(data, "title"))}” (${details})`,
+    ),
+  ];
+  if (pinpoint) tokens.push(text(` at ${pinpoint}`));
+  return withFinalPeriod(tokens);
+}
+
+function renderConference(data: CitationData): CitationToken[] {
+  const inner = detailList([
+    value(data, "conference"),
+    value(data, "place"),
+    value(data, "date"),
+  ]);
+  const pinpoint = normalisePinpoint(value(data, "pinpoint"));
+  const tokens: CitationToken[] = [
+    text(
+      `${normaliseCreator(value(data, "author"))} “${normaliseTitle(value(data, "title"))}” (paper presented at ${inner})`,
+    ),
+  ];
+  if (pinpoint) tokens.push(text(` at ${pinpoint}`));
+  return withFinalPeriod(tokens);
+}
+
+function renderBill(data: CitationData): CitationToken[] {
+  const clause = normalisePinpoint(value(data, "clause"));
+  const base = `${normaliseTitle(value(data, "title"))} ${value(data, "year")} (${value(data, "billNumber")})`;
+  return withFinalPeriod([text(`${base}${clause ? `, cl ${clause}` : ""}`)]);
+}
+
+function renderHansard(data: CitationData): CitationToken[] {
+  const speaker = value(data, "speaker");
+  const base = `(${value(data, "date")}) ${value(data, "volume")} NZPD ${value(data, "page")}`;
+  return withFinalPeriod([text(`${base}${speaker ? ` (${speaker})` : ""}`)]);
+}
+
+function renderPressRelease(data: CitationData): CitationToken[] {
+  return withFinalPeriod([
+    text(
+      `${normaliseCreator(value(data, "author"))} “${normaliseTitle(value(data, "title"))}” (press release, ${value(data, "date")})`,
+    ),
+  ]);
+}
+
 const fullReferenceWords: Record<string, string> = {
   s: "Section",
   ss: "Sections",
@@ -993,6 +1344,20 @@ function render(type: CitationTypeId, data: CitationData): CitationToken[] {
       return renderNeutralCase(data);
     case "case-unreported":
       return renderUnreportedCase(data);
+    case "newspaper":
+      return renderNewspaper(data);
+    case "internet":
+      return renderInternet(data);
+    case "thesis":
+      return renderThesis(data);
+    case "conference":
+      return renderConference(data);
+    case "bill":
+      return renderBill(data);
+    case "hansard":
+      return renderHansard(data);
+    case "press-release":
+      return renderPressRelease(data);
     case "subsequent":
       return renderSubsequent(data);
   }
@@ -1208,6 +1573,27 @@ export function analyseCitation(input: string): CitationSuggestion[] {
 
   if (/\babove n\s+\d+/i.test(raw)) {
     add("subsequent", "high", "It contains an “above n” cross-reference.");
+  }
+  if (/\(press release,/i.test(raw)) {
+    add("press-release", "high", "It is marked as a press release.");
+  }
+  if (/\bNZPD\b/.test(raw)) {
+    add("hansard", "high", "It cites the New Zealand Parliamentary Debates (NZPD).");
+  }
+  if (/\bpaper presented (?:at|to)\b/i.test(raw)) {
+    add("conference", "high", "It describes a paper presented at an event.");
+  }
+  if (/\(\s*(?:LL[BM]|BA|MA|PhD|BCL|JD)[^)]*(?:thesis|dissertation)/i.test(raw)) {
+    add("thesis", "high", "It identifies a dissertation or thesis and its degree.");
+  }
+  if (/<\s*(?:https?:\/\/|www\.)[^>]+>/i.test(raw)) {
+    add("internet", "high", "It contains a URL in angle brackets.");
+  }
+  if (/\bBill\s+\d{4}\s+\(\d/.test(raw)) {
+    add("bill", "high", "It contains a Bill title, year, and bill number.");
+  }
+  if (/[“"].+?[”"]\s+.+?\([A-Z][A-Za-z]+,\s*\d/u.test(raw)) {
+    add("newspaper", "possible", "It resembles an article in a named newspaper.");
   }
   if (/\((?:online|looseleaf)(?:\s+looseleaf)?\s+ed,/i.test(raw)) {
     add("looseleaf", "high", "It identifies an online or looseleaf edition.");
@@ -1462,6 +1848,116 @@ export function prefillCitation(
         fileNumber: match[4],
         date: match[5],
         pinpoint: match[6] ?? "",
+      };
+    }
+  }
+
+  if (type === "bill") {
+    const match = raw.match(
+      /^(.+?\bBill)\s+(\d{4})\s+\(([^)]+)\)(?:,\s*cl\s+(.+))?$/u,
+    );
+    if (match) {
+      return {
+        title: match[1],
+        year: match[2],
+        billNumber: match[3],
+        clause: match[4] ?? "",
+      };
+    }
+  }
+
+  if (type === "hansard") {
+    const match = raw.match(
+      /^\((.+?)\)\s+(\d+)\s+NZPD\s+(\S+?)(?:\s+\(([^)]+)\))?$/u,
+    );
+    if (match) {
+      return {
+        date: match[1],
+        volume: match[2],
+        page: match[3],
+        speaker: match[4] ?? "",
+      };
+    }
+  }
+
+  if (type === "press-release") {
+    const match = raw.match(
+      /^(.+?)\s+[“"](.+?)[”"]\s+\(press release,\s*(.+?)\)$/iu,
+    );
+    if (match) {
+      return {
+        author: match[1],
+        title: match[2],
+        date: match[3],
+      };
+    }
+  }
+
+  if (type === "newspaper") {
+    const match = raw.match(
+      /^(.*?)[“"](.+?)[”"]\s+(.+?)\s+\(([^,)]+),\s*([^)]+)\)(?:\s+at\s+(.+))?$/u,
+    );
+    if (match) {
+      return {
+        author: match[1].trim(),
+        title: match[2],
+        newspaper: match[3],
+        place: match[4],
+        date: match[5],
+        pinpoint: match[6] ?? "",
+      };
+    }
+  }
+
+  if (type === "internet") {
+    const match = raw.match(
+      /^(.*?)[“"](.+?)[”"](?:\s+\(([^)]+)\))?\s+<(.+?)>$/u,
+    );
+    if (match) {
+      return {
+        author: match[1].trim(),
+        title: match[2],
+        date: match[3] ?? "",
+        url: match[4],
+      };
+    }
+  }
+
+  if (type === "thesis") {
+    const match = raw.match(
+      /^(.+?)\s+[“"](.+?)[”"]\s+\(([^,]+),\s*(.+?),\s*(\d{4})\)(?:\s+at\s+(.+))?$/u,
+    );
+    if (match) {
+      return {
+        author: match[1],
+        title: match[2],
+        qualification: match[3],
+        institution: match[4],
+        year: match[5],
+        pinpoint: match[6] ?? "",
+      };
+    }
+  }
+
+  if (type === "conference") {
+    const match = raw.match(
+      /^(.+?)\s+[“"](.+?)[”"]\s+\(paper presented at\s+([^)]+)\)(?:\s+at\s+(.+))?$/iu,
+    );
+    if (match) {
+      const inner = match[3]
+        .split(/,\s*/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      const conference = inner.shift() ?? "";
+      const date = inner.pop() ?? "";
+      const place = inner.join(", ");
+      return {
+        author: match[1],
+        title: match[2],
+        conference,
+        place,
+        date,
+        pinpoint: match[4] ?? "",
       };
     }
   }

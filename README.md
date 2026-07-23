@@ -23,13 +23,31 @@ any institution-specific requirements that depart from Appendix 7.
 
 ## Verified formats in this release
 
+Secondary sources:
+
 - journal articles;
 - books and texts;
 - chapters in edited books;
 - online commentaries and looseleaf services;
 - papers and reports;
+- newspaper and news articles;
+- internet material;
+- dissertations and theses; and
+- conference and seminar papers.
+
+Cases and legislation:
+
 - New Zealand statutes;
-- reported, neutral-citation-only, and unreported New Zealand cases; and
+- Bills;
+- reported New Zealand (and, structurally, foreign) cases, using the report
+  series and court identifier;
+- neutral-citation-only cases; and
+- unreported cases.
+
+Parliamentary and other:
+
+- parliamentary debates (Hansard / NZPD);
+- press and media releases; and
 - general-style subsequent references.
 
 The interface also composes multiple authorities into a single footnote using

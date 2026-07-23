@@ -448,6 +448,161 @@ test("missingRequiredFields is empty once every required field is present", () =
   assert.deepEqual(missingRequiredFields("case-unreported", data), []);
 });
 
+test("newspaper article italicises the masthead and keeps place and date", () => {
+  const result = buildCitation("newspaper", {
+    author: "Anne Smith",
+    title: "New Court Rules Announced",
+    newspaper: "The New Zealand Herald",
+    place: "Auckland",
+    date: "24 September 2009",
+    pinpoint: "3",
+  });
+  assert.equal(
+    result.text,
+    "Anne Smith “New Court Rules Announced” The New Zealand Herald (Auckland, 24 September 2009) at 3.",
+  );
+  assert.match(result.html, /<em>The New Zealand Herald<\/em>/);
+});
+
+test("newspaper article without a named author starts with the title", () => {
+  const result = buildCitation("newspaper", {
+    title: "Editorial: Justice Delayed",
+    newspaper: "The Dominion Post",
+    place: "Wellington",
+    date: "5 May 2018",
+  });
+  assert.equal(
+    result.text,
+    "“Editorial: Justice Delayed” The Dominion Post (Wellington, 5 May 2018).",
+  );
+});
+
+test("internet material wraps the URL in angle brackets", () => {
+  const result = buildCitation("internet", {
+    author: "Ministry of Justice",
+    title: "Annual Report 2018",
+    date: "2018",
+    url: "www.justice.govt.nz",
+  });
+  assert.equal(
+    result.text,
+    "Ministry of Justice “Annual Report 2018” (2018) <www.justice.govt.nz>.",
+  );
+});
+
+test("internet material tolerates a URL already in angle brackets", () => {
+  const result = buildCitation("internet", {
+    title: "About the Courts",
+    url: "<www.courtsofnz.govt.nz>",
+  });
+  assert.equal(result.text, "“About the Courts” <www.courtsofnz.govt.nz>.");
+});
+
+test("thesis lists the qualification, institution, and year", () => {
+  const result = buildCitation("thesis", {
+    author: "Jane Doe",
+    title: "The Rule Against Perpetuities",
+    qualification: "LLM Thesis",
+    institution: "Victoria University of Wellington",
+    year: "2016",
+    pinpoint: "40",
+  });
+  assert.equal(
+    result.text,
+    "Jane Doe “The Rule Against Perpetuities” (LLM Thesis, Victoria University of Wellington, 2016) at 40.",
+  );
+});
+
+test("conference paper uses the paper-presented-at form", () => {
+  const result = buildCitation("conference", {
+    author: "John Smith",
+    title: "Reforming the Law of Trusts",
+    conference: "New Zealand Law Conference",
+    place: "Auckland",
+    date: "October 2018",
+  });
+  assert.equal(
+    result.text,
+    "John Smith “Reforming the Law of Trusts” (paper presented at New Zealand Law Conference, Auckland, October 2018).",
+  );
+});
+
+test("bill cites title, year, bill number, and clause", () => {
+  const result = buildCitation("bill", {
+    title: "Evidence Bill",
+    year: "2005",
+    billNumber: "256-1",
+    clause: "5",
+  });
+  assert.equal(result.text, "Evidence Bill 2005 (256-1), cl 5.");
+});
+
+test("bill omits the clause when none is given", () => {
+  const result = buildCitation("bill", {
+    title: "Terrorism Suppression Bill",
+    year: "2001",
+    billNumber: "207-2",
+  });
+  assert.equal(result.text, "Terrorism Suppression Bill 2001 (207-2).");
+});
+
+test("hansard cites date, volume, NZPD, and page with an optional speaker", () => {
+  const withSpeaker = buildCitation("hansard", {
+    date: "21 September 2010",
+    volume: "666",
+    page: "14104",
+    speaker: "Hon Simon Power",
+  });
+  assert.equal(withSpeaker.text, "(21 September 2010) 666 NZPD 14104 (Hon Simon Power).");
+  const plain = buildCitation("hansard", {
+    date: "3 March 2009",
+    volume: "652",
+    page: "1234",
+  });
+  assert.equal(plain.text, "(3 March 2009) 652 NZPD 1234.");
+});
+
+test("press release marks the source in parentheses", () => {
+  const result = buildCitation("press-release", {
+    author: "New Zealand Law Society",
+    title: "Access to Justice",
+    date: "5 May 2018",
+  });
+  assert.equal(
+    result.text,
+    "New Zealand Law Society “Access to Justice” (press release, 5 May 2018).",
+  );
+});
+
+test("detector routes new source types to the right format", () => {
+  assert.equal(
+    analyseCitation("(21 September 2010) 666 NZPD 14104.")[0]?.type,
+    "hansard",
+  );
+  assert.equal(
+    analyseCitation("Evidence Bill 2005 (256-1), cl 5.")[0]?.type,
+    "bill",
+  );
+  assert.equal(
+    analyseCitation(
+      "New Zealand Law Society “Access to Justice” (press release, 5 May 2018).",
+    )[0]?.type,
+    "press-release",
+  );
+  assert.equal(
+    analyseCitation(
+      "Ministry of Justice “Annual Report 2018” (2018) <www.justice.govt.nz>.",
+    )[0]?.type,
+    "internet",
+  );
+  assert.equal(
+    analyseCitation(
+      "Jane Doe “Title” (LLM Thesis, University of Otago, 2016).",
+    )[0]?.type,
+    "thesis",
+  );
+});
+
 test("HTML output escapes user-supplied markup", () => {
   const result = buildCitation("book", {
     author: "<script>alert(1)</script>",
