@@ -481,7 +481,7 @@ test("prefill reads an unreported case with registry and file number", () => {
   });
 });
 
-test("prefill reads book publication details but leaves the ambiguous author and title", () => {
+test("prefill captures the book title and details, leaving only the author to lift out", () => {
   const data = prefillCitation(
     "book",
     "Ross Carter Burrows and Carter Statute Law in New Zealand (5th ed, LexisNexis, Wellington, 2015) at 311.",
@@ -491,14 +491,35 @@ test("prefill reads book publication details but leaves the ambiguous author and
   assert.equal(data.place, "Wellington");
   assert.equal(data.year, "2015");
   assert.equal(data.pinpoint, "311");
-  assert.equal(data.author, undefined);
-  assert.equal(data.title, undefined);
+  // The full title is captured so it need not be retyped; the author, which
+  // cannot be split from the title reliably, is left blank.
+  assert.equal(
+    data.title,
+    "Ross Carter Burrows and Carter Statute Law in New Zealand",
+  );
+  assert.ok(!data.author);
 });
 
-test("prefill reads the looseleaf edition type and publisher", () => {
+test("prefill splits a book author from the title when an (ed) marker is present", () => {
+  const data = prefillCitation(
+    "book",
+    "PD Finn (ed) Essays on Contract (Law Book Company, Sydney, 1987).",
+  );
+  assert.equal(data.author, "PD Finn (ed)");
+  assert.equal(data.title, "Essays on Contract");
+  assert.equal(data.publisher, "Law Book Company");
+  assert.equal(data.place, "Sydney");
+  assert.equal(data.year, "1987");
+});
+
+test("prefill captures a looseleaf title along with the edition type and publisher", () => {
   const data = prefillCitation(
     "looseleaf",
     "Billie Little and others Personal Injury in New Zealand (online ed, Thomson Reuters) at [AC21.02].",
+  );
+  assert.equal(
+    data.title,
+    "Billie Little and others Personal Injury in New Zealand",
   );
   assert.equal(data.editionType, "online");
   assert.equal(data.publisher, "Thomson Reuters");
@@ -510,9 +531,25 @@ test("missingRequiredFields reports only the parts a reference did not supply", 
     "book",
     "Ross Carter Some Title (LexisNexis, Wellington, 2015).",
   );
+  // The title is captured, so only the author (which cannot be split out
+  // reliably) is still required.
   const missing = missingRequiredFields("book", data).map((field) => field.id);
-  assert.deepEqual(missing, ["author", "title"]);
+  assert.deepEqual(missing, ["author"]);
   assert.ok(extractedFields("book", data).some((field) => field.id === "year"));
+});
+
+test("prefill captures a report's title, official citation, and date", () => {
+  const data = prefillCitation(
+    "report",
+    "Labour Market Policy Group Cover for Mental Injury (00/001872, 24 March 2000).",
+  );
+  assert.equal(
+    data.title,
+    "Labour Market Policy Group Cover for Mental Injury",
+  );
+  assert.equal(data.officialCitation, "00/001872");
+  assert.equal(data.date, "24 March 2000");
+  assert.ok(!data.author);
 });
 
 test("missingRequiredFields is empty once every required field is present", () => {

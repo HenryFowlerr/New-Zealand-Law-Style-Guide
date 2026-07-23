@@ -61,10 +61,11 @@ neutral citation, pinpoint, and so on. Detection runs live as you type, so there
 is nothing to click: the top match is shown and pressing Enter opens the
 prefilled form with focus on the first still-missing field. The form then shows
 which parts were found and prompts you for anything still required before a
-citation is generated. Where a detail cannot be split unambiguously from
-unformatted text (for example the author and title of a book once italics are
-lost), the field is left blank and flagged as needed rather than guessed. Every
-extracted field is unverified until you confirm it against the source.
+citation is generated. Where two details cannot be split apart reliably from
+unformatted text — for example a book's author and title once italics are lost —
+the tool captures the longer part (the title) so it need not be retyped and
+leaves the author blank and flagged as needed, rather than guessing the split.
+Every extracted field is unverified until you confirm it against the source.
 
 ## Working quickly
 

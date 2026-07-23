@@ -1704,6 +1704,24 @@ function parsePublicationDetails(inner: string): {
   return result;
 }
 
+/**
+ * Split the run of text that sits before a book/report/looseleaf publication
+ * parenthetical into an author and a title. Once italics are lost from pasted
+ * text there is no reliable boundary between an author's name and a title, so
+ * the whole run is captured as the title and only split when there is a
+ * dependable "(ed)"/"(eds)" marker. The author is otherwise left blank for the
+ * user to lift out, rather than being guessed. This keeps the tedious part —
+ * the full title — from having to be retyped.
+ */
+function splitCreatorTitle(prefix: string): { author: string; title: string } {
+  const trimmed = prefix.trim();
+  const edMatch = trimmed.match(/^(.*\(eds?\))\s+(.+)$/);
+  if (edMatch) {
+    return { author: edMatch[1].trim(), title: edMatch[2].trim() };
+  }
+  return { author: "", title: trimmed };
+}
+
 export function prefillCitation(
   type: CitationTypeId,
   input: string,
@@ -1799,21 +1817,24 @@ export function prefillCitation(
   }
 
   if (type === "book") {
-    // The author and title run together without a delimiter once italics are
-    // lost, so only the reliably delimited publication details are extracted.
+    // The title is captured whole; the author is only split off when an
+    // "(ed)" marker makes the boundary reliable, and is otherwise left blank.
     const match = raw.match(
-      /^.+?\s+\(([^)]*\d{4})\)(?:\s+vol\s+(\S+))?(?:\s+at\s+(.+))?$/u,
+      /^(.+?)\s+\(([^)]*\d{4})\)(?:\s+vol\s+(\S+))?(?:\s+at\s+(.+))?$/u,
     );
     if (match) {
-      const details = parsePublicationDetails(match[1]);
+      const details = parsePublicationDetails(match[2]);
       if (details.year) {
+        const { author, title } = splitCreatorTitle(match[1]);
         return {
+          ...(author ? { author } : {}),
+          title,
           edition: details.edition ?? "",
           publisher: details.publisher ?? "",
           place: details.place ?? "",
           year: details.year,
-          volume: match[2] ?? "",
-          pinpoint: match[3] ?? "",
+          volume: match[3] ?? "",
+          pinpoint: match[4] ?? "",
         };
       }
     }
@@ -1821,18 +1842,50 @@ export function prefillCitation(
 
   if (type === "looseleaf") {
     const match = raw.match(
-      /^.+?\s+\((looseleaf|online)\s+ed(?:,\s*(.+?))?\)(?:\s+at\s+(.+))?$/iu,
+      /^(.+?)\s+\((looseleaf|online)\s+ed(?:,\s*(.+?))?\)(?:\s+at\s+(.+))?$/iu,
     );
     if (match) {
-      const rest = (match[2] ?? "")
+      const rest = (match[3] ?? "")
         .split(/,\s*/)
         .map((part) => part.trim())
         .filter(Boolean);
+      const { author, title } = splitCreatorTitle(match[1]);
       return {
-        editionType: match[1].toLowerCase(),
+        ...(author ? { author } : {}),
+        title,
+        editionType: match[2].toLowerCase(),
         publisher: rest[0] ?? "",
         accessDetail: rest.slice(1).join(", "),
-        pinpoint: match[3] ?? "",
+        pinpoint: match[4] ?? "",
+      };
+    }
+  }
+
+  if (type === "report") {
+    const match = raw.match(/^(.+?)\s+\(([^)]+)\)(?:\s+at\s+(.+))?$/u);
+    if (match) {
+      const { author, title } = splitCreatorTitle(match[1]);
+      const parts = match[2]
+        .split(/,\s*/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      const date = parts.pop() ?? "";
+      let publisher = "";
+      let officialCitation = "";
+      if (parts.length === 1) {
+        // A number-like token is an official citation; a name is a publisher.
+        if (/\d/.test(parts[0])) officialCitation = parts[0];
+        else publisher = parts[0];
+      } else if (parts.length >= 2) {
+        publisher = parts[0];
+        officialCitation = parts.slice(1).join(", ");
+      }
+      return {
+        ...(author ? { author } : {}),
+        title,
+        ...(publisher ? { publisher } : {}),
+        ...(officialCitation ? { officialCitation } : {}),
+        date,
       };
     }
   }

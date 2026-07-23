@@ -91,6 +91,24 @@ test("the footnote composer collects an authority and persists it", async ({ pag
   await expect(page.locator(".authority-list li")).toHaveCount(1);
 });
 
+test("pasting a book fills the title and details, leaving only the author to add", async ({ page }) => {
+  await page.getByRole("tab", { name: /Check what I have/ }).click();
+  await page
+    .locator("textarea")
+    .fill(
+      "Ross Carter Burrows and Carter Statute Law in New Zealand (5th ed, LexisNexis, Wellington, 2015) at 311.",
+    );
+  await expect(page.locator(".suggestion-top strong")).toContainText(/Book/);
+  await page.locator("textarea").press("Enter");
+  await expect(page.locator("#input-title")).toHaveValue(
+    "Ross Carter Burrows and Carter Statute Law in New Zealand",
+  );
+  await expect(page.locator("#input-publisher")).toHaveValue("LexisNexis");
+  await expect(page.locator("#input-year")).toHaveValue("2015");
+  await expect(page.locator("#input-author")).toHaveValue("");
+  await expect(page.locator(".field-needed #input-author")).toHaveCount(1);
+});
+
 test("the build-from-details picker exposes every verified format", async ({ page }) => {
   await page.getByRole("tab", { name: /Build from details/ }).click();
   await expect(page.locator(".type-card")).toHaveCount(17);
