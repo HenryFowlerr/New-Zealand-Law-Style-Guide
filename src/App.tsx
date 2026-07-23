@@ -26,6 +26,13 @@ const groupOrder = [
   "Citation history",
 ] as const;
 
+function navigatorMeta(): string {
+  if (typeof navigator === "undefined") return "Ctrl";
+  return /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent)
+    ? "⌘"
+    : "Ctrl";
+}
+
 function loadSavedFootnote(): CitationResult[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -101,6 +108,7 @@ function Field({
       {field.type === "select" ? (
         <select
           aria-describedby={field.help ? helpId : undefined}
+          id={`input-${field.id}`}
           value={typeof current === "string" ? current : ""}
           onChange={(event) => onChange(field.id, event.target.value)}
         >
@@ -115,6 +123,7 @@ function Field({
         <input
           aria-describedby={field.help ? helpId : undefined}
           autoComplete="off"
+          id={`input-${field.id}`}
           placeholder={field.placeholder}
           type="text"
           value={typeof current === "string" ? current : ""}
@@ -164,6 +173,12 @@ function TypePicker({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && filtered.length > 0) {
+              event.preventDefault();
+              onSelect(filtered[0].id);
+            }
+          }}
         />
       </label>
       {groupOrder.map((group) => {
@@ -207,21 +222,25 @@ function TypePicker({
 function SuggestionCard({
   suggestion,
   onSelect,
+  isTop = false,
 }: {
   suggestion: CitationSuggestion;
   onSelect: (id: CitationTypeId) => void;
+  isTop?: boolean;
 }) {
   const sourceType = sourceTypeMap[suggestion.type];
   return (
     <button
-      className="suggestion-card"
+      className={isTop ? "suggestion-card suggestion-top" : "suggestion-card"}
       onClick={() => onSelect(suggestion.type)}
       type="button"
     >
-      <span
-        className={`confidence confidence-${suggestion.confidence}`}
-      >
-        {suggestion.confidence === "high" ? "Strong match" : "Possible match"}
+      <span className={`confidence confidence-${suggestion.confidence}`}>
+        {isTop
+          ? "Top match · Enter"
+          : suggestion.confidence === "high"
+            ? "Strong match"
+            : "Possible match"}
       </span>
       <strong>{sourceType.name}</strong>
       <span>{suggestion.reason}</span>
@@ -285,21 +304,38 @@ function App() {
     setData(prefilled);
     setReviewRequired(fromPaste);
     setReviewConfirmed(false);
+    const missing = missingRequiredFields(id, prefilled);
+    const focusId = missing[0]
+      ? `input-${missing[0].id}`
+      : getVisibleFields(sourceTypeMap[id], prefilled)[0]
+        ? `input-${getVisibleFields(sourceTypeMap[id], prefilled)[0].id}`
+        : null;
     window.setTimeout(() => {
       document.getElementById("citation-form")?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
-    }, 0);
+      const target = focusId ? document.getElementById(focusId) : null;
+      if (target instanceof HTMLElement) target.focus({ preventScroll: true });
+    }, 60);
   };
 
-  const analyse = () => {
-    setAnalysisAttempted(true);
-    setSuggestions(analyseCitation(pasteText));
-    setSelectedType(null);
-    setData({});
-    setReviewConfirmed(false);
-  };
+  // Live detection: suggestions update as the reference is typed or pasted, so
+  // there is nothing to click before choosing a format.
+  useEffect(() => {
+    if (mode !== "paste" || selectedType) return;
+    const trimmed = pasteText.trim();
+    if (!trimmed) {
+      setSuggestions([]);
+      setAnalysisAttempted(false);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      setSuggestions(analyseCitation(pasteText));
+      setAnalysisAttempted(true);
+    }, 220);
+    return () => window.clearTimeout(handle);
+  }, [pasteText, mode, selectedType]);
 
   const updateField = (field: string, nextValue: string | boolean) => {
     setData((current) => ({ ...current, [field]: nextValue }));
@@ -318,6 +354,33 @@ function App() {
       setCopyStatus("Copy was blocked — select the citation manually");
     }
   };
+
+  const goBack = () => {
+    setSelectedType(null);
+    setData({});
+    setReviewConfirmed(false);
+    setReviewRequired(false);
+  };
+
+  // Keyboard accelerators inside the builder: Cmd/Ctrl+Enter copies a ready
+  // citation, Escape steps back to the chooser.
+  useEffect(() => {
+    if (!selectedType) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        goBack();
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        if (result?.status === "ready" && (!reviewRequired || reviewConfirmed)) {
+          event.preventDefault();
+          void handleCopy(result.text, result.html, true);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedType, result, reviewRequired, reviewConfirmed]);
 
   const addToFootnote = () => {
     if (!result || !copyReady) return;
@@ -413,16 +476,32 @@ function App() {
                   placeholder={'Burrows “Liability for Psychiatric Illness…” (1995) 3 Tort L Rev 220'}
                   value={pasteText}
                   onChange={(event) => setPasteText(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" &&
+                      !event.shiftKey &&
+                      suggestions.length > 0
+                    ) {
+                      event.preventDefault();
+                      selectType(suggestions[0].type, true);
+                    }
+                  }}
                 />
                 <div className="paste-actions">
-                  <span>{pasteText.length} characters</span>
+                  <span>
+                    {suggestions.length > 0
+                      ? "Detected live · press Enter to use the top match"
+                      : `${pasteText.length} characters`}
+                  </span>
                   <button
                     className="primary-button"
-                    disabled={!pasteText.trim()}
-                    onClick={analyse}
+                    disabled={suggestions.length === 0}
+                    onClick={() => selectType(suggestions[0].type, true)}
                     type="button"
                   >
-                    Analyse citation
+                    {suggestions.length > 0
+                      ? `Use ${sourceTypeMap[suggestions[0].type].shortName} →`
+                      : "Waiting for a reference"}
                   </button>
                 </div>
               </label>
@@ -437,8 +516,9 @@ function App() {
                     <span className="safe-note">No output generated yet</span>
                   </div>
                   <div className="suggestion-grid">
-                    {suggestions.map((suggestion) => (
+                    {suggestions.map((suggestion, index) => (
                       <SuggestionCard
+                        isTop={index === 0}
                         key={suggestion.type}
                         suggestion={suggestion}
                         onSelect={(id) => selectType(id, true)}
@@ -475,11 +555,7 @@ function App() {
               <div className="form-column">
                 <button
                   className="back-button"
-                  onClick={() => {
-                    setSelectedType(null);
-                    setData({});
-                    setReviewConfirmed(false);
-                  }}
+                  onClick={goBack}
                   type="button"
                 >
                   ← {mode === "paste" ? "Back to detection" : "Choose another format"}
@@ -628,6 +704,13 @@ function App() {
                   >
                     + Add this authority to a footnote
                   </button>
+                  {copyReady && (
+                    <p className="copy-hint">
+                      Tip: press{" "}
+                      <kbd>{navigatorMeta()}</kbd>
+                      <kbd>Enter</kbd> to copy, or <kbd>Esc</kbd> to go back.
+                    </p>
+                  )}
                 </div>
 
                 <div className="provenance-card">
