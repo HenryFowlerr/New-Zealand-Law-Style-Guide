@@ -114,3 +114,12 @@ test("a formatted (rich) paste splits an italic title from its author", async ({
     "The New Zealand Bill of Rights Act: A Commentary",
   );
 });
+
+test("the paste-a-link box appears and validates input client-side", async ({ page }) => {
+  const linkInput = page.locator(".link-row input");
+  await expect(linkInput).toBeVisible();
+  // Non-link text is rejected without any network request.
+  await linkInput.fill("Evidence Act 2006");
+  await page.locator(".link-row .primary-button").click();
+  await expect(page.locator(".link-status")).toContainText(/doesn.t look like a link/i);
+});

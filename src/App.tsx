@@ -16,6 +16,8 @@ import {
   type CitationFields,
   type ItalicRun,
 } from "./engine/build";
+import { resolveLink, looksLikeLink } from "./engine/linkResolve";
+import { browserFetchers } from "./engine/browserFetch";
 
 type Mode = "paste" | "build";
 type FootnoteEntry = { typeId: string; fields: CitationFields };
@@ -236,6 +238,9 @@ function App() {
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [query, setQuery] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkStatus, setLinkStatus] = useState("");
+  const [linkBusy, setLinkBusy] = useState(false);
   const [footnoteEntries, setFootnoteEntries] = useState<FootnoteEntry[]>(() =>
     loadSavedFootnote(),
   );
@@ -292,6 +297,7 @@ function App() {
     setAnalysisAttempted(false);
     setReviewRequired(false);
     setReviewConfirmed(false);
+    setLinkStatus("");
   };
 
   const selectType = (id: string, fromPaste = mode === "paste") => {
@@ -316,6 +322,45 @@ function App() {
       const target = focusId ? document.getElementById(focusId) : null;
       if (target instanceof HTMLElement) target.focus({ preventScroll: true });
     }, 60);
+  };
+
+  const resolveLinkAndFill = async () => {
+    const url = linkUrl.trim();
+    if (!url || linkBusy) return;
+    if (!looksLikeLink(url)) {
+      setLinkStatus("That doesn’t look like a link, DOI or ISBN — paste the reference text above instead.");
+      return;
+    }
+    setLinkBusy(true);
+    setLinkStatus("Looking up the reference…");
+    try {
+      const resolved = await resolveLink(url, browserFetchers);
+      if (!resolved) {
+        setLinkStatus("No citation details were found at that link — paste the reference text above instead.");
+        return;
+      }
+      const label =
+        resolved.source === "crossref"
+          ? "Crossref"
+          : resolved.source === "openlibrary"
+            ? "Open Library"
+            : "the page";
+      setSelectedType(resolved.typeId);
+      setFields(resolved.fields);
+      setReviewRequired(true);
+      setReviewConfirmed(false);
+      setLinkStatus(`Filled from ${label}. Review every field — some parts (like a pinpoint) may still be needed.`);
+      window.setTimeout(() => {
+        document.getElementById("citation-form")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 60);
+    } catch {
+      setLinkStatus("That link couldn’t be read (the site may block automated access) — paste the reference text above instead.");
+    } finally {
+      setLinkBusy(false);
+    }
   };
 
   const updateField = (id: string, value: string) => {
@@ -493,6 +538,44 @@ function App() {
                   </button>
                 </div>
               </label>
+
+              <div className="link-panel">
+                <div className="link-divider"><span>or paste a link</span></div>
+                <label className="link-box">
+                  <span className="sr-only">A web link, DOI or ISBN to look up</span>
+                  <div className="link-row">
+                    <input
+                      type="text"
+                      inputMode="url"
+                      placeholder="Paste a DOI, an article URL, or an ISBN"
+                      value={linkUrl}
+                      onChange={(event) => setLinkUrl(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void resolveLinkAndFill();
+                        }
+                      }}
+                    />
+                    <button
+                      className="primary-button"
+                      type="button"
+                      disabled={linkBusy || !linkUrl.trim()}
+                      onClick={() => void resolveLinkAndFill()}
+                    >
+                      {linkBusy ? "Looking up…" : "Fetch details →"}
+                    </button>
+                  </div>
+                  <p className="link-hint">
+                    Best for journal articles (via Crossref) and books (via Open
+                    Library). Court judgments rarely publish citation data, so
+                    paste those as text above.
+                  </p>
+                  {linkStatus && (
+                    <p className="link-status" aria-live="polite">{linkStatus}</p>
+                  )}
+                </label>
+              </div>
 
               {detections.length > 0 && (
                 <div className="suggestions" aria-live="polite">

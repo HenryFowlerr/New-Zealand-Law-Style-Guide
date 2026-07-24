@@ -334,6 +334,85 @@ footer {
   font-size: 12px;
 }
 
+.link-panel {
+  margin-top: 22px;
+}
+
+.link-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.link-divider::before,
+.link-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.link-box {
+  display: block;
+  border: 1px solid var(--line-dark);
+  background: #fff;
+  padding: 20px 22px;
+}
+
+.link-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.link-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 0 16px;
+  min-height: 46px;
+  border: 1px solid var(--line-dark);
+  border-radius: 1px;
+  background: transparent;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+}
+
+.link-row input:focus {
+  outline: 0;
+  border-color: var(--green);
+}
+
+.link-row .primary-button {
+  white-space: nowrap;
+}
+
+.link-hint {
+  margin: 14px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.link-status {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (max-width: 620px) {
+  .link-row {
+    flex-direction: column;
+  }
+}
+
 .primary-button,
 .secondary-button,
 .add-footnote-button {

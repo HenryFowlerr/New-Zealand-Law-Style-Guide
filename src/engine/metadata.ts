@@ -153,6 +153,7 @@ export function metadataToFields(md: CitationMetadata): {
   if (author) fields.author = author;
   if (md.title) fields.title = md.title;
   if (md.publisher) fields.publisher = md.publisher;
+  if (md.place) fields.placeOfPublication = md.place;
   if (md.year) fields.year = md.year;
   return Object.keys(fields).length ? { typeId: "text-book", fields } : null;
 }
