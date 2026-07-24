@@ -169,6 +169,19 @@ function escapeRegExp(input: string): string {
 }
 
 /**
+ * Constrained capture patterns for fields with a recognisable shape. Typing
+ * these anchors the surrounding free-text fields, so (for example) a case name
+ * stops at its neutral citation instead of bleeding into it. Kept deliberately
+ * permissive so real values still match; anything unlisted uses a plain capture.
+ */
+function capturePattern(id: string): string | null {
+  if (id === "neutralCitation") {
+    return "\\[\\d{4}\\]\\s+[A-Za-z]+(?:\\s+[A-Za-z]+)*\\s+\\d+[A-Za-z]?";
+  }
+  return null;
+}
+
+/**
  * Build a regex from a type's template that captures each component value, using
  * the component `required` flags to make optional components (with their leading
  * separator and any wrapping bracket) optional in the match.
@@ -213,7 +226,12 @@ export function buildExtractionRegex(type: GuideType): {
 
     // A quoted field stops at its closing quote rather than swallowing it.
     const opensQuote = /[“"]\s*$/.test(sep);
-    const capture = opensQuote ? "([^“”\"]*)" : "(.*?)";
+    const typed = capturePattern(t.id);
+    const capture = opensQuote
+      ? "([^“”\"]*)"
+      : typed
+        ? `(${typed})`
+        : "(.*?)";
 
     // If the separator opens a bracket and the next literal closes it, pull the
     // closer into this unit so an absent optional drops both brackets.
