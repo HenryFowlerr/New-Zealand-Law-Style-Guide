@@ -91,11 +91,21 @@ export function renderFromTemplate(
   const tpl = parseTemplate(template);
   const out: Token[] = [];
   let litBuffer = "";
+  // Whether an optional component was dropped since the buffer was last flushed.
+  // If so, the buffer holds only the separators that flanked the missing field,
+  // which collapse to a single space (commas/dashes that joined it disappear).
+  let elision = false;
   const flushLit = () => {
-    if (!litBuffer) return;
-    const cleaned = cleanLiteral(litBuffer);
+    if (!litBuffer) {
+      elision = false;
+      return;
+    }
+    let text = litBuffer;
+    if (elision) text = text.replace(/\s*[,–-]\s*/g, " ");
+    const cleaned = cleanLiteral(text);
     if (cleaned) out.push({ text: cleaned });
     litBuffer = "";
+    elision = false;
   };
   for (const t of tpl) {
     if (t.kind === "lit") {
@@ -110,9 +120,7 @@ export function renderFromTemplate(
     const raw = values[t.id];
     const text = valueText(raw);
     if (!text) {
-      // An absent optional: drop its trailing separator (comma/dash/space) but
-      // keep any bracket, which merge-and-clean pairs with its opener.
-      litBuffer = litBuffer.replace(/[\s,–-]+$/, "");
+      elision = true;
       continue;
     }
     flushLit();
