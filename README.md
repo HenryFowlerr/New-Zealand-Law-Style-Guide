@@ -21,37 +21,37 @@ NZ Law Cite is deliberately fail-closed:
 Accuracy still depends on the bibliographic facts supplied by the user and on
 any institution-specific requirements that depart from Appendix 7.
 
-## Verified formats in this release
+## A data-driven engine over the whole Guide
 
-Secondary sources:
+The tool is generated from a structured copy of the Style Guide, not from
+hand-coded formats. `src/data/styleGuide.json` holds **86 source types** across
+six groups — Cases, Legislation, Parliamentary & official, Secondary sources,
+International & foreign (Australia, Canada, England & Wales, Scotland, US,
+treaties, UN, EU, WTO/GATT), and Subsequent references — each with its
+components, rules, provenance, and the Guide's own worked examples. A single
+renderer (`src/engine/`) turns a type's template and field values into the
+citation, so adding or correcting a format is a data change, not new code.
 
-- journal articles;
-- books and texts;
-- chapters in edited books;
-- online commentaries and looseleaf services;
-- papers and reports;
-- newspaper and news articles;
-- internet material;
-- dissertations and theses; and
-- conference and seminar papers.
+The interface lists every type (grouped and searchable, each with a real
+worked example), generates each form from that type's components, and composes
+multiple authorities into one footnote with semicolons, “and” before the final
+source, and one final full stop.
 
-Cases and legislation:
+## Accuracy
 
-- New Zealand statutes;
-- Bills;
-- reported New Zealand (and, structurally, foreign) cases, using the report
-  series and court identifier;
-- neutral-citation-only cases; and
-- unreported cases.
+The Guide's own worked examples are the oracle: each is parsed back into field
+values via its template, re-rendered, and required to match. The current engine
+reproduces **186 of 216 examples exactly (86%)**, and of the examples the parser
+reads cleanly the renderer is correct on all but a handful of documented
+edge cases (complex/rare foreign formats and the special subsequent-reference
+form). The score is a committed regression gate (`tests/accuracy.test.ts`).
 
-Parliamentary and other:
+## Rich paste
 
-- parliamentary debates (Hansard / NZPD);
-- press and media releases; and
-- general-style subsequent references.
-
-The interface also composes multiple authorities into a single footnote using
-semicolons, “and” before the final source, and one final full stop.
+Pasting a reference copied from a formatted source (PDF, Word, a web page) reads
+the italic runs from the pasted HTML, so an italic title is split cleanly from a
+non-italic author — the reliable answer to a split that is ambiguous in plain
+text. Plain-text paste falls back to template extraction.
 
 ## Starting from an existing reference
 
@@ -104,12 +104,16 @@ npm run test:e2e
 
 ### How the tests are organised
 
-- `tests/citation-engine.test.ts` — exact-output rules for every format, plus
-  extraction and footnote composition.
-- `tests/stress.test.ts` — adversarial and property-based checks: fail-closed on
-  any missing required field, well-formed output, HTML escaping, unicode, and
-  thousands of random inputs that must never throw or drift on round-trip.
+- `tests/accuracy.test.ts` — reproduces the Style Guide's own worked examples
+  and holds the accuracy floor.
+- `tests/engine-build.test.ts` — the interactive build pipeline: exact output
+  for representative types, fail-closed across every type, italic titles, html
+  escaping, and the rich-paste author/title split.
+- `tests/engine-stress.test.ts` — adversarial and property-based checks across
+  all 86 types: well-formed output, and building/detecting/extracting that never
+  throw on thousands of random inputs.
 - `tests/e2e/interface.spec.ts` — the real student paths through the interface.
+- `scripts/accuracy-report.ts` — a per-group scoreboard (`npx tsx`).
 
 ## Deployment
 
