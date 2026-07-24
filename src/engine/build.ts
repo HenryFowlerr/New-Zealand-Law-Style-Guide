@@ -193,6 +193,7 @@ export type Detection = {
 export function detectTypes(text: string, limit = 6): Detection[] {
   const trimmed = text.trim();
   if (!trimmed) return [];
+  const lower = trimmed.toLowerCase();
   const detections: Detection[] = [];
   for (const type of guideTypes) {
     const fields = extractByTemplate(type, trimmed);
@@ -201,9 +202,19 @@ export function detectTypes(text: string, limit = 6): Detection[] {
     const requiredCovered = required.filter((c) => fields[c.id]).length;
     const requiredMissing = required.length - requiredCovered;
     const captured = Object.keys(fields).length;
-    // Full required coverage dominates; then more captured detail; strongly
-    // penalise a match that leaves required fields empty.
-    const score = requiredCovered * 100 + captured - requiredMissing * 200;
+    // Distinctive literal words in the template (e.g. "press release", "NZPD",
+    // "presented", "signed") that also appear in the input are a strong signal
+    // that this is the right type, and separate a specific format from a
+    // permissive one (like a journal) that merely matched loosely.
+    const literals =
+      type.outputTemplate.replace(/\*|\{[^}]+\}/g, " ").match(/[A-Za-z]{4,}/g) ?? [];
+    const anchorHits = literals.filter((word) =>
+      lower.includes(word.toLowerCase()),
+    ).length;
+    // Full required coverage and literal anchors dominate; then more captured
+    // detail; strongly penalise a match that leaves required fields empty.
+    const score =
+      requiredCovered * 100 + anchorHits * 120 + captured - requiredMissing * 200;
     detections.push({ typeId: type.id, fields, score });
   }
   detections.sort((a, b) => b.score - a.score);

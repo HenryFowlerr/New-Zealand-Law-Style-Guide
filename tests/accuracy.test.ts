@@ -38,8 +38,8 @@ for (const type of guideTypes) {
 test("the engine reproduces the Style Guide's own worked examples", () => {
   // Regression floors. Raise these as coverage improves; never lower them.
   assert.ok(total >= 216, `expected >=216 examples, saw ${total}`);
-  assert.ok(matched >= 198, `template match regressed: ${matched}/${total}`);
-  assert.ok(pass >= 186, `exact reproduction regressed: ${pass}/${total}`);
+  assert.ok(matched >= 200, `template match regressed: ${matched}/${total}`);
+  assert.ok(pass >= 188, `exact reproduction regressed: ${pass}/${total}`);
 });
 
 test("of the examples the extractor can parse, almost all render exactly", () => {

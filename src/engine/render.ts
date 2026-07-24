@@ -259,6 +259,23 @@ export function buildExtractionRegex(type: GuideType): {
       }
     }
 
+    // An optional field that OPENS a multi-item bracket (its "(" has no
+    // immediate closer, and more fields follow): keep the "(" mandatory (it
+    // opens the list) and pull the field's trailing comma into its optional
+    // unit, so an absent first item — e.g. a hardcopy newspaper with no
+    // "online ed," — drops cleanly.
+    if (!required && !trailer) {
+      const opener = sep.match(/^(.*[([])(\s*)$/);
+      const nextLit = tpl[i + 1];
+      if (opener && nextLit && nextLit.kind === "lit" && /^,\s*/.test(nextLit.text)) {
+        mandatoryPrefix += opener[1];
+        sep = opener[2];
+        const comma = nextLit.text.match(/^,\s*/)![0];
+        trailer = comma;
+        (tpl[i + 1] as { text: string }).text = nextLit.text.slice(comma.length);
+      }
+    }
+
     ids.push(t.id);
     pattern += escapeRegExp(mandatoryPrefix);
     const unit = `${escapeRegExp(sep)}${capture}${escapeRegExp(trailer)}`;
