@@ -75,7 +75,7 @@ console.log(
 
 if (showFailures) {
   console.log(`\n--- ${failures.length} RENDER MISMATCHES ---`);
-  for (const f of failures.slice(0, 40)) console.log(f);
+  for (const f of failures) console.log(f);
   console.log(`\n--- ${unmatched.length} DID NOT MATCH TEMPLATE ---`);
-  for (const u of unmatched.slice(0, 40)) console.log(u);
+  for (const u of unmatched) console.log(u);
 }

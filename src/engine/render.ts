@@ -133,6 +133,12 @@ export function renderFromTemplate(
     const text = valueText(raw);
     if (!text) {
       elision = true;
+      // Drop a "unit word" that only introduces this now-absent field
+      // (e.g. "vol", "pt", "no", "above n") along with its leading space.
+      litBuffer = litBuffer.replace(
+        /\s*(?:\b(?:above n|pt|vol|no|cl|reg|sch|art|ch|at)\b|§)\s*$/i,
+        "",
+      );
       continue;
     }
     flushLit();

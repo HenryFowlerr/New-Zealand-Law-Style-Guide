@@ -469,7 +469,7 @@
       "group": "Cases",
       "rule": "3.6",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.3.6.html#3.6",
-      "outputTemplate": "{author} *{title}* (Wai {waiNumber}, {year}) at {pinpoint}",
+      "outputTemplate": "{author} *{title}* (Wai {waiNumber}, {year}) vol {volume} at {pinpoint}",
       "components": [
         {
           "id": "author",
@@ -530,6 +530,18 @@
           "omittedWhen": "if none",
           "formatting": "volume where multi-volume e.g. 'vol 2 at 500'",
           "notes": "3.6"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "order": 90,
+          "separatorBefore": "",
+          "includedWhen": "when present",
+          "omittedWhen": "if absent",
+          "formatting": "",
+          "notes": "template correction"
         }
       ],
       "bracketRules": "(Wai number, year) in round brackets.",
@@ -2837,7 +2849,7 @@
       "group": "Secondary sources",
       "rule": "6.1",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-6.html#6.1.1",
-      "outputTemplate": "{author} {title} ({edition}, {publisher}, {placeOfPublication}, {year}) at {pinpoint}",
+      "outputTemplate": "{author} {title} ({edition}, {publisher}, {placeOfPublication}, {year}) vol {volume} at {pinpoint}",
       "components": [
         {
           "id": "author",
@@ -3081,7 +3093,7 @@
       "group": "Secondary sources",
       "rule": "6.2",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.6.2.html#6.2.1",
-      "outputTemplate": "{author} “{essayTitle}” in {editor} (ed) {bookTitle} ({edition}, {publisher}, {place}, {year}) {startingPage} at {pinpoint}",
+      "outputTemplate": "{author} “{essayTitle}” in {editor} {bookTitle} ({edition}, {publisher}, {place}, {year}) {startingPage} at {pinpoint}",
       "components": [
         {
           "id": "author",
@@ -6663,7 +6675,7 @@
       "group": "International & foreign",
       "rule": "10.1.1",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-10.html#10.1.1",
-      "outputTemplate": "{treatyName}, {partiesNames} {treatySeriesCitation} (opened for signature {dateOpened}, entered into force {dateInForce}), {pinpoint}",
+      "outputTemplate": "{treatyName}, {partiesNames} {treatySeriesCitation} ({signatureDetails}), {pinpoint}",
       "components": [
         {
           "id": "treatyName",
@@ -6748,6 +6760,18 @@
           "omittedWhen": "may be omitted",
           "formatting": "",
           "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "signatureDetails",
+          "label": "Signature details",
+          "required": true,
+          "italic": false,
+          "order": 90,
+          "separatorBefore": "",
+          "includedWhen": "always",
+          "omittedWhen": "never",
+          "formatting": "",
+          "notes": "template correction"
         }
       ],
       "bracketRules": "Date(s) in round brackets after the treaty series citation. No italics anywhere.",

@@ -38,8 +38,8 @@ for (const type of guideTypes) {
 test("the engine reproduces the Style Guide's own worked examples", () => {
   // Regression floors. Raise these as coverage improves; never lower them.
   assert.ok(total >= 216, `expected >=216 examples, saw ${total}`);
-  assert.ok(matched >= 200, `template match regressed: ${matched}/${total}`);
-  assert.ok(pass >= 188, `exact reproduction regressed: ${pass}/${total}`);
+  assert.ok(matched >= 202, `template match regressed: ${matched}/${total}`);
+  assert.ok(pass >= 198, `exact reproduction regressed: ${pass}/${total}`);
 });
 
 test("of the examples the extractor can parse, almost all render exactly", () => {
@@ -49,7 +49,7 @@ test("of the examples the extractor can parse, almost all render exactly", () =>
   // citations, US session laws, and the "above n"/"pt" word-separators that a
   // static template cannot elide. Tightened as those templates are reworked.
   assert.ok(
-    renderMismatches.length <= 12,
+    renderMismatches.length <= 4,
     `render mismatches grew to ${renderMismatches.length}:\n${renderMismatches.join("\n")}`,
   );
 });
