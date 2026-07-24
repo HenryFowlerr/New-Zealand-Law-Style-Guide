@@ -38,44 +38,37 @@ const fields = await llmParse(pastedText, type, ollamaModel("llama3.2:3b"));
 to the public GitHub Pages site cannot reach *your* Mac, so this path is for you
 and other power users, not the default for everyone.
 
-## Option B — In-browser model (WebLLM) — free for every visitor
+## Option B — In-browser model (WebLLM) — free for every visitor — **built in**
 
 Runs the model **in the visitor's own browser** via WebGPU. No backend, no key,
 private, and the whole app still lives on GitHub Pages.
 
-```sh
-npm install @mlc-ai/web-llm
-```
+This is wired in already. When a source type is selected from a pasted
+reference and the browser supports WebGPU, an **"✨ AI auto-fill (in-browser,
+beta)"** button appears above the fields. Clicking it:
 
-```ts
-import { CreateMLCEngine } from "@mlc-ai/web-llm";
-import { llmParse } from "./engine/llmParse";
+1. loads WebLLM from a CDN on demand (`src/engine/webllmModel.ts`) — nothing is
+   added to the main bundle, and there is no npm dependency to install;
+2. downloads the model the first time (~1 GB, then cached by the browser);
+3. runs `llmParse` on the pasted text and fills the fields, leaving the
+   review-before-copy step in place.
 
-const engine = await CreateMLCEngine("Llama-3.2-3B-Instruct-q4f16_1-MLC");
-const webllmModel = async ({ system, user }) => {
-  const r = await engine.chat.completions.create({
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    response_format: { type: "json_object" },
-  });
-  return r.choices[0].message.content ?? "";
-};
-const fields = await llmParse(pastedText, type, webllmModel);
-```
+The default model is `Llama-3.2-1B-Instruct-q4f16_1-MLC` (small, low-RAM
+friendly); change `DEFAULT_MODEL` in `webllmModel.ts` to a 3B build for higher
+quality.
 
-**Trade-offs:** first visit downloads the model (~0.5–2 GB, then cached);
-needs WebGPU (desktop Chrome/Edge are solid, mobile Safari is limited).
+**Trade-offs:** first visit downloads the model (~1–2 GB, then cached); needs
+WebGPU (desktop Chrome/Edge are solid, mobile Safari is limited — the button
+simply doesn't appear there).
 [`@huggingface/transformers`](https://github.com/huggingface/transformers.js) or
 [`@wllama/wllama`](https://github.com/ngxson/wllama) are WASM alternatives that
 work without WebGPU (slower).
 
-## Why it isn't turned on by default
+## Why it's opt-in, not automatic
 
-WebLLM adds a large dependency and a big first-load, and Ollama needs a local
-install — neither should be forced on a student who just wants to paste a
-reference. The free APIs + scanner already cover the common cases, so the LLM
-belongs behind an opt-in "AI parse" control. The parsing core and prompt are
-already built and tested (`tests/engine-llmparse.test.ts`); enabling a backend
-is a small, isolated step.
+The model's first-load is large and WebGPU isn't everywhere, so a student who
+just wants to paste a reference shouldn't pay that cost unasked. The free APIs +
+scanner already cover the common cases, so the LLM sits behind the opt-in
+button and only the visitors who want it ever load it. The parsing core and
+prompt are unit-tested (`tests/engine-llmparse.test.ts`); actual inference needs
+a real WebGPU browser and can't be exercised in CI.

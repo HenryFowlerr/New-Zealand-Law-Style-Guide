@@ -18,6 +18,8 @@ import {
 } from "./engine/build";
 import { resolveLink, looksLikeLink } from "./engine/linkResolve";
 import { browserFetchers } from "./engine/browserFetch";
+import { llmParse } from "./engine/llmParse";
+import { getWebllmSession, isWebGpuAvailable } from "./engine/webllmModel";
 
 type Mode = "paste" | "build";
 type FootnoteEntry = { typeId: string; fields: CitationFields };
@@ -241,6 +243,8 @@ function App() {
   const [linkUrl, setLinkUrl] = useState("");
   const [linkStatus, setLinkStatus] = useState("");
   const [linkBusy, setLinkBusy] = useState(false);
+  const [aiStatus, setAiStatus] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
   const [footnoteEntries, setFootnoteEntries] = useState<FootnoteEntry[]>(() =>
     loadSavedFootnote(),
   );
@@ -298,6 +302,7 @@ function App() {
     setReviewRequired(false);
     setReviewConfirmed(false);
     setLinkStatus("");
+    setAiStatus("");
   };
 
   const selectType = (id: string, fromPaste = mode === "paste") => {
@@ -363,6 +368,33 @@ function App() {
     }
   };
 
+  const aiAutoFill = async () => {
+    if (!selectedType || aiBusy || !pasteText.trim()) return;
+    const type = guideTypeById[selectedType];
+    setAiBusy(true);
+    setAiStatus("Preparing the in-browser model… the first run downloads it (about 1 GB) and can take a few minutes.");
+    try {
+      const session = await getWebllmSession((report) => {
+        const pct = Math.round((report.progress ?? 0) * 100);
+        setAiStatus(report.text ? `${report.text}${pct ? ` (${pct}%)` : ""}` : "Loading the model…");
+      });
+      setAiStatus("Reading your reference…");
+      const aiFields = await llmParse(pasteText, type, session.callModel);
+      if (Object.keys(aiFields).length === 0) {
+        setAiStatus("The model couldn’t read any fields from that text. Fill them in by hand.");
+        return;
+      }
+      // Merge AI values over the current fields; the review step still applies.
+      setFields((current) => ({ ...current, ...aiFields }));
+      setReviewConfirmed(false);
+      setAiStatus(`AI filled ${Object.keys(aiFields).length} field(s). Check each one against the source before copying.`);
+    } catch (error) {
+      setAiStatus(error instanceof Error ? error.message : "In-browser AI is unavailable.");
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   const updateField = (id: string, value: string) => {
     setFields((current) => ({ ...current, [id]: value }));
     setReviewConfirmed(false);
@@ -382,6 +414,7 @@ function App() {
     setFields({});
     setReviewConfirmed(false);
     setReviewRequired(false);
+    setAiStatus("");
   };
 
   useEffect(() => {
@@ -674,6 +707,27 @@ function App() {
                         Every required field was found. Check each one against the
                         source, then confirm below.
                       </span>
+                    )}
+                  </div>
+                )}
+
+                {mode === "paste" && pasteText.trim() && isWebGpuAvailable() && (
+                  <div className="ai-assist">
+                    <button
+                      className="secondary-button ai-button"
+                      type="button"
+                      disabled={aiBusy}
+                      onClick={() => void aiAutoFill()}
+                    >
+                      {aiBusy ? "Working…" : "✨ AI auto-fill (in-browser, beta)"}
+                    </button>
+                    <span className="ai-hint">
+                      Runs a small AI model in your browser to read the pasted
+                      text. Free and private — nothing leaves your device. First
+                      run downloads the model.
+                    </span>
+                    {aiStatus && (
+                      <p className="ai-status" aria-live="polite">{aiStatus}</p>
                     )}
                   </div>
                 )}

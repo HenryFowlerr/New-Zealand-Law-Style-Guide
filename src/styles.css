@@ -413,6 +413,33 @@ footer {
   }
 }
 
+.ai-assist {
+  margin: 4px 0 22px;
+  padding: 16px 18px;
+  border: 1px dashed var(--line-dark);
+  background: #fbfbf8;
+}
+
+.ai-button {
+  min-height: 42px;
+}
+
+.ai-hint {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ai-status {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .primary-button,
 .secondary-button,
 .add-footnote-button {
