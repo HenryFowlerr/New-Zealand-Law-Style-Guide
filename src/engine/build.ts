@@ -15,6 +15,7 @@ import {
   renderFromTemplate,
   tokensToHtml,
   tokensToText,
+  type ComponentValue,
   type Token,
 } from "./render";
 
@@ -101,7 +102,17 @@ export function buildCitation(
   if (hasError) {
     return { status: "incomplete", type, tokens: [], text: "", html: "", issues };
   }
-  const tokens = withFinalStop(renderFromTemplate(type.outputTemplate, fields));
+  // Mark italic components so titles the template does not asterisk (book,
+  // report and text titles) still render italic as the Style Guide requires.
+  const italicIds = new Set(
+    type.components.filter((component) => component.italic).map((c) => c.id),
+  );
+  const values: Record<string, ComponentValue> = {};
+  for (const [id, raw] of Object.entries(fields)) {
+    const text = typeof raw === "string" ? raw.trim() : "";
+    values[id] = italicIds.has(id) ? { text, italic: true } : text;
+  }
+  const tokens = withFinalStop(renderFromTemplate(type.outputTemplate, values));
   return {
     status: "ready",
     type,

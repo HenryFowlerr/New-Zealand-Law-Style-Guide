@@ -105,3 +105,22 @@ test("html output escapes user-supplied markup", () => {
   assert.doesNotMatch(result.html, /<script>/);
   assert.match(result.html, /&lt;script&gt;/);
 });
+
+test("book and report titles render italic even when the template omits markup", () => {
+  const book = buildCitation("text-book", {
+    author: "Andrew Butler and Petra Butler",
+    title: "The New Zealand Bill of Rights Act: A Commentary",
+    edition: "2nd ed",
+    publisher: "LexisNexis",
+    placeOfPublication: "Wellington",
+    year: "2015",
+  });
+  assert.match(
+    book.html,
+    /<em>The New Zealand Bill of Rights Act: A Commentary<\/em>/,
+  );
+  assert.equal(
+    book.text,
+    "Andrew Butler and Petra Butler The New Zealand Bill of Rights Act: A Commentary (2nd ed, LexisNexis, Wellington, 2015).",
+  );
+});
