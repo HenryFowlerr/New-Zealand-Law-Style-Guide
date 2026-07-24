@@ -125,11 +125,26 @@ export function scanAnchors(text: string): Anchor[] {
   const date = text.match(DATE);
   if (date) push("date", date, { value: date[1] });
 
-  // A bare year only if no reporter/neutral already claimed one (they are more
-  // specific). Prefer a bracketed year; fall back to a standalone four digits.
+  // A year, only if no reporter/neutral already claimed one (they are more
+  // specific). Prefer a year on its own in brackets, then a publication year
+  // that closes a parenthesis ("…, 1994)" — chosen over a year embedded in the
+  // title like "Property Law Act 1952"), then any standalone four digits.
   if (!neutral && !reporter) {
-    const year = text.match(/\[\d{4}\]|\(\d{4}\)/) ?? text.match(/\b\d{4}\b/);
-    if (year) push("year", year, { value: year[0] });
+    const bracket = text.match(/\[\d{4}\]|\(\d{4}\)/);
+    const pubYear = text.match(/[,(]\s*(\d{4})\s*[)\]]/);
+    const bare = text.match(/\b\d{4}\b/);
+    if (bracket && bracket.index != null) {
+      push("year", bracket, { value: bracket[0] });
+    } else if (pubYear && pubYear.index != null) {
+      anchors.push({
+        kind: "year",
+        parts: { value: pubYear[1] },
+        start: pubYear.index,
+        end: pubYear.index + pubYear[0].length,
+      });
+    } else if (bare) {
+      push("year", bare, { value: bare[0] });
+    }
   }
 
   // A quoted title: the first "..."/“...” run.
@@ -253,6 +268,7 @@ export function refineFields(
         // The quoted run is the article/essay/chapter title, under whichever id
         // this type uses for it.
         if (ids.has("title")) set("title", anchor.parts.value);
+        else if (ids.has("articleTitle")) set("articleTitle", anchor.parts.value);
         else if (ids.has("essayTitle")) set("essayTitle", anchor.parts.value);
         else if (ids.has("chapterTitle")) set("chapterTitle", anchor.parts.value);
         earliestCitation = Math.min(earliestCitation, anchor.start);
@@ -322,6 +338,15 @@ export function refineFields(
     }
   }
 
+  // Newspaper / magazine: the masthead sits between the quoted article title
+  // and the publication parenthesis — "… “Article” The New Zealand Herald (…".
+  if (ids.has("newspaperTitle")) {
+    const masthead = text.match(/[”"]\s*(.+?)\s*\(/);
+    if (masthead) set("newspaperTitle", masthead[1].trim());
+    const onlineEd = text.match(/\(\s*(online ed)\b/i);
+    if (onlineEd && ids.has("onlineEd")) set("onlineEd", onlineEd[1]);
+  }
+
   // Clean up positional guesses for shape-typed fields the scanner didn't set.
   // A value is kept only if it still looks like that field (a numeric volume, a
   // year-shaped year, a pinpoint with a digit) — so a correct positional value
@@ -375,8 +400,16 @@ export function anchorSupport(type: GuideType, text: string): number {
   ) {
     support += 4;
   }
-  if (/\bNZLC\b/.test(text) && ids.has("officialCitation") && /commission/i.test(type.name)) {
-    support += 2;
+  // NZLC is the Law Commission's series; steer to the commission report type
+  // over another official-paper type that also carries an officialCitation.
+  if (/\bNZLC\b/.test(text) && ids.has("officialCitation")) {
+    support += /commission/i.test(type.name) ? 9 : 1;
   }
+  // Newspaper / magazine: a masthead followed by a "(… date)" block, marked by
+  // a quoted article title and often an "online ed".
+  if (ids.has("newspaperTitle") && /[“"][^“”"]{3,}[”"]/.test(text) && DATE.test(text)) {
+    support += 3;
+  }
+  if (/\(\s*online ed\b/i.test(text) && ids.has("onlineEd")) support += 3;
   return support;
 }

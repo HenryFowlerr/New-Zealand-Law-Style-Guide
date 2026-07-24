@@ -125,6 +125,27 @@ test("a treaty is detected and split on its series citation", () => {
   assert.equal(f.pinpoint, "art 43");
 });
 
+test("a newspaper article splits author, article title, masthead and date", () => {
+  const text =
+    "Claire Browning “Deep in the political weeds” The New Zealand Herald (online ed, Auckland, 3 May 2019)";
+  assert.equal(detectTypes(text, 1)[0].typeId, "newspaper-magazine-article");
+  const f = prefill("newspaper-magazine-article", text);
+  assert.equal(f.author, "Claire Browning");
+  assert.equal(f.articleTitle, "Deep in the political weeds");
+  assert.equal(f.newspaperTitle, "The New Zealand Herald");
+  assert.equal(f.place, "Auckland");
+  assert.equal(f.date, "3 May 2019");
+});
+
+test("a Law Commission report uses the publication year, not a year in its title", () => {
+  const text = "Law Commission Review of the Property Law Act 1952 (NZLC R9, 1994) at [3.2]";
+  assert.equal(detectTypes(text, 1)[0].typeId, "law-commission-report");
+  const f = prefill("law-commission-report", text);
+  assert.equal(f.author, "Law Commission");
+  assert.equal(f.officialCitation, "NZLC R9");
+  assert.equal(f.year, "1994");
+});
+
 test("the scanner never invents a field the text does not contain", () => {
   // A bare title with no citation shape yields no neutral/reporter/pinpoint.
   const f = prefill("reported-case-nz", "Some Case Name With No Citation");
