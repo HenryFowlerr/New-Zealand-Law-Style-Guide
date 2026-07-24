@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCitation, visibleComponents } from "../src/engine/build.ts";
+import { buildCitation, prefillFromPaste, visibleComponents } from "../src/engine/build.ts";
 import { guideTypeById } from "../src/data/styleGuide.ts";
 
 test("builds a reported NZ case with a neutral citation", () => {
@@ -123,4 +123,26 @@ test("book and report titles render italic even when the template omits markup",
     book.text,
     "Andrew Butler and Petra Butler The New Zealand Bill of Rights Act: A Commentary (2nd ed, LexisNexis, Wellington, 2015).",
   );
+});
+
+test("rich-paste italics split a book author from its title", () => {
+  const text =
+    "Andrew Butler and Petra Butler The New Zealand Bill of Rights Act: A Commentary (2nd ed, LexisNexis, Wellington, 2015)";
+  const title = "The New Zealand Bill of Rights Act: A Commentary";
+  const start = text.indexOf(title);
+  const fields = prefillFromPaste(guideTypeById["text-book"], text, [
+    { text: title, start, end: start + title.length },
+  ]);
+  assert.equal(fields.author, "Andrew Butler and Petra Butler");
+  assert.equal(fields.title, title);
+  assert.equal(fields.publisher, "LexisNexis");
+  assert.equal(fields.year, "2015");
+});
+
+test("plain-text paste falls back to template extraction that round-trips", () => {
+  const text = "Evidence Act 2006, s 8";
+  const fields = prefillFromPaste(guideTypeById["nz-statute"], text, []);
+  // The exact author/title split from unformatted text may be imperfect, but
+  // the extracted fields must rebuild the original citation.
+  assert.equal(buildCitation("nz-statute", fields).text, "Evidence Act 2006, s 8.");
 });

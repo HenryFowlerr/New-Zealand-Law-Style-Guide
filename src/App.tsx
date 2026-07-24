@@ -11,15 +11,53 @@ import {
   composeFootnote,
   detectTypes,
   missingRequiredComponents,
+  prefillFromPaste,
   visibleComponents,
   type CitationFields,
+  type ItalicRun,
 } from "./engine/build";
-import { extractByTemplate } from "./engine/render";
 
 type Mode = "paste" | "build";
 type FootnoteEntry = { typeId: string; fields: CitationFields };
 
 const STORAGE_KEY = "nz-law-cite-footnote-v2";
+
+/**
+ * Read pasted rich text: return the plain text plus the italic spans within it.
+ * Italic runs let the tool split an italic title from a non-italic author when
+ * the reference was copied from a formatted source.
+ */
+function parsePastedHtml(html: string): { text: string; italicRuns: ItalicRun[] } {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  let raw = "";
+  const rawRuns: { text: string; start: number }[] = [];
+  const walk = (node: Node, italic: boolean) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const value = node.textContent ?? "";
+      if (!value) return;
+      if (italic && value.trim()) rawRuns.push({ text: value, start: raw.length });
+      raw += value;
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as HTMLElement;
+    const tag = el.tagName.toLowerCase();
+    const styleItalic = /font-style\s*:\s*italic/i.test(el.getAttribute("style") ?? "");
+    const nextItalic = italic || tag === "i" || tag === "em" || styleItalic;
+    el.childNodes.forEach((child) => walk(child, nextItalic));
+  };
+  walk(doc.body, false);
+
+  const text = raw.replace(/\s+/g, " ").trim();
+  const italicRuns: ItalicRun[] = [];
+  for (const run of rawRuns) {
+    const normalised = run.text.replace(/\s+/g, " ").trim();
+    if (!normalised) continue;
+    const start = text.indexOf(normalised);
+    if (start >= 0) italicRuns.push({ text: normalised, start, end: start + normalised.length });
+  }
+  return { text, italicRuns };
+}
 
 function navigatorMeta(): string {
   if (typeof navigator === "undefined") return "Ctrl";
@@ -189,6 +227,7 @@ function TypePicker({
 function App() {
   const [mode, setMode] = useState<Mode>("paste");
   const [pasteText, setPasteText] = useState("");
+  const [italicRuns, setItalicRuns] = useState<ItalicRun[]>([]);
   const [detections, setDetections] = useState<ReturnType<typeof detectTypes>>([]);
   const [analysisAttempted, setAnalysisAttempted] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -248,6 +287,7 @@ function App() {
     setMode(nextMode);
     setSelectedType(null);
     setFields({});
+    setItalicRuns([]);
     setDetections([]);
     setAnalysisAttempted(false);
     setReviewRequired(false);
@@ -256,7 +296,9 @@ function App() {
 
   const selectType = (id: string, fromPaste = mode === "paste") => {
     setSelectedType(id);
-    const prefill = fromPaste ? extractByTemplate(guideTypeById[id], pasteText) ?? {} : {};
+    const prefill = fromPaste
+      ? prefillFromPaste(guideTypeById[id], pasteText, italicRuns)
+      : {};
     setFields(prefill);
     setReviewRequired(fromPaste);
     setReviewConfirmed(false);
@@ -413,7 +455,19 @@ function App() {
                 <textarea
                   placeholder={'Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26]'}
                   value={pasteText}
-                  onChange={(event) => setPasteText(event.target.value)}
+                  onChange={(event) => {
+                    setPasteText(event.target.value);
+                    setItalicRuns([]);
+                  }}
+                  onPaste={(event) => {
+                    const html = event.clipboardData?.getData("text/html");
+                    if (html && html.trim()) {
+                      event.preventDefault();
+                      const parsed = parsePastedHtml(html);
+                      setPasteText(parsed.text);
+                      setItalicRuns(parsed.italicRuns);
+                    }
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey && topDetection) {
                       event.preventDefault();

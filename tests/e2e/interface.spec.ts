@@ -91,3 +91,26 @@ test("an international type (treaty) builds from scratch", async ({ page }) => {
   await expect(page.locator("#citation-form")).toBeVisible();
   await expect(page.locator(".form-heading h2")).toHaveText("Treaty");
 });
+
+test("a formatted (rich) paste splits an italic title from its author", async ({ page }) => {
+  await page.getByRole("tab", { name: /Check what I have/ }).click();
+  const html =
+    "Andrew Butler and Petra Butler <em>The New Zealand Bill of Rights Act: A Commentary</em> (2nd ed, LexisNexis, Wellington, 2015)";
+  await page.locator("textarea").focus();
+  await page.evaluate((html) => {
+    const dt = new DataTransfer();
+    dt.setData("text/html", html);
+    dt.setData("text/plain", html.replace(/<[^>]+>/g, ""));
+    document
+      .querySelector("textarea")!
+      .dispatchEvent(
+        new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }),
+      );
+  }, html);
+  await expect(page.locator(".suggestion-top strong")).toContainText(/Text|book/i);
+  await page.locator("textarea").press("Enter");
+  await expect(page.locator("#input-author")).toHaveValue("Andrew Butler and Petra Butler");
+  await expect(page.locator("#input-title")).toHaveValue(
+    "The New Zealand Bill of Rights Act: A Commentary",
+  );
+});

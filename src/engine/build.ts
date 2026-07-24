@@ -132,6 +132,52 @@ export function missingRequiredComponents(
   );
 }
 
+/** An italic span found in pasted rich text, positioned in the plain text. */
+export type ItalicRun = { text: string; start: number; end: number };
+
+function italicComponentIds(type: GuideType): string[] {
+  const asterisked = new Set(
+    [...type.outputTemplate.matchAll(/\*\{([^}]+)\}\*/g)].map((m) => m[1]),
+  );
+  const byId = new Map(type.components.map((c) => [c.id, c]));
+  return templateComponentIds(type).filter(
+    (id) => asterisked.has(id) || byId.get(id)?.italic,
+  );
+}
+
+/**
+ * Prefill a type's fields from pasted text, using italic runs (from rich paste)
+ * to place italic components — a book/report title, a case name, a masthead —
+ * exactly, and to lift the non-italic author that precedes an italic title out
+ * of the title. This is the reliable answer to the author/title split when the
+ * source carried formatting; plain-text paste falls back to template extraction.
+ */
+export function prefillFromPaste(
+  type: GuideType,
+  text: string,
+  italicRuns: ItalicRun[] = [],
+): CitationFields {
+  const base = extractByTemplate(type, text) ?? {};
+  const italicIds = italicComponentIds(type);
+  if (italicIds.length === 0 || italicRuns.length !== italicIds.length) {
+    return base;
+  }
+  // Assign each italic run, in order, to each italic component, in order.
+  italicIds.forEach((id, index) => {
+    base[id] = italicRuns[index].text;
+  });
+  // The text before the first italic run is the author/creator, if the template
+  // has a non-italic field before that italic field.
+  const order = templateComponentIds(type);
+  const firstItalicIndex = order.indexOf(italicIds[0]);
+  const priorId = order
+    .slice(0, firstItalicIndex)
+    .find((id) => !italicIds.includes(id));
+  const before = text.slice(0, italicRuns[0].start).trim();
+  if (priorId && before) base[priorId] = before;
+  return base;
+}
+
 export type Detection = {
   typeId: string;
   fields: CitationFields;
