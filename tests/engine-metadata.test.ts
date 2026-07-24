@@ -77,3 +77,38 @@ test("falls back to a book when there is no journal title", () => {
 test("returns null when a page carries no usable citation metadata", () => {
   assert.equal(metadataToFields(parseCitationMetadata("<html><head></head></html>")), null);
 });
+
+test("reads a JSON-LD news article and maps it to internet material", () => {
+  const html = `<html><head>
+    <meta property="og:site_name" content="The Guardian">
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"NewsArticle",
+     "headline":"NZ court ruling reshapes tenancy law",
+     "author":[{"@type":"Person","name":"Eleanor Ainge Roy"}],
+     "datePublished":"2019-05-03T06:00:00Z",
+     "publisher":{"@type":"Organization","name":"The Guardian"}}
+    </script></head></html>`;
+  const md = parseCitationMetadata(html);
+  assert.equal(md.title, "NZ court ruling reshapes tenancy law");
+  assert.equal(md.authors[0], "Eleanor Ainge Roy");
+  assert.equal(md.date, "3 May 2019");
+  const mapped = metadataToFields(md, "https://www.theguardian.com/x");
+  assert.equal(mapped?.typeId, "internet-material");
+  assert.equal(mapped?.fields.author, "Eleanor Ainge Roy");
+  assert.equal(mapped?.fields.websiteName, "The Guardian");
+  assert.equal(mapped?.fields.date, "3 May 2019");
+  assert.equal(mapped?.fields.url, "https://www.theguardian.com/x");
+});
+
+test("reads a JSON-LD @graph and Open Graph fallback title", () => {
+  const html = `<head>
+    <meta property="og:title" content="A Blog Post About Contract Law">
+    <script type="application/ld+json">
+    {"@graph":[{"@type":"WebSite","name":"Site"},
+      {"@type":"BlogPosting","author":{"name":"Jane Doe"},"datePublished":"2021-11-02"}]}
+    </script></head>`;
+  const md = parseCitationMetadata(html);
+  assert.equal(md.authors[0], "Jane Doe");
+  assert.equal(md.title, "A Blog Post About Contract Law");
+  assert.equal(md.year, "2021");
+});

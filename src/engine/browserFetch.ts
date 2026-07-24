@@ -10,11 +10,16 @@
  */
 import type { Fetchers } from "./linkResolve";
 
-// Free, keyless CORS proxies that return the target body verbatim. Tried in
-// order; if one is unavailable the next is attempted.
-const PROXIES = [
-  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  (url: string) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+// Ways to fetch a third-party page's HTML from a static site. The page is tried
+// directly first (some sites send permissive CORS headers), then through free,
+// keyless CORS proxies. `json` proxies wrap the body in a JSON envelope.
+type Route = { build: (url: string) => string; json?: "contents" };
+const ROUTES: Route[] = [
+  { build: (url) => url }, // direct — works when the site allows CORS
+  { build: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, json: "contents" },
+  { build: (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}` },
+  { build: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
+  { build: (url) => `https://thingproxy.freeboard.io/fetch/${url}` },
 ];
 
 const withTimeout = (ms: number): AbortSignal => {
@@ -43,18 +48,23 @@ export const browserFetchers: Fetchers = {
 
   async fetchText(url) {
     let lastError: unknown = null;
-    for (const proxy of PROXIES) {
+    for (const route of ROUTES) {
       try {
-        const response = await fetch(proxy(url), { signal: withTimeout(12000) });
+        const response = await fetch(route.build(url), { signal: withTimeout(12000) });
         if (!response.ok) {
-          lastError = new Error(`proxy ${response.status}`);
+          lastError = new Error(`fetch ${response.status}`);
           continue;
         }
-        return await response.text();
+        const body = await response.text();
+        const html = route.json ? JSON.parse(body)?.[route.json] ?? "" : body;
+        // A proxy can return a success status with an error/empty body; only
+        // accept something that actually looks like an HTML page.
+        if (html && /<\/?[a-z!]/i.test(html)) return html;
+        lastError = new Error("empty or non-HTML response");
       } catch (error) {
         lastError = error;
       }
     }
-    throw lastError ?? new Error("all proxies failed");
+    throw lastError ?? new Error("could not load the page");
   },
 };

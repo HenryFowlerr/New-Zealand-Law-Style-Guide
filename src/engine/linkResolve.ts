@@ -127,8 +127,9 @@ export type Fetchers = {
 const finish = (
   source: ResolvedLink["source"],
   metadata: CitationMetadata,
+  sourceUrl?: string,
 ): ResolvedLink | null => {
-  const mapped = metadataToFields(metadata);
+  const mapped = metadataToFields(metadata, sourceUrl);
   return mapped ? { source, metadata, ...mapped } : null;
 };
 
@@ -165,7 +166,7 @@ export async function resolveLink(
     const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
     const html = await fetchers.fetchText(url);
     const meta = parseCitationMetadata(html);
-    if (meta.title || meta.authors.length) return finish("page-metadata", meta);
+    if (meta.title || meta.authors.length) return finish("page-metadata", meta, url);
     // The page had no citation tags but may reference a DOI.
     const pageDoi = extractDoi(html);
     if (pageDoi) {
