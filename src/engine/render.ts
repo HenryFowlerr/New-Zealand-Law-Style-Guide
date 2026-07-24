@@ -286,6 +286,22 @@ export function buildExtractionRegex(type: GuideType): {
       }
     }
 
+    // An optional field with a distinctive shape (a typed pattern, e.g. a
+    // neutral citation) followed by a comma that leads a REQUIRED field: the
+    // comma only appears when this field does (it joins the neutral citation to
+    // the reported citation), so pull it into this optional unit. Restricted to
+    // typed fields so a free-text field (a conference name) is unaffected.
+    if (!required && !trailer && capturePattern(t.id)) {
+      const nextLit = tpl[i + 1];
+      const after = tpl[i + 2];
+      const afterRequired =
+        after && after.kind === "ph" && (requiredById.get(after.id) ?? true);
+      if (nextLit && nextLit.kind === "lit" && /^,\s*$/.test(nextLit.text) && afterRequired) {
+        trailer += nextLit.text;
+        (tpl[i + 1] as { text: string }).text = "";
+      }
+    }
+
     ids.push(t.id);
     pattern += escapeRegExp(mandatoryPrefix);
     const unit = `${escapeRegExp(sep)}${capture}${escapeRegExp(trailer)}`;
