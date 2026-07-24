@@ -80,6 +80,28 @@ test("a book's publication parenthesis splits into edition, publisher, place, ye
   assert.equal(f.year, "2015");
 });
 
+test("a Hansard debate is detected and split correctly", () => {
+  const text = "(21 September 2010) 666 NZPD 14104";
+  assert.equal(detectTypes(text, 1)[0].typeId, "hansard");
+  const f = prefill("hansard", text);
+  assert.equal(f.dateOfDebate, "21 September 2010");
+  assert.equal(f.volume, "666");
+  assert.equal(f.abbreviatedTitle, "NZPD");
+  assert.equal(f.pinpoint, "14104");
+});
+
+test("an essay in an edited book is detected and split by the (ed) marker", () => {
+  const text =
+    "Jeremy Waldron “The Rule of Law” in Edward Zalta (ed) Stanford Encyclopedia of Philosophy (2016) 25 at 30";
+  assert.equal(detectTypes(text, 1)[0].typeId, "essay-in-edited-book");
+  const f = prefill("essay-in-edited-book", text);
+  assert.equal(f.author, "Jeremy Waldron");
+  assert.equal(f.essayTitle, "The Rule of Law");
+  assert.equal(f.editor, "Edward Zalta");
+  assert.equal(f.bookTitle, "Stanford Encyclopedia of Philosophy");
+  assert.equal(f.publisher, undefined);
+});
+
 test("the scanner never invents a field the text does not contain", () => {
   // A bare title with no citation shape yields no neutral/reporter/pinpoint.
   const f = prefill("reported-case-nz", "Some Case Name With No Citation");

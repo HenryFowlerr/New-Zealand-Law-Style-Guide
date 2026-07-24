@@ -156,6 +156,27 @@ const SCANNER_OWNED = new Set([
 ]);
 
 /**
+ * Whether an un-anchored positional value still looks like the field it landed
+ * in. Numeric/dated fields have a checkable shape, so a real value is kept;
+ * fields whose shape is easy to imitate must be anchored to be trusted.
+ */
+function positionalValueLooksValid(id: string, value: string): boolean {
+  const v = value.trim();
+  switch (id) {
+    case "year":
+      return /^[[(]?\d{4}[\])]?$/.test(v);
+    case "volume":
+    case "startingPage":
+      return /^\d+[A-Za-z]?$/.test(v);
+    case "pinpoint":
+      return /\d/.test(v); // "[26]", "398", "s 8", "14104", "9.60" — all have a digit
+    default:
+      // neutralCitation, reportSeries, journalAbbrev, edition: anchor-only.
+      return false;
+  }
+}
+
+/**
  * Overlay shape-based anchors onto a type's fields. Only anchors whose target
  * component exists on the type are applied, and only the free-text head is
  * re-derived — so this corrects the boxes a positional pass gets wrong without
@@ -204,13 +225,18 @@ export function refineFields(
       case "date":
         if (ids.has("date")) set("date", anchor.parts.value);
         else if (ids.has("dateOfJudgment")) set("dateOfJudgment", anchor.parts.value);
+        else if (ids.has("dateOfDebate")) set("dateOfDebate", anchor.parts.value);
         break;
       case "year":
         set("year", anchor.parts.value);
         earliestCitation = Math.min(earliestCitation, anchor.start);
         break;
       case "quotedTitle":
-        set("title", anchor.parts.value);
+        // The quoted run is the article/essay/chapter title, under whichever id
+        // this type uses for it.
+        if (ids.has("title")) set("title", anchor.parts.value);
+        else if (ids.has("essayTitle")) set("essayTitle", anchor.parts.value);
+        else if (ids.has("chapterTitle")) set("chapterTitle", anchor.parts.value);
         earliestCitation = Math.min(earliestCitation, anchor.start);
         break;
       case "caseName":
@@ -252,10 +278,33 @@ export function refineFields(
     set("shortTitle", head);
   }
 
-  // Drop positional guesses for shape-typed fields the text gave no anchor for:
-  // an unsupported neutral citation or reporter locus is noise, not a value.
+  // Edited collection: "… in {editor} (ed) {bookTitle} (…" — the "(ed)"/"(eds)"
+  // marker cleanly separates the editor from the book title, which positional
+  // extraction (no "(ed)" in the template) cannot.
+  if (ids.has("editor")) {
+    const edited = text.match(/\bin\s+(.+?)\s+\(eds?\)\s+(.+?)\s*[([]/);
+    if (edited) {
+      set("editor", edited[1]);
+      if (ids.has("bookTitle")) set("bookTitle", edited[2]);
+      else if (ids.has("title")) set("title", edited[2]);
+      // Positional extraction can mistake the "(ed)" marker itself for a
+      // publisher; clear that artefact.
+      if (/^eds?\.?$/i.test(fields.publisher ?? "")) delete fields.publisher;
+    }
+  }
+
+  // Clean up positional guesses for shape-typed fields the scanner didn't set.
+  // A value is kept only if it still looks like that field (a numeric volume, a
+  // year-shaped year, a pinpoint with a digit) — so a correct positional value
+  // (e.g. Hansard's volume "666" and pinpoint "14104", which have no anchor of
+  // their own) survives, while garbage from forcing a template onto unrelated
+  // text ("year": "Some") is removed. Fields whose shape is easy to imitate
+  // (a report series, a neutral citation) are trusted only when anchored.
   for (const id of SCANNER_OWNED) {
-    if (!anchored.has(id) && fields[id] != null) delete fields[id];
+    if (anchored.has(id)) continue;
+    const value = fields[id];
+    if (value == null) continue;
+    if (!positionalValueLooksValid(id, value)) delete fields[id];
   }
 
   return fields;
@@ -276,9 +325,20 @@ export function anchorSupport(type: GuideType, text: string): number {
     if (anchor.kind === "reporter" && (ids.has("reportSeries") || ids.has("journalAbbrev"))) {
       support += 2;
     }
-    if (anchor.kind === "quotedTitle" && ids.has("title")) support += 1;
+    if (anchor.kind === "quotedTitle" && (ids.has("title") || ids.has("essayTitle"))) {
+      support += 1;
+    }
     if (anchor.kind === "caseName" && ids.has("caseName")) support += 1;
     if (anchor.kind === "edition" && ids.has("edition")) support += 1;
+  }
+  // Distinctive literal markers that all but name their source type. A Hansard
+  // "NZPD" or an "(ed)" editor marker is a far stronger signal than a positional
+  // match, so they decisively confirm the parliamentary-debate / edited-book
+  // types over a permissive template that merely absorbed the same words.
+  if (/\bNZPD\b/.test(text) && ids.has("abbreviatedTitle")) support += 4;
+  if (/\(eds?\)/.test(text) && ids.has("editor")) support += 4;
+  if (/\bNZLC\b/.test(text) && ids.has("officialCitation") && /commission/i.test(type.name)) {
+    support += 2;
   }
   return support;
 }

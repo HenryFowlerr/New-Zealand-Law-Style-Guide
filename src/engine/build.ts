@@ -246,6 +246,22 @@ export function detectTypes(text: string, limit = 6): Detection[] {
     // neutral citation, a reporter locus) confirm a specific format over a
     // permissive one that merely matched the string positionally.
     const shapeSupport = anchorSupport(type, trimmed);
+    // A quoted “…” title in the source must land in a title field. A type that
+    // has no title-like component but still matched (a case, an arbitral award)
+    // has swallowed the quote into the wrong field, so it is heavily penalised —
+    // this keeps a permissive case template from outscoring the essay/chapter
+    // or journal types that genuinely model a quoted title.
+    const quotedInInput = /[“"][^“”"]{3,}[”"]/.test(trimmed);
+    const holdsTitle = ["title", "essayTitle", "chapterTitle"].some((id) =>
+      type.components.some((c) => c.id === id),
+    );
+    const quotedTitleMismatch = quotedInInput && !holdsTitle ? 400 : 0;
+    // An "(ed)"/"(eds)" marker is all but unique to an edited collection, so a
+    // type with no editor field that matched has mis-read it — penalise so the
+    // essay/chapter-in-edited-book type wins over a permissive web/other match.
+    const editorInInput = /\(eds?\)/.test(trimmed);
+    const holdsEditor = type.components.some((c) => c.id === "editor");
+    const editorMismatch = editorInInput && !holdsEditor ? 400 : 0;
     // Full required coverage and literal anchors dominate; then more captured
     // detail; strongly penalise a match that leaves required fields empty.
     const score =
@@ -254,7 +270,9 @@ export function detectTypes(text: string, limit = 6): Detection[] {
       shapeSupport * 60 +
       refitBonus +
       captured -
-      requiredMissing * 200;
+      requiredMissing * 200 -
+      quotedTitleMismatch -
+      editorMismatch;
     detections.push({ typeId: type.id, fields, score });
   }
   detections.sort((a, b) => b.score - a.score);
