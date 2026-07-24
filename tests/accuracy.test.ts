@@ -41,17 +41,17 @@ for (const type of guideTypes) {
 
 test("the engine reproduces the Style Guide's own worked examples", () => {
   // Regression floors. Raise these as coverage improves; never lower them.
+  // The engine reproduces every one of the Guide's worked examples exactly.
   assert.ok(total >= 216, `expected >=216 examples, saw ${total}`);
-  assert.ok(matched >= 210, `template match regressed: ${matched}/${total}`);
-  assert.ok(pass >= 210, `exact reproduction regressed: ${pass}/${total}`);
+  assert.ok(matched >= 216, `template match regressed: ${matched}/${total}`);
+  assert.ok(pass >= 216, `exact reproduction regressed: ${pass}/${total}`);
 });
 
 test("of the examples the extractor can parse, almost all render exactly", () => {
-  // The renderer is near-perfect on clean inputs. The remaining mismatches are
-  // hard template-modelling cases in complex/rare formats: the treaty
-  // "signed"/"opened for signature" variant, nominate-report parallel
-  // citations, US session laws, and the "above n"/"pt" word-separators that a
-  // static template cannot elide. Tightened as those templates are reworked.
+  // Every example the extractor parses now also renders exactly — zero
+  // mismatches. Documented structural variants (a paper cited with only a
+  // date, a conference paper appearing "in" a collection, the Canadian
+  // Charter's constitutional form) are carried as alternate template forms.
   assert.ok(
     renderMismatches.length <= 0,
     `render mismatches grew to ${renderMismatches.length}:\n${renderMismatches.join("\n")}`,

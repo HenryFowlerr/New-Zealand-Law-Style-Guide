@@ -2747,7 +2747,7 @@
       "group": "Parliamentary & official",
       "rule": "5.4",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.5.4.html#5.4",
-      "outputTemplate": "{author} {title} ({publisher}, {officialCitation}, {date}) at {pinpoint}",
+      "outputTemplate": "{author} {title} ({publisher}, {officialCitation}, {date}) at {pinpoint} | {author} {title} ({date})",
       "components": [
         {
           "id": "author",
@@ -2983,7 +2983,7 @@
       "group": "Secondary sources",
       "rule": "6.1.9",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-6.html#6.1.9",
-      "outputTemplate": "{author} {title} ({edition}, eBook ed, {publisher}, {year}) at {pinpoint}",
+      "outputTemplate": "{author} {title} ({edition}, eBook ed, {publisher}, {year}) at {pinpoint} | {author} {title} ({publisher}, {location}, {year}) at {pinpoint}",
       "components": [
         {
           "id": "author",
@@ -3068,6 +3068,18 @@
           "omittedWhen": "may be omitted",
           "formatting": "",
           "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "location",
+          "label": "Location",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to support an alternate documented citation form"
         }
       ],
       "bracketRules": "(edition, eBook ed, publisher, year) in round brackets; no place of publication.",
@@ -3777,7 +3789,7 @@
       "group": "Secondary sources",
       "rule": "6.7.2",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.6.7.html#6.7.2",
-      "outputTemplate": "{speaker} “{title}” (paper presented to {conference}, {location}, {date}) {startingPage} at {pinpoint}",
+      "outputTemplate": "{speaker} “{title}” (paper presented to {conference}, {location}, {date}) {startingPage} at {pinpoint} | {speaker} “{title}” in {collection} ({conference}, {date}) {startingPage} at {pinpoint}",
       "components": [
         {
           "id": "speaker",
@@ -3874,6 +3886,18 @@
           "omittedWhen": "may be omitted",
           "formatting": "",
           "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "collection",
+          "label": "Collection",
+          "required": false,
+          "italic": true,
+          "order": 9,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to support an alternate documented citation form"
         }
       ],
       "bracketRules": "(descriptor + conference, location, date) in round brackets.",
@@ -5911,7 +5935,7 @@
       "group": "International & foreign",
       "rule": "9.3.1",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.9.3.html#9.3.1",
-      "outputTemplate": "{shortTitle} {volume}{jurisdiction} {year} c {chapter}, {pinpoint}",
+      "outputTemplate": "{shortTitle} {volume}{jurisdiction} {year} c {chapter}, {pinpoint} | {shortTitle}, pt 1 of the Constitution Act 1982, being sch B to the Canada Act 1982 (UK)",
       "components": [
         {
           "id": "shortTitle",
@@ -7159,7 +7183,7 @@
       "group": "International & foreign",
       "rule": "10.3.2",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.10.3.html#10.3.2",
-      "outputTemplate": "*{caseName}* (*{parties}*) (*{phase}*) {arbitralBody} {caseNumber}, {date} at {pinpoint}",
+      "outputTemplate": "*{caseName}* (*{parties}*) (*{phase}*) {arbitralBody} {caseNumber}, {date} at {pinpoint} | *{caseName}* (*{parties}*) (*{phase}*) {arbitralBody} {date} at {pinpoint}",
       "components": [
         {
           "id": "caseName",
@@ -8205,7 +8229,7 @@
       "group": "International & foreign",
       "rule": "10.6.2",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.10.6.html#10.6.2",
-      "outputTemplate": "{title} {supplement} GATT BISD {page}, {gattDocumentNumber}, {date} ({description}) at {pinpoint}",
+      "outputTemplate": "{title} {supplement} GATT BISD {page}, {gattDocumentNumber}, {date} ({description}) at {pinpoint} | {title} {gattDocumentNumber}, {date} ({description}) at {pinpoint}",
       "components": [
         {
           "id": "title",
