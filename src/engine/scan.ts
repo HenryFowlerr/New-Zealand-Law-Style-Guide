@@ -19,6 +19,7 @@
  * confident anchor corrects a mis-split while everything else is left alone.
  */
 import type { GuideType } from "../data/styleGuide.ts";
+import { splitAuthor } from "./names.ts";
 
 export type Anchor = {
   kind:
@@ -218,20 +219,37 @@ export function refineFields(
     }
   }
 
-  // Carve the free-text head (author / creator) from what precedes the first
-  // citation anchor, when the type leads with such a field and it wasn't
-  // already placed by a rich-paste italic run.
+  // Carve the free-text head (author / creator / title) from what precedes the
+  // citation, when the type leads with such a field and it wasn't already
+  // placed by a rich-paste italic run.
   const head = text.slice(0, earliestCitation).trim();
-  if (head && earliestCitation < text.length) {
-    if (ids.has("caseName") && !fields.caseName) set("caseName", head);
-    else if (ids.has("author") && !fields.author) {
-      // If a quoted title was found, the author is the text before the quote;
-      // the head already excludes the quote, so use it directly.
+  const quotedTitleFound = anchors.some((a) => a.kind === "quotedTitle");
+  const hasHead = Boolean(head) && earliestCitation < text.length;
+
+  if (ids.has("caseName") && !fields.caseName && hasHead) {
+    set("caseName", head);
+  } else if (ids.has("author") && ids.has("title") && !quotedTitleFound) {
+    // Book / authored text with no quoted title: the front matter is
+    // "Author Title" up to the publication parenthesis. Split it determinist
+    // -ally by the author's name shape (runs on any browser, no model).
+    const pubStart = text.indexOf("(");
+    const cut =
+      pubStart >= 0 ? pubStart : earliestCitation < text.length ? earliestCitation : text.length;
+    const front = text.slice(0, cut).trim();
+    const split = splitAuthor(front);
+    if (split) {
+      set("author", split.author);
+      if (split.rest) set("title", split.rest);
+    } else if (hasHead && !fields.author) {
       set("author", head);
-    } else if (ids.has("shortTitle")) {
-      // Legislation: the short title is everything before the year.
-      set("shortTitle", head);
     }
+  } else if (ids.has("author") && !fields.author && hasHead) {
+    // Quoted-title path (e.g. a journal article): the author is the text
+    // before the quote, which `head` already isolates.
+    set("author", head);
+  } else if (ids.has("shortTitle") && hasHead) {
+    // Legislation: the short title is everything before the year.
+    set("shortTitle", head);
   }
 
   // Drop positional guesses for shape-typed fields the text gave no anchor for:
