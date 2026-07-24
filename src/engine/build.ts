@@ -18,6 +18,7 @@ import {
   type ComponentValue,
   type Token,
 } from "./render";
+import { anchorSupport, refineFields } from "./scan";
 
 export type CitationFields = Record<string, string>;
 
@@ -157,11 +158,15 @@ export function prefillFromPaste(
   text: string,
   italicRuns: ItalicRun[] = [],
 ): CitationFields {
-  const base = extractByTemplate(type, text) ?? {};
+  const positional = extractByTemplate(type, text) ?? {};
   const italicIds = italicComponentIds(type);
+  // With no usable italic runs, correct the positional guesses with shape-based
+  // anchors (a neutral citation, a reporter locus, a pinpoint, an edition, a
+  // quoted title, an "X v Y" case name) recognised anywhere in the text.
   if (italicIds.length === 0 || italicRuns.length !== italicIds.length) {
-    return base;
+    return refineFields(type, positional, text);
   }
+  const base = { ...positional };
   // Assign each italic run, in order, to each italic component, in order.
   italicIds.forEach((id, index) => {
     base[id] = italicRuns[index].text;
@@ -175,7 +180,15 @@ export function prefillFromPaste(
     .find((id) => !italicIds.includes(id));
   const before = text.slice(0, italicRuns[0].start).trim();
   if (priorId && before) base[priorId] = before;
-  return base;
+  // Correct the remaining non-italic fields (year, volume, reporter, pinpoint,
+  // edition) with shape-based anchors, but keep the reliable italic placements
+  // of the title/case name and the author lifted out in front of them.
+  const refined = refineFields(type, base, text);
+  italicIds.forEach((id) => {
+    refined[id] = base[id];
+  });
+  if (priorId && before) refined[priorId] = before;
+  return refined;
 }
 
 export type Detection = {
@@ -194,14 +207,32 @@ export function detectTypes(text: string, limit = 6): Detection[] {
   const trimmed = text.trim();
   if (!trimmed) return [];
   const lower = trimmed.toLowerCase();
+  const normalise = (s: string) =>
+    s.trim().replace(/\.$/, "").replace(/\s+/g, " ").toLowerCase();
+  const target = normalise(trimmed);
   const detections: Detection[] = [];
   for (const type of guideTypes) {
-    const fields = extractByTemplate(type, trimmed);
-    if (!fields) continue;
+    const positional = extractByTemplate(type, trimmed);
+    if (!positional) continue;
+    // Correct the boxes with shape anchors before scoring, so ranking reflects
+    // how well the type explains the reference with fields in the right places.
+    const fields = refineFields(type, positional, trimmed);
     const required = visibleComponents(type).filter((c) => c.required);
     const requiredCovered = required.filter((c) => fields[c.id]).length;
     const requiredMissing = required.length - requiredCovered;
     const captured = Object.keys(fields).length;
+    // The decisive signal: does building from these placed fields reproduce the
+    // reference? The type that reconstructs the input (ignoring the pinpoint,
+    // which the Guide treats as optional) is almost certainly the right one.
+    let refitBonus = 0;
+    const built = buildCitation(type.id, fields);
+    if (built.status === "ready") {
+      const stripPin = (s: string) => normalise(s).replace(/\s+at\s+\S+$/, "");
+      const b = stripPin(built.text);
+      const t = stripPin(trimmed);
+      if (b === t) refitBonus = 500;
+      else if (t.startsWith(b) || b.startsWith(t)) refitBonus = 250;
+    }
     // Distinctive literal words in the template (e.g. "press release", "NZPD",
     // "presented", "signed") that also appear in the input are a strong signal
     // that this is the right type, and separate a specific format from a
@@ -211,10 +242,19 @@ export function detectTypes(text: string, limit = 6): Detection[] {
     const anchorHits = literals.filter((word) =>
       lower.includes(word.toLowerCase()),
     ).length;
+    // Shape anchors present in the text that this type can actually hold (a
+    // neutral citation, a reporter locus) confirm a specific format over a
+    // permissive one that merely matched the string positionally.
+    const shapeSupport = anchorSupport(type, trimmed);
     // Full required coverage and literal anchors dominate; then more captured
     // detail; strongly penalise a match that leaves required fields empty.
     const score =
-      requiredCovered * 100 + anchorHits * 120 + captured - requiredMissing * 200;
+      requiredCovered * 100 +
+      anchorHits * 120 +
+      shapeSupport * 60 +
+      refitBonus +
+      captured -
+      requiredMissing * 200;
     detections.push({ typeId: type.id, fields, score });
   }
   detections.sort((a, b) => b.score - a.score);
