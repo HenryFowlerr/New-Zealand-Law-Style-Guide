@@ -18,7 +18,7 @@ import {
 } from "./engine/build";
 import { resolveLink, looksLikeLink } from "./engine/linkResolve";
 import { browserFetchers } from "./engine/browserFetch";
-import { llmParse } from "./engine/llmParse";
+import { llmParse, ollamaModel, type CallModel } from "./engine/llmParse";
 import { getWebllmSession, isWebGpuAvailable } from "./engine/webllmModel";
 
 type Mode = "paste" | "build";
@@ -368,18 +368,25 @@ function App() {
     }
   };
 
-  const aiAutoFill = async () => {
+  const aiAutoFill = async (provider: "webllm" | "ollama") => {
     if (!selectedType || aiBusy || !pasteText.trim()) return;
     const type = guideTypeById[selectedType];
     setAiBusy(true);
-    setAiStatus("Preparing the in-browser model… the first run downloads it (about 1 GB) and can take a few minutes.");
     try {
-      const session = await getWebllmSession((report) => {
-        const pct = Math.round((report.progress ?? 0) * 100);
-        setAiStatus(report.text ? `${report.text}${pct ? ` (${pct}%)` : ""}` : "Loading the model…");
-      });
+      let callModel: CallModel;
+      if (provider === "ollama") {
+        setAiStatus("Contacting your local Ollama server (http://localhost:11434)…");
+        callModel = ollamaModel();
+      } else {
+        setAiStatus("Preparing the in-browser model… the first run downloads it (about 1 GB) and can take a few minutes.");
+        const session = await getWebllmSession((report) => {
+          const pct = Math.round((report.progress ?? 0) * 100);
+          setAiStatus(report.text ? `${report.text}${pct ? ` (${pct}%)` : ""}` : "Loading the model…");
+        });
+        callModel = session.callModel;
+      }
       setAiStatus("Reading your reference…");
-      const aiFields = await llmParse(pasteText, type, session.callModel);
+      const aiFields = await llmParse(pasteText, type, callModel);
       if (Object.keys(aiFields).length === 0) {
         setAiStatus("The model couldn’t read any fields from that text. Fill them in by hand.");
         return;
@@ -389,7 +396,12 @@ function App() {
       setReviewConfirmed(false);
       setAiStatus(`AI filled ${Object.keys(aiFields).length} field(s). Check each one against the source before copying.`);
     } catch (error) {
-      setAiStatus(error instanceof Error ? error.message : "In-browser AI is unavailable.");
+      const base = error instanceof Error ? error.message : "AI is unavailable.";
+      setAiStatus(
+        provider === "ollama"
+          ? `${base} — is Ollama running? Start it, run "ollama pull llama3.2:3b", and allow this site with OLLAMA_ORIGINS.`
+          : base,
+      );
     } finally {
       setAiBusy(false);
     }
@@ -711,20 +723,33 @@ function App() {
                   </div>
                 )}
 
-                {mode === "paste" && pasteText.trim() && isWebGpuAvailable() && (
+                {mode === "paste" && pasteText.trim() && (
                   <div className="ai-assist">
-                    <button
-                      className="secondary-button ai-button"
-                      type="button"
-                      disabled={aiBusy}
-                      onClick={() => void aiAutoFill()}
-                    >
-                      {aiBusy ? "Working…" : "✨ AI auto-fill (in-browser, beta)"}
-                    </button>
+                    <div className="ai-buttons">
+                      {isWebGpuAvailable() && (
+                        <button
+                          className="secondary-button ai-button"
+                          type="button"
+                          disabled={aiBusy}
+                          onClick={() => void aiAutoFill("webllm")}
+                        >
+                          {aiBusy ? "Working…" : "✨ AI auto-fill (in browser)"}
+                        </button>
+                      )}
+                      <button
+                        className="secondary-button ai-button"
+                        type="button"
+                        disabled={aiBusy}
+                        onClick={() => void aiAutoFill("ollama")}
+                      >
+                        {aiBusy ? "Working…" : "Use local AI (Ollama)"}
+                      </button>
+                    </div>
                     <span className="ai-hint">
-                      Runs a small AI model in your browser to read the pasted
-                      text. Free and private — nothing leaves your device. First
-                      run downloads the model.
+                      Reads the pasted text with a small AI model. In-browser is
+                      free and private (nothing leaves your device; first run
+                      downloads the model, needs WebGPU). Local (Ollama) uses a
+                      model on your own machine — ideal for testing.
                     </span>
                     {aiStatus && (
                       <p className="ai-status" aria-live="polite">{aiStatus}</p>

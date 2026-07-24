@@ -21,6 +21,22 @@ import {
 
 const firstYear = (s?: string): string | undefined => s?.match(/\b(\d{4})\b/)?.[1];
 
+/** Strip markup and decode the entities Crossref titles sometimes carry. */
+function cleanText(value?: string): string | undefined {
+  if (!value) return undefined;
+  const text = value
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;|&apos;|&rsquo;/g, "’")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/\s+/g, " ")
+    .trim();
+  return text || undefined;
+}
+
 /** Pull a DOI out of a raw string, a doi.org URL, or page text. */
 export function extractDoi(input: string): string | null {
   const m = input.match(/10\.\d{4,9}\/[^\s"'<>&]+/i);
@@ -50,12 +66,14 @@ export function crossrefToMetadata(work: any): CitationMetadata {
         .map((a: any) =>
           a?.given && a?.family
             ? `${a.given} ${a.family}`
-            : a?.family || a?.name || "",
+            : a?.family || a?.name || "", // organisation authors carry `name`
         )
+        .map((s: string) => cleanText(s) ?? "")
         .filter(Boolean)
     : [];
-  const container =
-    work?.["short-container-title"]?.[0] || work?.["container-title"]?.[0];
+  const container = cleanText(
+    work?.["short-container-title"]?.[0] || work?.["container-title"]?.[0],
+  );
   const dateParts =
     work?.issued?.["date-parts"]?.[0] ||
     work?.published?.["date-parts"]?.[0] ||
@@ -64,7 +82,7 @@ export function crossrefToMetadata(work: any): CitationMetadata {
   const type: string = work?.type || "";
   return {
     authors,
-    title: Array.isArray(work?.title) ? work.title[0] : work?.title,
+    title: cleanText(Array.isArray(work?.title) ? work.title[0] : work?.title),
     journal: /journal|article/.test(type) ? container : undefined,
     volume: work?.volume ? String(work.volume) : undefined,
     issue: work?.issue ? String(work.issue) : undefined,

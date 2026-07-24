@@ -420,6 +420,12 @@ footer {
   background: #fbfbf8;
 }
 
+.ai-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .ai-button {
   min-height: 42px;
 }

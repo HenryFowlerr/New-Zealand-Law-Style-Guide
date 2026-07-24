@@ -65,6 +65,34 @@ test("maps a Crossref journal work to fields that build correctly", () => {
   assert.equal(result.text, "Peter Watts “Birks’ Unjust Enrichment” (2005) 121 LQR 163 at 165.");
 });
 
+test("cleans HTML entities and tags from a Crossref title", () => {
+  const md = crossrefToMetadata({
+    type: "journal-article",
+    title: ["Contract &amp; the <i>Bona Fide</i> Purchaser"],
+    "short-container-title": ["NZ&nbsp;LJ"],
+  });
+  assert.equal(md.title, "Contract & the Bona Fide Purchaser");
+});
+
+test("handles an organisation author with only a name field", () => {
+  const md = crossrefToMetadata({
+    type: "report",
+    author: [{ name: "World Health Organization" }],
+    title: ["Global Report"],
+  });
+  assert.equal(md.authors[0], "World Health Organization");
+});
+
+test("takes the first page of an en-dash page range", () => {
+  const md = crossrefToMetadata({
+    type: "journal-article",
+    title: ["X"],
+    "short-container-title": ["LQR"],
+    page: "163–180",
+  });
+  assert.equal(md.firstPage, "163");
+});
+
 test("maps an Open Library record to a book", () => {
   const md = openLibraryToMetadata(openLibraryData["ISBN:9780000000000"]);
   assert.equal(md.authors[0], "Stephen Todd");

@@ -123,3 +123,14 @@ test("the paste-a-link box appears and validates input client-side", async ({ pa
   await page.locator(".link-row .primary-button").click();
   await expect(page.locator(".link-status")).toContainText(/doesn.t look like a link/i);
 });
+
+test("the local-AI (Ollama) auto-fill option appears after a paste is typed", async ({ page }) => {
+  await page.locator("textarea").fill(
+    "Andrew Butler and Petra Butler The New Zealand Bill of Rights Act A Commentary 2nd ed LexisNexis Wellington 2015",
+  );
+  // Wait for live detection to settle, then open the form via the top match.
+  await expect(page.locator(".suggestion-top")).toBeVisible();
+  await page.locator(".suggestion-top").click();
+  await expect(page.locator("#citation-form")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Use local AI \(Ollama\)/ })).toBeVisible();
+});

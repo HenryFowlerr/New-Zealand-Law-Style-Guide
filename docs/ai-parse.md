@@ -27,12 +27,18 @@ ollama pull llama3.2:3b     # or qwen2.5:3b, phi3.5
 # 3. Ollama now serves http://localhost:11434
 ```
 
-Wire it in with the provided adapter:
+This is wired into the UI: after a type is selected from a pasted reference, a
+**"Use local AI (Ollama)"** button runs the extraction against your local
+server. Ideal for testing extraction quality without a large in-browser
+download. To let the site's origin reach Ollama, start it with your origin
+allowed, e.g.:
 
-```ts
-import { llmParse, ollamaModel } from "./engine/llmParse";
-const fields = await llmParse(pastedText, type, ollamaModel("llama3.2:3b"));
+```sh
+OLLAMA_ORIGINS="http://localhost:5173,https://<your-username>.github.io" ollama serve
 ```
+
+(For local development the app runs at `http://localhost:5173`, same scheme as
+Ollama, so there is no mixed-content issue.)
 
 **Limitation:** this only works on a machine that is running Ollama. A visitor
 to the public GitHub Pages site cannot reach *your* Mac, so this path is for you
