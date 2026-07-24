@@ -62,6 +62,24 @@ test("detection ranks the right type first for common student pastes", () => {
   }
 });
 
+test("an unreported case cuts the case name before the docket and date", () => {
+  const f = prefill("unreported-case-file-number-nz", "R v Reekie CA339/03, 3 August 2004");
+  assert.equal(f.caseName, "R v Reekie");
+  assert.equal(f.fileNumber, "CA339/03");
+  assert.equal(f.dateOfJudgment, "3 August 2004");
+});
+
+test("a book's publication parenthesis splits into edition, publisher, place, year", () => {
+  const f = prefill(
+    "text-book",
+    "Andrew Butler and Petra Butler The New Zealand Bill of Rights Act: A Commentary (2nd ed, LexisNexis, Wellington, 2015)",
+  );
+  assert.equal(f.edition, "2nd ed");
+  assert.equal(f.publisher, "LexisNexis");
+  assert.equal(f.placeOfPublication, "Wellington");
+  assert.equal(f.year, "2015");
+});
+
 test("the scanner never invents a field the text does not contain", () => {
   // A bare title with no citation shape yields no neutral/reporter/pinpoint.
   const f = prefill("reported-case-nz", "Some Case Name With No Citation");

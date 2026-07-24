@@ -27,6 +27,7 @@ export type Anchor = {
     | "pinpoint"
     | "edition"
     | "year"
+    | "date"
     | "caseName"
     | "quotedTitle";
   /** Sub-values a structured anchor yields, keyed by a neutral role name. */
@@ -56,6 +57,20 @@ const PINPOINT_DIV =
 
 // An edition: "2nd ed", "3rd ed", "rev ed".
 const EDITION = /\b(\d{1,2}(?:st|nd|rd|th)\s+ed|rev\s+ed)\b/;
+
+const MONTHS =
+  "January|February|March|April|May|June|July|August|September|October|November|December";
+
+// A full date: "3 August 2004", "21 September 2010".
+const DATE = new RegExp(`\\b(\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4})\\b`);
+
+// Where a citation begins after a case name: a bracketed year, a court/report
+// abbreviation immediately followed by a number ("NZSC 55", "CA339"), or a
+// full date. Used to cut "R v Reekie" out of "R v Reekie CA339/03, 3 August
+// 2004" when no bracketed report locus is present to anchor the boundary.
+const CITE_START = new RegExp(
+  `\\s+(?:\\[\\d{4}\\]|\\(\\d{4}\\)|[A-Z]{2,}\\d|[A-Z]{2,}\\s+\\d|\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4})`,
+);
 
 /** Find every self-identifying anchor in the pasted text, earliest first. */
 export function scanAnchors(text: string): Anchor[] {
@@ -88,6 +103,9 @@ export function scanAnchors(text: string): Anchor[] {
   const edition = text.match(EDITION);
   if (edition) push("edition", edition, { value: edition[1] });
 
+  const date = text.match(DATE);
+  if (date) push("date", date, { value: date[1] });
+
   // A bare year only if no reporter/neutral already claimed one (they are more
   // specific). Prefer a bracketed year; fall back to a standalone four digits.
   if (!neutral && !reporter) {
@@ -99,11 +117,18 @@ export function scanAnchors(text: string): Anchor[] {
   const quoted = text.match(/[“"]([^”"]+)[”"]/);
   if (quoted) push("quotedTitle", quoted, { value: quoted[1].trim() });
 
-  // A case name: "X v Y" from the start up to the first citation token
-  // (a bracket or a run of capitals). Kept conservative: it must contain " v ".
-  const caseName = text.match(/^(.*?\s+v\s+.*?)(?=\s+[[(]|\s+[A-Z]{2,}\b|$)/);
-  if (caseName && caseName[1].includes(" v ")) {
-    push("caseName", caseName, { value: caseName[1].trim() });
+  // A case name: "X v Y" from the start up to the first citation token. If a
+  // citation boundary is present, cut there (so "R v Reekie CA339/03, 3 August
+  // 2004" yields "R v Reekie"); otherwise take the whole "X v Y" string.
+  if (/\sv\s/.test(text)) {
+    const boundary = text.match(CITE_START);
+    const value = (boundary && boundary.index != null
+      ? text.slice(0, boundary.index)
+      : text
+    ).trim();
+    if (value.includes(" v ")) {
+      anchors.push({ kind: "caseName", parts: { value }, start: 0, end: value.length });
+    }
   }
 
   return anchors.sort((a, b) => a.start - b.start);
@@ -174,6 +199,10 @@ export function refineFields(
         break;
       case "edition":
         set("edition", anchor.parts.value);
+        break;
+      case "date":
+        if (ids.has("date")) set("date", anchor.parts.value);
+        else if (ids.has("dateOfJudgment")) set("dateOfJudgment", anchor.parts.value);
         break;
       case "year":
         set("year", anchor.parts.value);
