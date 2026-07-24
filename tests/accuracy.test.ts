@@ -39,14 +39,14 @@ test("the engine reproduces the Style Guide's own worked examples", () => {
   // Regression floors. Raise these as coverage improves; never lower them.
   assert.ok(total >= 216, `expected >=216 examples, saw ${total}`);
   assert.ok(matched >= 178, `template match regressed: ${matched}/${total}`);
-  assert.ok(pass >= 174, `exact reproduction regressed: ${pass}/${total}`);
+  assert.ok(pass >= 177, `exact reproduction regressed: ${pass}/${total}`);
 });
 
 test("of the examples the extractor can parse, almost all render exactly", () => {
   // The renderer itself must be near-perfect on clean inputs; only a small
   // number of documented edge cases (word-separators, a lost space) may differ.
   assert.ok(
-    renderMismatches.length <= 4,
+    renderMismatches.length <= 1,
     `render mismatches grew to ${renderMismatches.length}:\n${renderMismatches.join("\n")}`,
   );
 });

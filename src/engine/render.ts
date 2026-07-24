@@ -81,7 +81,11 @@ function cleanLiteral(text: string): string {
     .replace(/\s+,/g, ",")
     .replace(/,\s*,/g, ",")
     .replace(/,\s*\)/g, ")")
-    .replace(/\(\s*,\s*/g, "(");
+    .replace(/\(\s*,\s*/g, "(")
+    // Comma cleanup above can create a newly-empty pair; strip it too.
+    .replace(/\(\s*\)/g, "")
+    .replace(/\[\s*\]/g, "")
+    .replace(/\s{2,}/g, " ");
 }
 
 export function renderFromTemplate(
@@ -101,7 +105,15 @@ export function renderFromTemplate(
       return;
     }
     let text = litBuffer;
-    if (elision) text = text.replace(/\s*[,–-]\s*/g, " ");
+    if (elision) {
+      // A field dropped from a comma-separated list (two commas flank the gap)
+      // leaves the list comma; a field dropped elsewhere collapses to a space.
+      const commas = (text.match(/,/g) ?? []).length;
+      text =
+        commas >= 2
+          ? text.replace(/(?:\s*,\s*)+/g, ", ")
+          : text.replace(/\s*[,–-]\s*/g, " ");
+    }
     const cleaned = cleanLiteral(text);
     if (cleaned) out.push({ text: cleaned });
     litBuffer = "";
@@ -215,9 +227,10 @@ export function buildExtractionRegex(type: GuideType): {
     let mandatoryPrefix = "";
     let sep = leadTok;
     if (!required) {
-      // Only leading closing brackets (with any spaces between them) are
-      // structural; a plain leading separator stays with the optional unit.
-      const closers = leadTok.match(/^(?:\s*[)\]])+/);
+      // Leading closing brackets or a closing quote (with any spaces between)
+      // are structural — they close an earlier field — so they stay mandatory;
+      // a plain leading separator stays with the optional unit.
+      const closers = leadTok.match(/^(?:\s*[)\]”])+/);
       if (closers && closers[0]) {
         mandatoryPrefix = closers[0];
         sep = leadTok.slice(closers[0].length);
