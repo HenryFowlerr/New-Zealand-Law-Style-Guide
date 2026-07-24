@@ -84,6 +84,10 @@ export function scanAnchors(text: string): Anchor[] {
   const neutral = text.match(NEUTRAL);
   if (neutral) push("neutral", neutral, { value: neutral[0].trim() });
 
+  // A quoted title marks an article/essay rather than a case, and is required
+  // before the volume-less journal fallback below can safely fire.
+  const hasQuote = /[“"][^“”"]{3,}[”"]/.test(text);
+
   const reporter = text.match(REPORTER);
   if (reporter) {
     push("reporter", reporter, {
@@ -92,6 +96,20 @@ export function scanAnchors(text: string): Anchor[] {
       series: reporter[3].trim(),
       page: reporter[4],
     });
+  } else if (hasQuote) {
+    // A year-as-volume journal has no volume number: "(2014) NZ Law Review 547".
+    // Only attempted for a quoted-title source, so a case can never match it.
+    const noVol = text.match(
+      /([[(]\d{4}[\])])\s+([A-Z][A-Za-z][A-Za-z.&]*(?:\s+[A-Za-z.&]+){0,3}?)\s+(\d+)\b/,
+    );
+    if (noVol) {
+      push("reporter", noVol, {
+        year: noVol[1],
+        volume: "",
+        series: noVol[2].trim(),
+        page: noVol[3],
+      });
+    }
   }
 
   const pinpoint = text.match(PINPOINT_AT);
@@ -293,6 +311,17 @@ export function refineFields(
     }
   }
 
+  // Treaty series citation ("1577 UNTS 3"): a volume, a series (UNTS/LNTS/ETS/
+  // CTS), and a page. Its shape cleanly separates it from the treaty name that
+  // precedes it, which positional extraction splits in the wrong place.
+  if (ids.has("treatySeriesCitation")) {
+    const series = text.match(/\b(\d+\s+(?:[LU]NTS|ETS|CTS)\s+\d+)\b/);
+    if (series && series.index != null) {
+      set("treatySeriesCitation", series[1]);
+      if (ids.has("treatyName")) set("treatyName", text.slice(0, series.index).trim());
+    }
+  }
+
   // Clean up positional guesses for shape-typed fields the scanner didn't set.
   // A value is kept only if it still looks like that field (a numeric volume, a
   // year-shaped year, a pinpoint with a digit) — so a correct positional value
@@ -337,6 +366,15 @@ export function anchorSupport(type: GuideType, text: string): number {
   // types over a permissive template that merely absorbed the same words.
   if (/\bNZPD\b/.test(text) && ids.has("abbreviatedTitle")) support += 4;
   if (/\(eds?\)/.test(text) && ids.has("editor")) support += 4;
+  if (/\b[LU]NTS\b|\bETS\b|\bCTS\b/.test(text) && ids.has("treatySeriesCitation")) {
+    support += 4;
+  }
+  if (
+    /opened for signature|entered into force|signed at/i.test(text) &&
+    (ids.has("signatureDetails") || ids.has("dateOpened"))
+  ) {
+    support += 4;
+  }
   if (/\bNZLC\b/.test(text) && ids.has("officialCitation") && /commission/i.test(type.name)) {
     support += 2;
   }

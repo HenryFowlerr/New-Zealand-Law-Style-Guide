@@ -102,6 +102,29 @@ test("an essay in an edited book is detected and split by the (ed) marker", () =
   assert.equal(f.publisher, undefined);
 });
 
+test("a year-as-volume journal (no volume number) still splits correctly", () => {
+  const text = "Andrew Geddis “Electoral Law” (2014) NZ Law Review 547 at 550";
+  assert.equal(detectTypes(text, 1)[0].typeId, "journal-article");
+  const f = prefill("journal-article", text);
+  assert.equal(f.author, "Andrew Geddis");
+  assert.equal(f.title, "Electoral Law");
+  assert.equal(f.year, "(2014)");
+  assert.equal(f.volume, undefined);
+  assert.equal(f.journalAbbrev, "NZ Law Review");
+  assert.equal(f.startingPage, "547");
+  assert.equal(f.pinpoint, "550");
+});
+
+test("a treaty is detected and split on its series citation", () => {
+  const text =
+    "Convention on the Rights of the Child 1577 UNTS 3 (opened for signature 20 November 1989, entered into force 2 September 1990), art 43";
+  assert.equal(detectTypes(text, 1)[0].typeId, "treaty");
+  const f = prefill("treaty", text);
+  assert.equal(f.treatyName, "Convention on the Rights of the Child");
+  assert.equal(f.treatySeriesCitation, "1577 UNTS 3");
+  assert.equal(f.pinpoint, "art 43");
+});
+
 test("the scanner never invents a field the text does not contain", () => {
   // A bare title with no citation shape yields no neutral/reporter/pinpoint.
   const f = prefill("reported-case-nz", "Some Case Name With No Citation");
