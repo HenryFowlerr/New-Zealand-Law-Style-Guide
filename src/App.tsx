@@ -344,17 +344,26 @@ function App() {
         setLinkStatus("No citation details were found at that link — paste the reference text above instead.");
         return;
       }
-      const label =
-        resolved.source === "crossref"
-          ? "Crossref"
-          : resolved.source === "openlibrary"
-            ? "Open Library"
-            : "the page";
       setSelectedType(resolved.typeId);
       setFields(resolved.fields);
       setReviewRequired(true);
       setReviewConfirmed(false);
-      setLinkStatus(`Filled from ${label}. Review every field — some parts (like a pinpoint) may still be needed.`);
+      if (resolved.source === "url-only") {
+        // The page blocked automated reading; only the URL/slug was usable.
+        setLinkStatus(
+          "This site blocked automatic reading, so the title was taken from the web address and the site name from the link. Please add the author and date, and check the title.",
+        );
+      } else {
+        const label =
+          resolved.source === "crossref"
+            ? "Crossref"
+            : resolved.source === "openlibrary"
+              ? "Open Library"
+              : "the page";
+        setLinkStatus(
+          `Filled from ${label}. Review every field — some parts (like a pinpoint) may still be needed.`,
+        );
+      }
       window.setTimeout(() => {
         document.getElementById("citation-form")?.scrollIntoView({
           behavior: "smooth",

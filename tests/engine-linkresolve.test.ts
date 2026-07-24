@@ -154,10 +154,24 @@ test("resolves a plain page via its embedded citation meta tags", async () => {
   assert.equal(resolved.fields.journalAbbrev, "NZLJ");
 });
 
-test("returns null when nothing resolves", async () => {
+test("falls back to URL-derived fields when a page cannot be read", async () => {
+  // A blocked/empty page still yields a starting point from the URL itself.
   const resolved = await resolveLink(
-    "https://www.example.com/empty",
-    stubFetchers({}, { "example.com": "<html><head></head></html>" }),
+    "https://lawnews.nz/technology/ai-for-legal-practitioners-why-fear-is-not-a-strategy/",
+    { fetchJson: async () => ({}), fetchText: async () => { throw new Error("403"); } },
+  );
+  assert.ok(resolved);
+  assert.equal(resolved.source, "url-only");
+  assert.equal(resolved.typeId, "internet-material");
+  assert.equal(resolved.fields.websiteName, "lawnews.nz");
+  assert.equal(resolved.fields.title, "Ai For Legal Practitioners Why Fear Is Not A Strategy");
+  assert.match(resolved.fields.url, /^https:\/\/lawnews\.nz\//);
+});
+
+test("returns null for a non-link that matches nothing", async () => {
+  const resolved = await resolveLink(
+    "not a link at all",
+    { fetchJson: async () => ({}), fetchText: async () => "" },
   );
   assert.equal(resolved, null);
 });

@@ -113,11 +113,43 @@ export function openLibraryToMetadata(record: any): CitationMetadata {
 }
 
 export type ResolvedLink = {
-  source: "crossref" | "openlibrary" | "page-metadata";
+  source: "crossref" | "openlibrary" | "page-metadata" | "url-only";
   metadata: CitationMetadata;
   typeId: string;
   fields: Record<string, string>;
 };
+
+/**
+ * Last-resort fields derived from the URL alone, for pages that block automated
+ * reading (Cloudflare/bot protection returns 403 to every proxy). The slug
+ * gives a rough title and the host a website name, so the student still starts
+ * with the URL, a title to correct, and the site — and fills author/date.
+ */
+export function fieldsFromUrl(rawUrl: string): {
+  typeId: string;
+  fields: Record<string, string>;
+} {
+  let host = "";
+  let slug = "";
+  try {
+    const u = new URL(/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`);
+    host = u.hostname.replace(/^www\./, "");
+    const segments = u.pathname.split("/").filter((s) => s && !/^\d+$/.test(s));
+    slug = segments[segments.length - 1] ?? "";
+  } catch {
+    // Not a parseable URL; fall through with what we have.
+  }
+  const fields: Record<string, string> = { url: rawUrl.trim() };
+  const title = slug
+    .replace(/\.\w+$/, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+  if (title) fields.title = title;
+  if (host) fields.websiteName = host;
+  return { typeId: "internet-material", fields };
+}
 
 export type Fetchers = {
   fetchJson: (url: string) => Promise<any>;
@@ -164,17 +196,28 @@ export async function resolveLink(
 
   if (/^https?:\/\//i.test(trimmed) || /^www\./i.test(trimmed)) {
     const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-    const html = await fetchers.fetchText(url);
-    const meta = parseCitationMetadata(html);
-    if (meta.title || meta.authors.length) return finish("page-metadata", meta, url);
-    // The page had no citation tags but may reference a DOI.
-    const pageDoi = extractDoi(html);
-    if (pageDoi) {
-      const json = await fetchers.fetchJson(
-        `https://api.crossref.org/works/${encodeURIComponent(pageDoi)}`,
-      );
-      if (json?.message) return finish("crossref", crossrefToMetadata(json.message));
+    let html: string | null = null;
+    try {
+      html = await fetchers.fetchText(url);
+    } catch {
+      html = null; // page blocked the proxy — fall back to URL-derived fields
     }
+    if (html) {
+      const meta = parseCitationMetadata(html);
+      if (meta.title || meta.authors.length) return finish("page-metadata", meta, url);
+      // The page had no citation tags but may reference a DOI.
+      const pageDoi = extractDoi(html);
+      if (pageDoi) {
+        const json = await fetchers.fetchJson(
+          `https://api.crossref.org/works/${encodeURIComponent(pageDoi)}`,
+        );
+        if (json?.message) return finish("crossref", crossrefToMetadata(json.message));
+      }
+    }
+    // Could not read the page — derive what we can from the URL so the student
+    // always gets a starting point rather than an empty result.
+    const derived = fieldsFromUrl(url);
+    return { source: "url-only", metadata: { authors: [] }, ...derived };
   }
 
   return null;
