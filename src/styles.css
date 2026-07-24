@@ -639,6 +639,38 @@ footer {
   font-size: 20px;
 }
 
+.type-example {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.field-help-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.form-example {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.provenance-note {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--amber);
+}
+
 .builder {
   display: grid;
   grid-template-columns: minmax(0, 1.12fr) minmax(390px, 0.88fr);

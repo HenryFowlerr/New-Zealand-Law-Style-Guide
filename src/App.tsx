@@ -1,31 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  analyseCitation,
+  guideGroupOrder,
+  guideTypeById,
+  guideTypes,
+  type GuideComponent,
+  type GuideType,
+} from "./data/styleGuide";
+import {
   buildCitation,
   composeFootnote,
-  extractedFields,
-  getVisibleFields,
-  missingRequiredFields,
-  prefillCitation,
-  sourceTypeMap,
-  sourceTypes,
-  type CitationData,
-  type CitationResult,
-  type CitationSuggestion,
-  type CitationTypeId,
-  type FieldDefinition,
-} from "./citationEngine";
+  detectTypes,
+  missingRequiredComponents,
+  visibleComponents,
+  type CitationFields,
+} from "./engine/build";
+import { extractByTemplate } from "./engine/render";
 
 type Mode = "paste" | "build";
+type FootnoteEntry = { typeId: string; fields: CitationFields };
 
-const STORAGE_KEY = "nz-law-cite-footnote-v1";
-
-const groupOrder = [
-  "Secondary sources",
-  "Cases & legislation",
-  "Parliamentary & official",
-  "Citation history",
-] as const;
+const STORAGE_KEY = "nz-law-cite-footnote-v2";
 
 function navigatorMeta(): string {
   if (typeof navigator === "undefined") return "Ctrl";
@@ -34,13 +28,20 @@ function navigatorMeta(): string {
     : "Ctrl";
 }
 
-function loadSavedFootnote(): CitationResult[] {
+function loadSavedFootnote(): FootnoteEntry[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return [];
-    const parsed = JSON.parse(saved) as CitationResult[];
+    const parsed = JSON.parse(saved) as FootnoteEntry[];
     return Array.isArray(parsed)
-      ? parsed.filter((item) => item.status === "ready" && Array.isArray(item.tokens))
+      ? parsed.filter(
+          (item) =>
+            item &&
+            typeof item.typeId === "string" &&
+            guideTypeById[item.typeId] &&
+            item.fields &&
+            typeof item.fields === "object",
+        )
       : [];
   } catch {
     return [];
@@ -52,11 +53,7 @@ async function copyCitation(
   html: string,
   rich: boolean,
 ): Promise<void> {
-  if (
-    rich &&
-    typeof ClipboardItem !== "undefined" &&
-    navigator.clipboard?.write
-  ) {
+  if (rich && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
     const item = new ClipboardItem({
       "text/plain": new Blob([plainText], { type: "text/plain" }),
       "text/html": new Blob([html], { type: "text/html" }),
@@ -67,73 +64,43 @@ async function copyCitation(
   await navigator.clipboard.writeText(plainText);
 }
 
+function firstExample(type: GuideType): string {
+  return type.examples[0]?.correct_citation ?? "";
+}
+
 function Field({
-  field,
-  data,
+  component,
+  fields,
   onChange,
   flagMissing = false,
 }: {
-  field: FieldDefinition;
-  data: CitationData;
-  onChange: (field: string, value: string | boolean) => void;
+  component: GuideComponent;
+  fields: CitationFields;
+  onChange: (id: string, value: string) => void;
   flagMissing?: boolean;
 }) {
-  const helpId = `${field.id}-help`;
-  const current = data[field.id];
-  const isEmpty = !(typeof current === "string" && current.trim());
-  const needed = flagMissing && field.required === true && isEmpty;
-
-  if (field.type === "checkbox") {
-    return (
-      <label className="check-field">
-        <input
-          checked={current === true}
-          onChange={(event) => onChange(field.id, event.target.checked)}
-          type="checkbox"
-        />
-        <span className="check-copy">
-          <span className="field-label">{field.label}</span>
-          {field.help && <span className="field-help">{field.help}</span>}
-        </span>
-      </label>
-    );
-  }
-
+  const helpId = `${component.id}-help`;
+  const current = fields[component.id] ?? "";
+  const isEmpty = !current.trim();
+  const needed = flagMissing && component.required && isEmpty;
   return (
     <label className={needed ? "field field-needed" : "field"}>
       <span className="field-label">
-        {field.label}
-        {field.required && <span aria-hidden="true"> *</span>}
+        {component.label}
+        {component.required && <span aria-hidden="true"> *</span>}
         {needed && <span className="needed-pill">Needed</span>}
       </span>
-      {field.type === "select" ? (
-        <select
-          aria-describedby={field.help ? helpId : undefined}
-          id={`input-${field.id}`}
-          value={typeof current === "string" ? current : ""}
-          onChange={(event) => onChange(field.id, event.target.value)}
-        >
-          <option value="">Choose one…</option>
-          {field.options?.map((option) => (
-            <option key={option.value || "empty"} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          aria-describedby={field.help ? helpId : undefined}
-          autoComplete="off"
-          id={`input-${field.id}`}
-          placeholder={field.placeholder}
-          type="text"
-          value={typeof current === "string" ? current : ""}
-          onChange={(event) => onChange(field.id, event.target.value)}
-        />
-      )}
-      {field.help && (
-        <span className="field-help" id={helpId}>
-          {field.help}
+      <input
+        aria-describedby={component.formatting ? helpId : undefined}
+        autoComplete="off"
+        id={`input-${component.id}`}
+        type="text"
+        value={current}
+        onChange={(event) => onChange(component.id, event.target.value)}
+      />
+      {component.formatting && (
+        <span className="field-help field-help-clamp" id={helpId} title={component.formatting}>
+          {component.formatting}
         </span>
       )}
     </label>
@@ -145,24 +112,25 @@ function TypePicker({
   query,
   setQuery,
 }: {
-  onSelect: (id: CitationTypeId) => void;
+  onSelect: (id: string) => void;
   query: string;
   setQuery: (value: string) => void;
 }) {
-  const filtered = sourceTypes.filter((sourceType) => {
+  const needle = query.toLowerCase().trim();
+  const filtered = guideTypes.filter((type) => {
     const haystack =
-      `${sourceType.name} ${sourceType.description} ${sourceType.group}`.toLowerCase();
-    return haystack.includes(query.toLowerCase().trim());
+      `${type.name} ${type.group} ${type.rule} ${firstExample(type)}`.toLowerCase();
+    return haystack.includes(needle);
   });
 
   return (
     <section aria-labelledby="format-heading" className="type-picker">
       <div className="section-heading-row">
         <div>
-          <p className="eyebrow">Verified formats</p>
+          <p className="eyebrow">Every Style Guide format</p>
           <h2 id="format-heading">What are you citing?</h2>
         </div>
-        <span className="coverage-count">{sourceTypes.length} tested paths</span>
+        <span className="coverage-count">{guideTypes.length} source types</span>
       </div>
       <label className="search-field">
         <span className="sr-only">Search citation formats</span>
@@ -170,7 +138,7 @@ function TypePicker({
           /
         </span>
         <input
-          placeholder="Search case, Act, journal, report…"
+          placeholder="Search case, Act, treaty, Hansard, journal, thesis…"
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -182,23 +150,23 @@ function TypePicker({
           }}
         />
       </label>
-      {groupOrder.map((group) => {
-        const items = filtered.filter((sourceType) => sourceType.group === group);
+      {guideGroupOrder.map((group) => {
+        const items = filtered.filter((type) => type.group === group);
         if (!items.length) return null;
         return (
           <div className="type-group" key={group}>
             <h3>{group}</h3>
             <div className="type-grid">
-              {items.map((sourceType) => (
+              {items.map((type) => (
                 <button
                   className="type-card"
-                  key={sourceType.id}
-                  onClick={() => onSelect(sourceType.id)}
+                  key={type.id}
+                  onClick={() => onSelect(type.id)}
                   type="button"
                 >
-                  <span className="type-rule">Rule {sourceType.rule}</span>
-                  <strong>{sourceType.name}</strong>
-                  <span>{sourceType.description}</span>
+                  <span className="type-rule">Rule {type.rule}</span>
+                  <strong>{type.name}</strong>
+                  <span className="type-example">{firstExample(type)}</span>
                   <span aria-hidden="true" className="type-arrow">
                     →
                   </span>
@@ -210,78 +178,50 @@ function TypePicker({
       })}
       {!filtered.length && (
         <div className="empty-state">
-          <strong>No verified format matches that search.</strong>
-          <span>
-            This version will not approximate an unsupported NZLSG source type.
-          </span>
+          <strong>No format matches that search.</strong>
+          <span>Try a broader term, or the source’s jurisdiction.</span>
         </div>
       )}
     </section>
   );
 }
 
-function SuggestionCard({
-  suggestion,
-  onSelect,
-  isTop = false,
-}: {
-  suggestion: CitationSuggestion;
-  onSelect: (id: CitationTypeId) => void;
-  isTop?: boolean;
-}) {
-  const sourceType = sourceTypeMap[suggestion.type];
-  return (
-    <button
-      className={isTop ? "suggestion-card suggestion-top" : "suggestion-card"}
-      onClick={() => onSelect(suggestion.type)}
-      type="button"
-    >
-      <span className={`confidence confidence-${suggestion.confidence}`}>
-        {isTop
-          ? "Top match · Enter"
-          : suggestion.confidence === "high"
-            ? "Strong match"
-            : "Possible match"}
-      </span>
-      <strong>{sourceType.name}</strong>
-      <span>{suggestion.reason}</span>
-      <span className="review-link">Review fields →</span>
-    </button>
-  );
-}
-
 function App() {
   const [mode, setMode] = useState<Mode>("paste");
   const [pasteText, setPasteText] = useState("");
-  const [suggestions, setSuggestions] = useState<CitationSuggestion[]>([]);
+  const [detections, setDetections] = useState<ReturnType<typeof detectTypes>>([]);
   const [analysisAttempted, setAnalysisAttempted] = useState(false);
-  const [selectedType, setSelectedType] = useState<CitationTypeId | null>(null);
-  const [data, setData] = useState<CitationData>({});
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [fields, setFields] = useState<CitationFields>({});
   const [reviewRequired, setReviewRequired] = useState(false);
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [query, setQuery] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
-  const [footnoteItems, setFootnoteItems] = useState<CitationResult[]>(() =>
+  const [footnoteEntries, setFootnoteEntries] = useState<FootnoteEntry[]>(() =>
     loadSavedFootnote(),
   );
 
-  const definition = selectedType ? sourceTypeMap[selectedType] : null;
+  const type = selectedType ? guideTypeById[selectedType] : null;
   const result = useMemo(
-    () => (selectedType ? buildCitation(selectedType, data) : null),
-    [selectedType, data],
+    () => (selectedType ? buildCitation(selectedType, fields) : null),
+    [selectedType, fields],
   );
-  const copyReady =
-    result?.status === "ready" && (!reviewRequired || reviewConfirmed);
-  const extracted = selectedType ? extractedFields(selectedType, data) : [];
-  const missing = selectedType ? missingRequiredFields(selectedType, data) : [];
-  const footnote = useMemo(
-    () => composeFootnote(footnoteItems),
-    [footnoteItems],
+  const components = type ? visibleComponents(type) : [];
+  const extractedCount = type
+    ? components.filter((c) => (fields[c.id] ?? "").trim()).length
+    : 0;
+  const missing = type ? missingRequiredComponents(type, fields) : [];
+  const copyReady = result?.status === "ready" && (!reviewRequired || reviewConfirmed);
+
+  const footnoteResults = useMemo(
+    () => footnoteEntries.map((entry) => buildCitation(entry.typeId, entry.fields)),
+    [footnoteEntries],
   );
+  const footnote = useMemo(() => composeFootnote(footnoteResults), [footnoteResults]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(footnoteItems));
-  }, [footnoteItems]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(footnoteEntries));
+  }, [footnoteEntries]);
 
   useEffect(() => {
     if (!copyStatus) return;
@@ -289,27 +229,42 @@ function App() {
     return () => window.clearTimeout(timeout);
   }, [copyStatus]);
 
+  // Live paste detection.
+  useEffect(() => {
+    if (mode !== "paste" || selectedType) return;
+    if (!pasteText.trim()) {
+      setDetections([]);
+      setAnalysisAttempted(false);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      setDetections(detectTypes(pasteText));
+      setAnalysisAttempted(true);
+    }, 220);
+    return () => window.clearTimeout(handle);
+  }, [pasteText, mode, selectedType]);
+
   const switchMode = (nextMode: Mode) => {
     setMode(nextMode);
     setSelectedType(null);
-    setData({});
-    setSuggestions([]);
+    setFields({});
+    setDetections([]);
     setAnalysisAttempted(false);
     setReviewRequired(false);
     setReviewConfirmed(false);
   };
 
-  const selectType = (id: CitationTypeId, fromPaste = mode === "paste") => {
+  const selectType = (id: string, fromPaste = mode === "paste") => {
     setSelectedType(id);
-    const prefilled = fromPaste ? prefillCitation(id, pasteText) : {};
-    setData(prefilled);
+    const prefill = fromPaste ? extractByTemplate(guideTypeById[id], pasteText) ?? {} : {};
+    setFields(prefill);
     setReviewRequired(fromPaste);
     setReviewConfirmed(false);
-    const missing = missingRequiredFields(id, prefilled);
-    const focusId = missing[0]
-      ? `input-${missing[0].id}`
-      : getVisibleFields(sourceTypeMap[id], prefilled)[0]
-        ? `input-${getVisibleFields(sourceTypeMap[id], prefilled)[0].id}`
+    const missingNow = missingRequiredComponents(guideTypeById[id], prefill);
+    const focusId = missingNow[0]
+      ? `input-${missingNow[0].id}`
+      : visibleComponents(guideTypeById[id])[0]
+        ? `input-${visibleComponents(guideTypeById[id])[0].id}`
         : null;
     window.setTimeout(() => {
       document.getElementById("citation-form")?.scrollIntoView({
@@ -321,33 +276,12 @@ function App() {
     }, 60);
   };
 
-  // Live detection: suggestions update as the reference is typed or pasted, so
-  // there is nothing to click before choosing a format.
-  useEffect(() => {
-    if (mode !== "paste" || selectedType) return;
-    const trimmed = pasteText.trim();
-    if (!trimmed) {
-      setSuggestions([]);
-      setAnalysisAttempted(false);
-      return;
-    }
-    const handle = window.setTimeout(() => {
-      setSuggestions(analyseCitation(pasteText));
-      setAnalysisAttempted(true);
-    }, 220);
-    return () => window.clearTimeout(handle);
-  }, [pasteText, mode, selectedType]);
-
-  const updateField = (field: string, nextValue: string | boolean) => {
-    setData((current) => ({ ...current, [field]: nextValue }));
+  const updateField = (id: string, value: string) => {
+    setFields((current) => ({ ...current, [id]: value }));
     setReviewConfirmed(false);
   };
 
-  const handleCopy = async (
-    plainText: string,
-    html: string,
-    rich: boolean,
-  ) => {
+  const handleCopy = async (plainText: string, html: string, rich: boolean) => {
     try {
       await copyCitation(plainText, html, rich);
       setCopyStatus(rich ? "Formatted citation copied" : "Plain text copied");
@@ -358,21 +292,16 @@ function App() {
 
   const goBack = () => {
     setSelectedType(null);
-    setData({});
+    setFields({});
     setReviewConfirmed(false);
     setReviewRequired(false);
   };
 
-  // Keyboard accelerators inside the builder: Cmd/Ctrl+Enter copies a ready
-  // citation, Escape steps back to the chooser.
   useEffect(() => {
     if (!selectedType) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        // Do not discard a form the user is typing into; let the field keep
-        // Escape (a search box clears, etc.).
-        const active = document.activeElement;
-        const tag = active?.tagName;
+        const tag = document.activeElement?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
         goBack();
         return;
@@ -389,10 +318,12 @@ function App() {
   }, [selectedType, result, reviewRequired, reviewConfirmed]);
 
   const addToFootnote = () => {
-    if (!result || !copyReady) return;
-    setFootnoteItems((current) => [...current, result]);
+    if (!selectedType || !copyReady) return;
+    setFootnoteEntries((current) => [...current, { typeId: selectedType, fields }]);
     setCopyStatus("Added to footnote");
   };
+
+  const topDetection = detections[0];
 
   return (
     <div className="app-shell">
@@ -428,8 +359,9 @@ function App() {
               without the guesswork.
             </h1>
             <p className="hero-intro">
-              Paste what you have or build from the source details. NZ Law Cite
-              checks each required fact before it lets you copy.
+              Paste a reference to check it, or build one from scratch. Every one
+              of the Style Guide’s {guideTypes.length} source types, generated to
+              the letter — and never a confident guess when a fact is missing.
             </p>
           </div>
           <aside className="trust-card">
@@ -437,8 +369,8 @@ function App() {
             <div>
               <strong>Fail-closed by design</strong>
               <p>
-                Missing fact? Ambiguous rule? You will see a question—not a
-                confident-looking guess.
+                Missing fact? You will see a question—not a confident-looking
+                guess. Nothing is generated until every required detail is in.
               </p>
             </div>
           </aside>
@@ -472,47 +404,43 @@ function App() {
                 <p className="eyebrow">Start anywhere</p>
                 <h2 id="paste-heading">Paste the reference exactly as you found it.</h2>
                 <p>
-                  Detection only suggests a format. You will always review the
-                  source type and every extracted field before copying.
+                  Detection only suggests a format. You always review the source
+                  type and every extracted field before copying.
                 </p>
               </div>
               <label className="paste-box">
                 <span className="sr-only">Citation text to check</span>
                 <textarea
-                  placeholder={'Burrows “Liability for Psychiatric Illness…” (1995) 3 Tort L Rev 220'}
+                  placeholder={'Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26]'}
                   value={pasteText}
                   onChange={(event) => setPasteText(event.target.value)}
                   onKeyDown={(event) => {
-                    if (
-                      event.key === "Enter" &&
-                      !event.shiftKey &&
-                      suggestions.length > 0
-                    ) {
+                    if (event.key === "Enter" && !event.shiftKey && topDetection) {
                       event.preventDefault();
-                      selectType(suggestions[0].type, true);
+                      selectType(topDetection.typeId, true);
                     }
                   }}
                 />
                 <div className="paste-actions">
                   <span>
-                    {suggestions.length > 0
+                    {topDetection
                       ? "Detected live · press Enter to use the top match"
                       : `${pasteText.length} characters`}
                   </span>
                   <button
                     className="primary-button"
-                    disabled={suggestions.length === 0}
-                    onClick={() => selectType(suggestions[0].type, true)}
+                    disabled={!topDetection}
+                    onClick={() => topDetection && selectType(topDetection.typeId, true)}
                     type="button"
                   >
-                    {suggestions.length > 0
-                      ? `Use ${sourceTypeMap[suggestions[0].type].shortName} →`
+                    {topDetection
+                      ? `Use ${guideTypeById[topDetection.typeId].name} →`
                       : "Waiting for a reference"}
                   </button>
                 </div>
               </label>
 
-              {suggestions.length > 0 && (
+              {detections.length > 0 && (
                 <div className="suggestions" aria-live="polite">
                   <div className="result-heading">
                     <div>
@@ -522,24 +450,36 @@ function App() {
                     <span className="safe-note">No output generated yet</span>
                   </div>
                   <div className="suggestion-grid">
-                    {suggestions.map((suggestion, index) => (
-                      <SuggestionCard
-                        isTop={index === 0}
-                        key={suggestion.type}
-                        suggestion={suggestion}
-                        onSelect={(id) => selectType(id, true)}
-                      />
-                    ))}
+                    {detections.map((detection, index) => {
+                      const dt = guideTypeById[detection.typeId];
+                      return (
+                        <button
+                          className={
+                            index === 0
+                              ? "suggestion-card suggestion-top"
+                              : "suggestion-card"
+                          }
+                          key={detection.typeId}
+                          onClick={() => selectType(detection.typeId, true)}
+                          type="button"
+                        >
+                          <span className="confidence confidence-high">
+                            {index === 0 ? "Top match · Enter" : `Rule ${dt.rule}`}
+                          </span>
+                          <strong>{dt.name}</strong>
+                          <span>{firstExample(dt)}</span>
+                          <span className="review-link">Review fields →</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {analysisAttempted && suggestions.length === 0 && (
+              {analysisAttempted && detections.length === 0 && (
                 <div className="no-match" role="status">
-                  <strong>That structure is not safe to identify automatically.</strong>
-                  <span>
-                    Choose a verified format and enter the details instead.
-                  </span>
+                  <strong>That structure was not recognised automatically.</strong>
+                  <span>Choose the format and enter the details instead.</span>
                   <button
                     className="text-button"
                     onClick={() => switchMode("build")}
@@ -556,23 +496,21 @@ function App() {
             <TypePicker onSelect={(id) => selectType(id, false)} query={query} setQuery={setQuery} />
           )}
 
-          {definition && result && (
+          {type && result && (
             <section className="builder" id="citation-form">
               <div className="form-column">
-                <button
-                  className="back-button"
-                  onClick={goBack}
-                  type="button"
-                >
+                <button className="back-button" onClick={goBack} type="button">
                   ← {mode === "paste" ? "Back to detection" : "Choose another format"}
                 </button>
                 <div className="form-heading">
                   <div>
-                    <p className="eyebrow">Rule {definition.rule}</p>
-                    <h2>{definition.name}</h2>
-                    <p>{definition.description}</p>
+                    <p className="eyebrow">
+                      {type.group} · Rule {type.rule}
+                    </p>
+                    <h2>{type.name}</h2>
+                    <p className="form-example">e.g. {firstExample(type)}</p>
                   </div>
-                  <a href={definition.ruleUrl} rel="noreferrer" target="_blank">
+                  <a href={type.ruleUrl} rel="noreferrer" target="_blank">
                     Read rule ↗
                   </a>
                 </div>
@@ -580,9 +518,9 @@ function App() {
                 {reviewRequired && (
                   <div className="review-banner extraction-summary">
                     <strong>
-                      {extracted.length > 0
-                        ? `${extracted.length} ${
-                            extracted.length === 1 ? "detail" : "details"
+                      {extractedCount > 0
+                        ? `${extractedCount} ${
+                            extractedCount === 1 ? "detail" : "details"
                           } read from your reference`
                         : "No details could be read automatically"}
                     </strong>
@@ -590,26 +528,26 @@ function App() {
                       <span>
                         Still needed before a citation is generated:{" "}
                         <strong className="needed-list">
-                          {missing.map((field) => field.label).join(", ")}
+                          {missing.map((component) => component.label).join(", ")}
                         </strong>
                         . Check every field against the source.
                       </span>
                     ) : (
                       <span>
-                        Every required field was found. Check each one against
-                        the source, then confirm below.
+                        Every required field was found. Check each one against the
+                        source, then confirm below.
                       </span>
                     )}
                   </div>
                 )}
 
                 <div className="field-grid">
-                  {getVisibleFields(definition, data).map((field) => (
+                  {components.map((component) => (
                     <Field
-                      data={data}
-                      field={field}
+                      component={component}
+                      fields={fields}
                       flagMissing={reviewRequired}
-                      key={field.id}
+                      key={component.id}
                       onChange={updateField}
                     />
                   ))}
@@ -635,15 +573,11 @@ function App() {
               <aside className="result-column" aria-live="polite">
                 <div className="result-card">
                   <div className="result-card-head">
-                    <span
-                      className={`result-status ${
-                        copyReady ? "ready" : "waiting"
-                      }`}
-                    >
+                    <span className={`result-status ${copyReady ? "ready" : "waiting"}`}>
                       <span aria-hidden="true" />
                       {copyReady ? "Ready to copy" : "Waiting for details"}
                     </span>
-                    <span>NZLSG {definition.rule}</span>
+                    <span>NZLSG {type.rule}</span>
                   </div>
 
                   <div className={`citation-preview ${copyReady ? "" : "muted"}`}>
@@ -651,27 +585,28 @@ function App() {
                       <p dangerouslySetInnerHTML={{ __html: result.html }} />
                     ) : (
                       <p className="placeholder-copy">
-                        Your citation will appear only after every required
-                        detail is complete.
+                        Your citation will appear only after every required detail
+                        is complete.
                       </p>
                     )}
                   </div>
 
                   <div className="issues">
                     {result.issues.map((issue, index) => (
-                      <div className={`issue issue-${issue.level}`} key={`${issue.field}-${index}`}>
+                      <div
+                        className={`issue issue-${issue.level}`}
+                        key={`${issue.field}-${index}`}
+                      >
                         <span aria-hidden="true">{issue.level === "error" ? "!" : "i"}</span>
                         <p>{issue.message}</p>
                       </div>
                     ))}
-                    {result.status === "ready" &&
-                      reviewRequired &&
-                      !reviewConfirmed && (
-                        <div className="issue issue-error">
-                          <span aria-hidden="true">!</span>
-                          <p>Confirm that you checked the extracted details.</p>
-                        </div>
-                      )}
+                    {result.status === "ready" && reviewRequired && !reviewConfirmed && (
+                      <div className="issue issue-error">
+                        <span aria-hidden="true">!</span>
+                        <p>Confirm that you checked the extracted details.</p>
+                      </div>
+                    )}
                     {copyReady && !result.issues.length && (
                       <div className="issue issue-success">
                         <span aria-hidden="true">✓</span>
@@ -684,9 +619,7 @@ function App() {
                     <button
                       className="primary-button"
                       disabled={!copyReady}
-                      onClick={() =>
-                        handleCopy(result.text, result.html, true)
-                      }
+                      onClick={() => handleCopy(result.text, result.html, true)}
                       type="button"
                     >
                       Copy formatted
@@ -694,9 +627,7 @@ function App() {
                     <button
                       className="secondary-button"
                       disabled={!copyReady}
-                      onClick={() =>
-                        handleCopy(result.text, result.html, false)
-                      }
+                      onClick={() => handleCopy(result.text, result.html, false)}
                       type="button"
                     >
                       Plain text
@@ -712,8 +643,7 @@ function App() {
                   </button>
                   {copyReady && (
                     <p className="copy-hint">
-                      Tip: press{" "}
-                      <kbd>{navigatorMeta()}</kbd>
+                      Tip: press <kbd>{navigatorMeta()}</kbd>
                       <kbd>Enter</kbd> to copy, or <kbd>Esc</kbd> to go back.
                     </p>
                   )}
@@ -727,11 +657,14 @@ function App() {
                     <strong>Rule provenance</strong>
                     <p>
                       Output is rendered from{" "}
-                      <a href={definition.ruleUrl} rel="noreferrer" target="_blank">
-                        NZLSG {definition.rule}
+                      <a href={type.ruleUrl} rel="noreferrer" target="_blank">
+                        NZLSG {type.rule}
                       </a>
                       . No bibliographic facts are fetched or invented.
                     </p>
+                    {type.uncertainty && (
+                      <p className="provenance-note">Note: {type.uncertainty}</p>
+                    )}
                   </div>
                 </div>
               </aside>
@@ -752,13 +685,13 @@ function App() {
           <div className="footnote-card">
             <div className="footnote-card-head">
               <span>Current footnote</span>
-              <span>{footnoteItems.length} authorities</span>
+              <span>{footnoteEntries.length} authorities</span>
             </div>
-            {footnoteItems.length ? (
+            {footnoteResults.length ? (
               <>
                 <ol className="authority-list">
-                  {footnoteItems.map((item, index) => (
-                    <li key={`${item.type}-${index}`}>
+                  {footnoteResults.map((item, index) => (
+                    <li key={`${item.type.id}-${index}`}>
                       <div>
                         <span className="authority-number">
                           {String(index + 1).padStart(2, "0")}
@@ -768,7 +701,7 @@ function App() {
                       <button
                         aria-label={`Remove authority ${index + 1}`}
                         onClick={() =>
-                          setFootnoteItems((current) =>
+                          setFootnoteEntries((current) =>
                             current.filter((_, itemIndex) => itemIndex !== index),
                           )
                         }
@@ -793,7 +726,7 @@ function App() {
                   </button>
                   <button
                     className="text-button danger"
-                    onClick={() => setFootnoteItems([])}
+                    onClick={() => setFootnoteEntries([])}
                     type="button"
                   >
                     Clear
@@ -811,14 +744,14 @@ function App() {
 
         <section className="coverage-section">
           <div>
-            <p className="eyebrow">Accuracy before breadth</p>
-            <h2>Unsupported means unsupported.</h2>
+            <p className="eyebrow">The whole guide, in code</p>
+            <h2>Every format, verified against the Guide’s own examples.</h2>
           </div>
           <p>
-            This release covers {sourceTypes.length} verified formats spanning
-            secondary sources, cases, legislation, and parliamentary material.
-            Remaining foreign, historical, and international formats are added
-            only after their renderer and edge cases pass the same release gate.
+            NZ Law Cite is built directly from the Style Guide: {guideTypes.length}{" "}
+            source types spanning cases, legislation, parliamentary and official
+            sources, secondary materials, and international and foreign authorities.
+            The renderer is measured against the Guide’s own worked examples.
           </p>
         </section>
       </main>

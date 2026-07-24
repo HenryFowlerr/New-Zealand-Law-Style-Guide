@@ -6,10 +6,12 @@
  */
 import {
   guideTypeById,
+  guideTypes,
   type GuideComponent,
   type GuideType,
 } from "../data/styleGuide";
 import {
+  extractByTemplate,
   renderFromTemplate,
   tokensToHtml,
   tokensToText,
@@ -107,5 +109,83 @@ export function buildCitation(
     text: tokensToText(tokens),
     html: tokensToHtml(tokens),
     issues,
+  };
+}
+
+export function missingRequiredComponents(
+  type: GuideType,
+  fields: CitationFields,
+): GuideComponent[] {
+  return visibleComponents(type).filter(
+    (component) => component.required && !fieldValue(fields, component.id),
+  );
+}
+
+export type Detection = {
+  typeId: string;
+  fields: CitationFields;
+  score: number;
+};
+
+/**
+ * Best-effort paste detection: try to read the pasted text with every type's
+ * template and rank the ones that match by how well they account for the text
+ * (all required components filled first, then the most components captured).
+ * The user always confirms the type before anything is generated.
+ */
+export function detectTypes(text: string, limit = 6): Detection[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  const detections: Detection[] = [];
+  for (const type of guideTypes) {
+    const fields = extractByTemplate(type, trimmed);
+    if (!fields) continue;
+    const required = visibleComponents(type).filter((c) => c.required);
+    const requiredCovered = required.filter((c) => fields[c.id]).length;
+    const requiredMissing = required.length - requiredCovered;
+    const captured = Object.keys(fields).length;
+    // Full required coverage dominates; then more captured detail; strongly
+    // penalise a match that leaves required fields empty.
+    const score = requiredCovered * 100 + captured - requiredMissing * 200;
+    detections.push({ typeId: type.id, fields, score });
+  }
+  detections.sort((a, b) => b.score - a.score);
+  return detections.slice(0, limit);
+}
+
+function stripTrailingStop(tokens: Token[]): Token[] {
+  if (tokens.length === 0) return tokens;
+  const result = tokens.map((token) => ({ ...token }));
+  const last = result[result.length - 1];
+  last.text = last.text.replace(/\.+$/, "");
+  return result;
+}
+
+/**
+ * Compose several ready citations into one footnote: semicolons between
+ * sources, "and" before the last, and a single closing full stop (rule 2.2.4).
+ */
+export function composeFootnote(results: BuildResult[]): {
+  text: string;
+  html: string;
+  tokens: Token[];
+} {
+  const ready = results.filter((result) => result.status === "ready");
+  if (ready.length === 0) return { text: "", html: "", tokens: [] };
+
+  const tokens: Token[] = [];
+  ready.forEach((result, index) => {
+    if (index > 0) {
+      tokens.push({ text: index === ready.length - 1 ? "; and " : "; " });
+    }
+    tokens.push(...stripTrailingStop(result.tokens));
+  });
+  const last = tokens[tokens.length - 1];
+  last.text = `${last.text.replace(/\.+$/, "")}.`;
+
+  return {
+    text: tokensToText(tokens),
+    html: tokensToHtml(tokens),
+    tokens,
   };
 }
