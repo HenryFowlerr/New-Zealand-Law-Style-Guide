@@ -3107,7 +3107,7 @@
       "group": "Secondary sources",
       "rule": "6.5",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.6.5.html#6.5.1",
-      "outputTemplate": "{title} ({edition}, {reissue}, {year}[, online ed]) vol {volume} {topic} at {pinpoint}",
+      "outputTemplate": "{title} ({edition}, {reissue}, {year}, {onlineEd}) vol {volume} {topic} at {pinpoint}",
       "components": [
         {
           "id": "title",
@@ -3192,6 +3192,18 @@
           "omittedWhen": "if none",
           "formatting": "paragraph in square brackets",
           "notes": "6.5.1"
+        },
+        {
+          "id": "onlineEd",
+          "label": "Online edition",
+          "required": false,
+          "italic": false,
+          "order": 99,
+          "separatorBefore": "",
+          "includedWhen": "when present",
+          "omittedWhen": "if absent",
+          "formatting": "",
+          "notes": "template correction"
         }
       ],
       "bracketRules": "(edition, [reissue,] year[, online ed]) in round brackets; volume and topic outside.",
@@ -3221,7 +3233,7 @@
       "group": "Secondary sources",
       "rule": "6.6",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.6.6.html#6.6.1",
-      "outputTemplate": "{author} {title} {topic} [(Reissue N)] [(online ed)] at {pinpoint}",
+      "outputTemplate": "{author} {title} {topic} ({reissue}) ({onlineEd}) at {pinpoint}",
       "components": [
         {
           "id": "author",
@@ -3282,6 +3294,18 @@
           "omittedWhen": "if none",
           "formatting": "paragraph in square brackets",
           "notes": "6.6.1"
+        },
+        {
+          "id": "reissue",
+          "label": "Reissue",
+          "required": false,
+          "italic": false,
+          "order": 99,
+          "separatorBefore": "",
+          "includedWhen": "when present",
+          "omittedWhen": "if absent",
+          "formatting": "",
+          "notes": "template correction"
         }
       ],
       "bracketRules": "'(Reissue N)' and '(online ed)' in round brackets after the topic.",
@@ -3845,7 +3869,7 @@
       "group": "Secondary sources",
       "rule": "7.2",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.7.2.html#7.2.1",
-      "outputTemplate": "{author} “{articleTitle}” {newspaperTitle} ([online ed, ]{place}, {date}) at {pinpoint}",
+      "outputTemplate": "{author} “{articleTitle}” *{newspaperTitle}* ({onlineEd}, {place}, {date}) at {pinpoint}",
       "components": [
         {
           "id": "author",
@@ -5279,7 +5303,7 @@
       "group": "International & foreign",
       "rule": "9.4.2 / 9.4.3",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.9.4.html#9.4.2",
-      "outputTemplate": "{shortTitle} {year} (UK), {pinpoint}  |  devolved: {shortTitleWithJurisdiction} {year}",
+      "outputTemplate": "{shortTitle} {year} ({jurisdiction}), {pinpoint}",
       "components": [
         {
           "id": "shortTitle",
