@@ -644,6 +644,54 @@
           "omittedWhen": "if none",
           "formatting": "page number",
           "notes": "3.7.1"
+        },
+        {
+          "id": "courtAbbrev",
+          "label": "Court abbrev",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "location",
+          "label": "Location",
+          "required": false,
+          "italic": false,
+          "order": 9,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "newspaperPlace",
+          "label": "Newspaper place",
+          "required": false,
+          "italic": false,
+          "order": 10,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "newspaperDate",
+          "label": "Newspaper date",
+          "required": false,
+          "italic": false,
+          "order": 11,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Newspaper place and date in round brackets.",
@@ -718,6 +766,30 @@
           "omittedWhen": "never",
           "formatting": "angle brackets <www.victoria.ac.nz/law/nzlostcases/>",
           "notes": "3.7.2"
+        },
+        {
+          "id": "courtAbbrev",
+          "label": "Court abbrev",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "location",
+          "label": "Location",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "URL in angle brackets.",
@@ -780,6 +852,66 @@
           "omittedWhen": "as applicable",
           "formatting": "pre-2011: date of first hearing day (each part of a split hearing cited separately)",
           "notes": "3.8"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 4,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "number",
+          "label": "Number",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "pinpoint",
+          "label": "Pinpoint",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "fileNumber",
+          "label": "File number",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "hearingDate",
+          "label": "Hearing date",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "2011+ transcript number in square brackets as a neutral citation.",
@@ -1326,6 +1458,18 @@
           "omittedWhen": "if none",
           "formatting": "after the Bill citation; may include '(explanatory note)'",
           "notes": "4.2.3(d)"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "SOP number in round brackets after the year.",
@@ -1450,6 +1594,18 @@
           "omittedWhen": "if none",
           "formatting": "rule abbreviation r / rr",
           "notes": "4.3.3"
+        },
+        {
+          "id": "rule",
+          "label": "Rule",
+          "required": false,
+          "italic": false,
+          "order": 4,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "None.",
@@ -1578,6 +1734,42 @@
           "omittedWhen": "if none",
           "formatting": "page or clause",
           "notes": "4.3.2"
+        },
+        {
+          "id": "date",
+          "label": "Date",
+          "required": false,
+          "italic": false,
+          "order": 4,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "issueNumber",
+          "label": "Issue number",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "startingPage",
+          "label": "Starting page",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Date in round brackets (per 5.2.4).",
@@ -1640,6 +1832,18 @@
           "omittedWhen": "if none",
           "formatting": "clauses cl / cls",
           "notes": "4.3.5"
+        },
+        {
+          "id": "clause",
+          "label": "Clause",
+          "required": false,
+          "italic": false,
+          "order": 4,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "None.",
@@ -1690,6 +1894,42 @@
           "omittedWhen": "never",
           "formatting": "per 5.2.4",
           "notes": "4.3.6"
+        },
+        {
+          "id": "date",
+          "label": "Date",
+          "required": false,
+          "italic": false,
+          "order": 3,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "issueNumber",
+          "label": "Issue number",
+          "required": false,
+          "italic": false,
+          "order": 4,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "startingPage",
+          "label": "Starting page",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Date in round brackets (per 5.2.4).",
@@ -2314,6 +2554,30 @@
           "omittedWhen": "if none",
           "formatting": "page",
           "notes": "5.2.4"
+        },
+        {
+          "id": "startingPage",
+          "label": "Starting page",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "noticeNumber",
+          "label": "Notice number",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Date in round brackets.",
@@ -2438,6 +2702,18 @@
           "omittedWhen": "never",
           "formatting": "round brackets: 'obtained under Official Information Act 1982 request to [body to whom the request was made]'",
           "notes": "5.3"
+        },
+        {
+          "id": "body",
+          "label": "Body",
+          "required": false,
+          "italic": false,
+          "order": 3,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "OIA indicator in round brackets following the cited material.",
@@ -2768,6 +3044,18 @@
           "omittedWhen": "if none",
           "formatting": "prefer paragraph numbers; device page numbers cannot be used; fall back to original page numbers or the hardcopy",
           "notes": "6.1.9(a)"
+        },
+        {
+          "id": "edition",
+          "label": "Edition",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "(edition, eBook ed, publisher, year) in round brackets; no place of publication.",
@@ -2854,6 +3142,66 @@
           "omittedWhen": "if none",
           "formatting": "page or paragraph; footnote as 'at [page], n x'",
           "notes": "6.2.6"
+        },
+        {
+          "id": "bookTitle",
+          "label": "Book title",
+          "required": false,
+          "italic": true,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "edition",
+          "label": "Edition",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "publisher",
+          "label": "Publisher",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "place",
+          "label": "Place",
+          "required": false,
+          "italic": false,
+          "order": 9,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 10,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Book publication details (edition, publisher, place, year) in round brackets, as for texts.",
@@ -3490,6 +3838,30 @@
           "omittedWhen": "if none",
           "formatting": "page",
           "notes": "6.7.2"
+        },
+        {
+          "id": "conference",
+          "label": "Conference",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "location",
+          "label": "Location",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "(descriptor + conference, location, date) in round brackets.",
@@ -3778,6 +4150,18 @@
           "omittedWhen": "never",
           "formatting": "angle brackets as 7.1.6",
           "notes": "7.1.8"
+        },
+        {
+          "id": "date",
+          "label": "Date",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "'(podcast, date)' in round brackets; URL in angle brackets.",
@@ -4364,6 +4748,42 @@
           "omittedWhen": "if none",
           "formatting": "page or work-specific locator (e.g. 1.1.1.2)",
           "notes": "7.7.1"
+        },
+        {
+          "id": "publisher",
+          "label": "Publisher",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "place",
+          "label": "Place",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "(editor/translator, publisher, place, year) in round brackets.",
@@ -4414,6 +4834,18 @@
           "omittedWhen": "never",
           "formatting": "institution name then the locating references per that institution's own rules (comma-separated), e.g. 'Archives New Zealand, IA1/41, 45/394'",
           "notes": "7.7.2"
+        },
+        {
+          "id": "locatingDetails",
+          "label": "Locating details",
+          "required": false,
+          "italic": false,
+          "order": 3,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "None specified.",
@@ -4496,6 +4928,102 @@
           "omittedWhen": "if none",
           "formatting": "as 3.2.8",
           "notes": "8.1"
+        },
+        {
+          "id": "neutralYear",
+          "label": "Neutral year",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "neutralCourt",
+          "label": "Neutral court",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "number",
+          "label": "Number",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 9,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "order": 10,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "reportSeries",
+          "label": "Report series",
+          "required": false,
+          "italic": false,
+          "order": 11,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "startingPage",
+          "label": "Starting page",
+          "required": false,
+          "italic": false,
+          "order": 12,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "jurisdictionCourt",
+          "label": "Jurisdiction court",
+          "required": false,
+          "italic": false,
+          "order": 13,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Follows ch 3: square [year] for year-organised reports, round (year) for volume-organised; neutral citation year in square brackets.",
@@ -4570,6 +5098,78 @@
           "omittedWhen": "omit for SCR (Supreme Court only)",
           "formatting": "identifiers per App 3 e.g. ONCA, FC",
           "notes": "8.3.2"
+        },
+        {
+          "id": "neutralCitationNoBrackets",
+          "label": "Neutral citation no brackets",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "reportSeries",
+          "label": "Report series",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "startingPage",
+          "label": "Starting page",
+          "required": false,
+          "italic": false,
+          "order": 9,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "jurisdictionCourt",
+          "label": "Jurisdiction court",
+          "required": false,
+          "italic": false,
+          "order": 10,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Neutral citation year NOT bracketed (Canadian practice). Reported-citation year bracketed per ch 3.",
@@ -4660,6 +5260,90 @@
           "omittedWhen": "if none",
           "formatting": "as 3.2.8",
           "notes": "8.1"
+        },
+        {
+          "id": "neutralYear",
+          "label": "Neutral year",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "neutralCourt",
+          "label": "Neutral court",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "number",
+          "label": "Number",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 9,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "order": 10,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "reportSeries",
+          "label": "Report series",
+          "required": false,
+          "italic": false,
+          "order": 11,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "startingPage",
+          "label": "Starting page",
+          "required": false,
+          "italic": false,
+          "order": 12,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "As ch 3.",
@@ -4762,6 +5446,30 @@
           "omittedWhen": "if none",
           "formatting": "give BOTH the nominate-report page ('at 116') and the reprint page ('at 282')",
           "notes": "8.4.2(d)"
+        },
+        {
+          "id": "nominatePinpoint",
+          "label": "Nominate pinpoint",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "reprintPinpoint",
+          "label": "Reprint pinpoint",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Year in round brackets, given once. Court identifier in round brackets.",
@@ -4852,6 +5560,18 @@
           "omittedWhen": "as ch 3",
           "formatting": "report-report identifiers OH, IH, HCJAC, HCJT; 'Scot' may prefix the identifier (no space) to signal a Scottish decision",
           "notes": "8.5.1(b)"
+        },
+        {
+          "id": "startingPage",
+          "label": "Starting page",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Round brackets around the year when the year is not essential (volume-organised); no brackets when essential (year-organised). Square brackets NEVER used.",
@@ -4930,6 +5650,42 @@
           "omittedWhen": "if none",
           "formatting": "page",
           "notes": "8.6.1"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "reportSeries",
+          "label": "Report series",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "startingPage",
+          "label": "Starting page",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Court (district/circuit) and year of decision together in round brackets at the end.",
@@ -5008,6 +5764,42 @@
           "omittedWhen": "if none",
           "formatting": "page; ranges with en dash",
           "notes": "8.6.1"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "reportSeries",
+          "label": "Report series",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "startingPage",
+          "label": "Starting page",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "State/court and year together in round brackets at the end.",
@@ -5512,6 +6304,66 @@
           "omittedWhen": "omit if the year is already part of the statute's name",
           "formatting": "'(year)'",
           "notes": "9.5.2(c)"
+        },
+        {
+          "id": "section",
+          "label": "Section",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "sessionLaws",
+          "label": "Session laws",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "page",
+          "label": "Page",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "pinpoint",
+          "label": "Pinpoint",
+          "required": false,
+          "italic": false,
+          "order": 9,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Year in round brackets at the end.",
@@ -5586,6 +6438,42 @@
           "omittedWhen": "if none",
           "formatting": "follow the form used in the law: 'r', '§' or 'art'",
           "notes": "9.5.3(b)"
+        },
+        {
+          "id": "publisher",
+          "label": "Publisher",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "place",
+          "label": "Place",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "(publisher, place, year) in round brackets.",
@@ -5656,6 +6544,54 @@
           "omittedWhen": "if none",
           "formatting": "section symbol §; pocket parts cited the same way but with the pocket part's year and '(pocket part)' after the pinpoint",
           "notes": "9.5.4(a)"
+        },
+        {
+          "id": "edition",
+          "label": "Edition",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "place",
+          "label": "Place",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "stateOrRegion",
+          "label": "State or region",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "(edition, place, state/region, year) in round brackets; '(pocket part)' after the pinpoint for pocket parts.",
@@ -5788,6 +6724,30 @@
           "omittedWhen": "if none",
           "formatting": "article number 'art N' (same rules as statutes, 4.1.1(d))",
           "notes": "10.1.1(e)"
+        },
+        {
+          "id": "dateOpened",
+          "label": "Date opened",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "dateInForce",
+          "label": "Date in force",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Date(s) in round brackets after the treaty series citation. No italics anywhere.",
@@ -5906,6 +6866,30 @@
           "omittedWhen": "if none",
           "formatting": "pinpoint to PAGE numbers (paragraph numbers restart per separate judgment)",
           "notes": "10.2.1(i)"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "order": 9,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "ICJ year in square brackets; PCIJ year in round brackets. Parties and phase in italic round brackets.",
@@ -6806,6 +7790,30 @@
           "omittedWhen": "never",
           "formatting": "form '[Year] OJ series number/page' e.g. '[2002] OJ L248/1'; pre-1972 material cited to the Special Edition ('[1963-4] OJ Spec Ed 117')",
           "notes": "10.5.2(c)"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 4,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "seriesNumberPage",
+          "label": "Series number page",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Year in square brackets within the OJ citation.",
@@ -6880,6 +7888,54 @@
           "omittedWhen": "if none",
           "formatting": "page/paragraph",
           "notes": "10.5.3"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "reportSeries",
+          "label": "Report series",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "page",
+          "label": "Page",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Court identifier in round brackets. Year bracket style follows the report series.",
@@ -6962,6 +8018,54 @@
           "omittedWhen": "if none",
           "formatting": "paragraph in square brackets",
           "notes": "10.5.4"
+        },
+        {
+          "id": "year",
+          "label": "Year",
+          "required": false,
+          "italic": false,
+          "order": 5,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "order": 6,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "reportSeries",
+          "label": "Report series",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "page",
+          "label": "Page",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Year in round brackets; 'EComHR' court identifier in round brackets.",
@@ -7150,6 +8254,30 @@
           "omittedWhen": "if none",
           "formatting": "paragraph in square brackets or page",
           "notes": "10.6.2"
+        },
+        {
+          "id": "supplement",
+          "label": "Supplement",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "id": "page",
+          "label": "Page",
+          "required": false,
+          "italic": false,
+          "order": 8,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Description in round brackets.",
@@ -7212,6 +8340,18 @@
           "omittedWhen": "if none",
           "formatting": "'At [x]'/'At y' when standing alone (capital A at start of the footnote); source-type pinpoint rules apply",
           "notes": "2.3.1"
+        },
+        {
+          "id": "footnoteNumber",
+          "label": "Footnote number",
+          "required": false,
+          "italic": false,
+          "order": 4,
+          "separatorBefore": "",
+          "includedWhen": "present in the citation template",
+          "omittedWhen": "may be omitted",
+          "formatting": "",
+          "notes": "added to complete the form (template placeholder had no component)"
         }
       ],
       "bracketRules": "Commas surround 'above n x'. Legislation drops year/jurisdiction; texts may add an abbreviated title.",
