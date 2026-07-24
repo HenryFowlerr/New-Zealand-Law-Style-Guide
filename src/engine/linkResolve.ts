@@ -14,6 +14,7 @@
  * resolver itself are unit-testable offline with recorded API responses.
  */
 import {
+  joinAuthors,
   metadataToFields,
   parseCitationMetadata,
   type CitationMetadata,
@@ -113,11 +114,115 @@ export function openLibraryToMetadata(record: any): CitationMetadata {
 }
 
 export type ResolvedLink = {
-  source: "crossref" | "openlibrary" | "page-metadata" | "url-only";
+  source: "citoid" | "crossref" | "openlibrary" | "page-metadata" | "url-only";
   metadata: CitationMetadata;
   typeId: string;
   fields: Record<string, string>;
 };
+
+/** ISO ("2019-05-03") → "3 May 2019"; other date strings pass through. */
+const MONTHS_ = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+function readableDate(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const day = Number(iso[3]);
+    const month = MONTHS_[Number(iso[2]) - 1];
+    if (month && day) return `${day} ${month} ${iso[1]}`;
+  }
+  return raw.trim();
+}
+
+/**
+ * Map a Zotero-format item (as returned by the Citoid / Zotero translation
+ * server) onto a Style Guide type and its fields. Citoid runs Zotero's
+ * translators server-side, so this is the most reliable "link → citation" path.
+ */
+export function citoidItemToResolved(item: any, sourceUrl?: string): ResolvedLink | null {
+  if (!item || typeof item !== "object") return null;
+  const creators: any[] = Array.isArray(item.creators) ? item.creators : [];
+  const nameOf = (c: any): string =>
+    c?.firstName && c?.lastName ? `${c.firstName} ${c.lastName}` : c?.name || c?.lastName || "";
+  const authors = creators
+    .filter((c) => (c.creatorType ?? "author") === "author")
+    .map(nameOf)
+    .filter(Boolean);
+  const editors = creators.filter((c) => c.creatorType === "editor").map(nameOf).filter(Boolean);
+  const author = joinAuthors(authors);
+  const year = firstYear(item.date);
+  const firstPage = item.pages ? String(item.pages).split(/[-–]/)[0].trim() : undefined;
+  const url = item.url ?? sourceUrl;
+
+  const f: Record<string, string> = {};
+  const put = (k: string, v?: string) => {
+    if (v && v.trim()) f[k] = v.trim();
+  };
+
+  let typeId: string;
+  switch (item.itemType) {
+    case "journalArticle":
+      typeId = "journal-article";
+      put("author", author);
+      put("title", item.title);
+      if (year) put("year", `(${year})`);
+      put("volume", item.volume);
+      put("journalAbbrev", item.publicationTitle);
+      put("startingPage", firstPage);
+      break;
+    case "book":
+      typeId = "text-book";
+      put("author", author);
+      put("title", item.title);
+      put("publisher", item.publisher);
+      put("placeOfPublication", item.place);
+      put("year", year);
+      break;
+    case "bookSection":
+      typeId = "essay-in-edited-book";
+      put("author", author);
+      put("essayTitle", item.title);
+      put("editor", editors.join(" and "));
+      put("bookTitle", item.bookTitle);
+      put("publisher", item.publisher);
+      put("place", item.place);
+      put("year", year);
+      break;
+    case "newspaperArticle":
+    case "magazineArticle":
+      typeId = "newspaper-magazine-article";
+      put("author", author);
+      put("articleTitle", item.title);
+      put("newspaperTitle", item.publicationTitle);
+      put("place", item.place);
+      put("date", readableDate(item.date));
+      break;
+    case "report":
+      typeId = "paper-or-report";
+      put("author", author);
+      put("title", item.title);
+      put("publisher", item.publisher || item.institution);
+      put("date", readableDate(item.date));
+      break;
+    default:
+      // webpage, blogPost, document, and anything else → internet material.
+      typeId = "internet-material";
+      put("author", author);
+      put("title", item.title);
+      put("date", readableDate(item.date));
+      put("websiteName", item.websiteTitle || item.publicationTitle);
+      put("url", url);
+  }
+  if (Object.keys(f).length === 0) return null;
+  return {
+    source: "citoid",
+    metadata: { authors, title: item.title, year, url },
+    typeId,
+    fields: f,
+  };
+}
 
 /**
  * Last-resort fields derived from the URL alone, for pages that block automated
@@ -196,6 +301,20 @@ export async function resolveLink(
 
   if (/^https?:\/\//i.test(trimmed) || /^www\./i.test(trimmed)) {
     const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+    // Citoid (Zotero's translators, hosted free by Wikimedia) is the most
+    // capable link reader — try it first.
+    try {
+      const citoid = await fetchers.fetchJson(
+        `https://en.wikipedia.org/api/rest_v1/data/citation/zotero/${encodeURIComponent(url)}`,
+      );
+      const item = Array.isArray(citoid) ? citoid[0] : null;
+      const resolved = citoidItemToResolved(item, url);
+      if (resolved && (resolved.fields.title || resolved.fields.author)) return resolved;
+    } catch {
+      // Citoid unavailable or couldn't read the page — fall through.
+    }
+
     let html: string | null = null;
     try {
       html = await fetchers.fetchText(url);

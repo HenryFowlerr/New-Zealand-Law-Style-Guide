@@ -6,6 +6,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  citoidItemToResolved,
   crossrefToMetadata,
   extractDoi,
   extractIsbn,
@@ -152,6 +153,60 @@ test("resolves a plain page via its embedded citation meta tags", async () => {
   assert.ok(resolved);
   assert.equal(resolved.source, "page-metadata");
   assert.equal(resolved.fields.journalAbbrev, "NZLJ");
+});
+
+test("maps Citoid Zotero items to the right Style Guide type and fields", () => {
+  const journal = citoidItemToResolved({
+    itemType: "journalArticle",
+    title: "Unjust Enrichment",
+    creators: [{ firstName: "Peter", lastName: "Watts", creatorType: "author" }],
+    date: "2005",
+    publicationTitle: "Law Quarterly Review",
+    volume: "121",
+    pages: "163-180",
+  });
+  assert.equal(journal?.typeId, "journal-article");
+  assert.equal(journal?.fields.author, "Peter Watts");
+  assert.equal(journal?.fields.year, "(2005)");
+  assert.equal(journal?.fields.startingPage, "163");
+
+  const web = citoidItemToResolved(
+    {
+      itemType: "webpage",
+      title: "AI for legal practitioners",
+      creators: [{ firstName: "Jane", lastName: "Doe", creatorType: "author" }],
+      websiteTitle: "LawNews",
+      date: "2025-03-10",
+    },
+    "https://lawnews.nz/x",
+  );
+  assert.equal(web?.typeId, "internet-material");
+  assert.equal(web?.fields.websiteName, "LawNews");
+  assert.equal(web?.fields.date, "10 March 2025");
+  assert.equal(web?.fields.url, "https://lawnews.nz/x");
+});
+
+test("resolveLink uses Citoid first for a web page", async () => {
+  const resolved = await resolveLink("https://lawnews.nz/some-article", {
+    fetchJson: async (url) => {
+      if (url.includes("/data/citation/")) {
+        return [
+          {
+            itemType: "newspaperArticle",
+            title: "Some Article",
+            creators: [{ firstName: "A", lastName: "Writer", creatorType: "author" }],
+            publicationTitle: "LawNews",
+            date: "2025-01-05",
+          },
+        ];
+      }
+      throw new Error(`unexpected: ${url}`);
+    },
+    fetchText: async () => { throw new Error("should not reach the proxy"); },
+  });
+  assert.equal(resolved?.source, "citoid");
+  assert.equal(resolved?.typeId, "newspaper-magazine-article");
+  assert.equal(resolved?.fields.newspaperTitle, "LawNews");
 });
 
 test("falls back to URL-derived fields when a page cannot be read", async () => {
