@@ -13,6 +13,7 @@ import { guideTypes } from "../src/data/styleGuide.ts";
 import {
   extractByTemplate,
   renderFromTemplate,
+  templateForms,
   tokensToText,
 } from "../src/engine/render.ts";
 
@@ -40,12 +41,15 @@ for (const type of guideTypes) {
       continue;
     }
     row.matched += 1;
-    const rendered = tokensToText(renderFromTemplate(type.outputTemplate, values));
-    if (norm(rendered) === norm(example.correct_citation)) {
+    const rendered = templateForms(type.outputTemplate).map((form) =>
+      tokensToText(renderFromTemplate(form, values)),
+    );
+    if (rendered.some((r) => norm(r) === norm(example.correct_citation))) {
       row.pass += 1;
     } else {
+      const best = rendered[0];
       failures.push(
-        `[${type.id}]\n  want: ${example.correct_citation}\n  got:  ${rendered}`,
+        `[${type.id}]\n  want: ${example.correct_citation}\n  got:  ${best}`,
       );
     }
   }

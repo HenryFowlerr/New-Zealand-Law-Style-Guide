@@ -13,6 +13,7 @@ import { guideTypes } from "../src/data/styleGuide.ts";
 import {
   extractByTemplate,
   renderFromTemplate,
+  templateForms,
   tokensToText,
 } from "../src/engine/render.ts";
 
@@ -29,17 +30,20 @@ for (const type of guideTypes) {
     const values = extractByTemplate(type, example.correct_citation);
     if (!values) continue;
     matched += 1;
-    const rendered = tokensToText(renderFromTemplate(type.outputTemplate, values));
-    if (norm(rendered) === norm(example.correct_citation)) pass += 1;
-    else renderMismatches.push(`${type.id}: ${rendered}`);
+    // A type may offer several forms; the citation is reproduced if any renders it.
+    const rendered = templateForms(type.outputTemplate).map((form) =>
+      tokensToText(renderFromTemplate(form, values)),
+    );
+    if (rendered.some((r) => norm(r) === norm(example.correct_citation))) pass += 1;
+    else renderMismatches.push(`${type.id}: ${rendered[0]}`);
   }
 }
 
 test("the engine reproduces the Style Guide's own worked examples", () => {
   // Regression floors. Raise these as coverage improves; never lower them.
   assert.ok(total >= 216, `expected >=216 examples, saw ${total}`);
-  assert.ok(matched >= 205, `template match regressed: ${matched}/${total}`);
-  assert.ok(pass >= 205, `exact reproduction regressed: ${pass}/${total}`);
+  assert.ok(matched >= 210, `template match regressed: ${matched}/${total}`);
+  assert.ok(pass >= 210, `exact reproduction regressed: ${pass}/${total}`);
 });
 
 test("of the examples the extractor can parse, almost all render exactly", () => {
@@ -49,7 +53,7 @@ test("of the examples the extractor can parse, almost all render exactly", () =>
   // citations, US session laws, and the "above n"/"pt" word-separators that a
   // static template cannot elide. Tightened as those templates are reworked.
   assert.ok(
-    renderMismatches.length <= 1,
+    renderMismatches.length <= 0,
     `render mismatches grew to ${renderMismatches.length}:\n${renderMismatches.join("\n")}`,
   );
 });

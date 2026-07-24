@@ -21,13 +21,26 @@ type TplToken =
   | { kind: "lit"; text: string; italic: boolean }
   | { kind: "ph"; id: string; italic: boolean };
 
-/** Templates occasionally hold two forms separated by " | "; use the first. */
-export function primaryForm(template: string): string {
-  return template.split(" | ")[0].trim();
+/** Remove editorial annotations a form carries (a "label:" prefix or a trailing
+ * "(2011+)"/"(pre-2011)" note) so only the citation structure remains. */
+function stripAnnotations(form: string): string {
+  return form
+    .replace(/^\s*[A-Za-z0-9 +/–-]+:\s+/, "")
+    .replace(/\s{2,}\([^)]*\)\s*$/, "")
+    .trim();
 }
 
-export function parseTemplate(template: string): TplToken[] {
-  const form = primaryForm(template);
+/** A template may hold several forms separated by " | " (e.g. modern vs older
+ * citation styles). Return each as a clean, single form. */
+export function templateForms(template: string): string[] {
+  const forms = template
+    .split(/\s+\|\s+/)
+    .map(stripAnnotations)
+    .filter(Boolean);
+  return forms.length ? forms : [template.trim()];
+}
+
+export function parseTemplate(form: string): TplToken[] {
   const tokens: TplToken[] = [];
   let italic = false;
   let lit = "";
@@ -92,7 +105,7 @@ export function renderFromTemplate(
   template: string,
   values: Record<string, ComponentValue>,
 ): Token[] {
-  const tpl = parseTemplate(template);
+  const tpl = parseTemplate(templateForms(template)[0]);
   const out: Token[] = [];
   let litBuffer = "";
   // Whether an optional component was dropped since the buffer was last flushed.
@@ -208,11 +221,14 @@ function capturePattern(id: string): string | null {
  * the component `required` flags to make optional components (with their leading
  * separator and any wrapping bracket) optional in the match.
  */
-export function buildExtractionRegex(type: GuideType): {
+export function buildExtractionRegex(
+  type: GuideType,
+  form: string = templateForms(type.outputTemplate)[0],
+): {
   regex: RegExp;
   ids: string[];
 } | null {
-  const tpl = parseTemplate(type.outputTemplate);
+  const tpl = parseTemplate(form);
   const requiredById = new Map(type.components.map((c) => [c.id, c.required]));
   const ids: string[] = [];
   let pattern = "^";
@@ -333,17 +349,32 @@ export function extractByTemplate(
   type: GuideType,
   citation: string,
 ): Record<string, string> | null {
-  const built = buildExtractionRegex(type);
-  if (!built) return null;
   const stripped = citation.trim().replace(/\.$/, "");
-  const match = stripped.match(built.regex);
-  if (!match) return null;
-  const values: Record<string, string> = {};
-  built.ids.forEach((id, index) => {
-    const captured = match[index + 1];
-    if (captured != null && captured.trim().length > 0) {
-      values[id] = balanceBrackets(captured.trim());
+  const norm = (s: string) => s.trim().replace(/\.$/, "").replace(/\s+/g, " ");
+  // Try each form the type offers (e.g. modern vs older citation styles).
+  // Prefer a form whose values render back to the input (the correct structure);
+  // otherwise the one that fills the most fields.
+  let best: Record<string, string> | null = null;
+  let bestScore = -1;
+  for (const form of templateForms(type.outputTemplate)) {
+    const built = buildExtractionRegex(type, form);
+    if (!built) continue;
+    const match = stripped.match(built.regex);
+    if (!match) continue;
+    const values: Record<string, string> = {};
+    built.ids.forEach((id, index) => {
+      const captured = match[index + 1];
+      if (captured != null && captured.trim().length > 0) {
+        values[id] = balanceBrackets(captured.trim());
+      }
+    });
+    const roundTrips =
+      norm(tokensToText(renderFromTemplate(form, values))) === norm(stripped);
+    const score = (roundTrips ? 1000 : 0) + Object.keys(values).length;
+    if (score > bestScore) {
+      bestScore = score;
+      best = values;
     }
-  });
-  return values;
+  }
+  return best;
 }
