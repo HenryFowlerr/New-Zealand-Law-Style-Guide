@@ -107,7 +107,7 @@ export function renderFromTemplate(
     let text = litBuffer;
     if (elision) {
       // A field dropped from a comma-separated list (two commas flank the gap)
-      // leaves the list comma; a field dropped elsewhere collapses to a space.
+      // leaves one list comma; a field dropped elsewhere collapses to a space.
       const commas = (text.match(/,/g) ?? []).length;
       text =
         commas >= 2
@@ -132,13 +132,17 @@ export function renderFromTemplate(
     const raw = values[t.id];
     const text = valueText(raw);
     if (!text) {
-      elision = true;
       // Drop a "unit word" that only introduces this now-absent field
-      // (e.g. "vol", "pt", "no", "above n") along with its leading space.
+      // (e.g. "vol", "pt", "no", "above n", "at") along with its leading space.
+      const before = litBuffer;
       litBuffer = litBuffer.replace(
-        /\s*(?:\b(?:above n|pt|vol|no|cl|reg|sch|art|ch|at)\b|§)\s*$/i,
+        /\s*[,–-]?\s*(?:\b(?:above n|pt|vol|no|cl|reg|sch|art|ch|at)\b|§)\s*$/i,
         "",
       );
+      // Only trigger comma-collapse when the absent field's OWN separator was
+      // punctuation (not a unit word already handled above); this keeps a comma
+      // that belongs to the NEXT, present field (e.g. a parallel citation).
+      if (litBuffer === before) elision = true;
       continue;
     }
     flushLit();
