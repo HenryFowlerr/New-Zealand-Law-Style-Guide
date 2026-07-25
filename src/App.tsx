@@ -18,8 +18,6 @@ import {
 } from "./engine/build";
 import { resolveLink, looksLikeLink } from "./engine/linkResolve";
 import { browserFetchers } from "./engine/browserFetch";
-import { llmParse, ollamaModel, type CallModel } from "./engine/llmParse";
-import { getWebllmSession, isWebGpuAvailable } from "./engine/webllmModel";
 
 type Mode = "paste" | "build";
 type FootnoteEntry = { typeId: string; fields: CitationFields };
@@ -240,11 +238,8 @@ function App() {
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [query, setQuery] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
   const [linkStatus, setLinkStatus] = useState("");
   const [linkBusy, setLinkBusy] = useState(false);
-  const [aiStatus, setAiStatus] = useState("");
-  const [aiBusy, setAiBusy] = useState(false);
   const [footnoteEntries, setFootnoteEntries] = useState<FootnoteEntry[]>(() =>
     loadSavedFootnote(),
   );
@@ -280,7 +275,8 @@ function App() {
   // Live paste detection.
   useEffect(() => {
     if (mode !== "paste" || selectedType) return;
-    if (!pasteText.trim()) {
+    // A link/DOI/ISBN is looked up, not type-detected — don't run text detection.
+    if (!pasteText.trim() || looksLikeLink(pasteText.trim())) {
       setDetections([]);
       setAnalysisAttempted(false);
       return;
@@ -302,7 +298,6 @@ function App() {
     setReviewRequired(false);
     setReviewConfirmed(false);
     setLinkStatus("");
-    setAiStatus("");
   };
 
   const selectType = (id: string, fromPaste = mode === "paste") => {
@@ -329,11 +324,11 @@ function App() {
     }, 60);
   };
 
-  const resolveLinkAndFill = async () => {
-    const url = linkUrl.trim();
+  const resolveLinkAndFill = async (rawUrl: string) => {
+    const url = rawUrl.trim();
     if (!url || linkBusy) return;
     if (!looksLikeLink(url)) {
-      setLinkStatus("That doesn’t look like a link, DOI or ISBN — paste the reference text above instead.");
+      setLinkStatus("That doesn’t look like a link, DOI or ISBN.");
       return;
     }
     setLinkBusy(true);
@@ -377,45 +372,6 @@ function App() {
     }
   };
 
-  const aiAutoFill = async (provider: "webllm" | "ollama") => {
-    if (!selectedType || aiBusy || !pasteText.trim()) return;
-    const type = guideTypeById[selectedType];
-    setAiBusy(true);
-    try {
-      let callModel: CallModel;
-      if (provider === "ollama") {
-        setAiStatus("Contacting your local Ollama server (http://localhost:11434)…");
-        callModel = ollamaModel();
-      } else {
-        setAiStatus("Preparing the in-browser model… the first run downloads it (about 1 GB) and can take a few minutes.");
-        const session = await getWebllmSession((report) => {
-          const pct = Math.round((report.progress ?? 0) * 100);
-          setAiStatus(report.text ? `${report.text}${pct ? ` (${pct}%)` : ""}` : "Loading the model…");
-        });
-        callModel = session.callModel;
-      }
-      setAiStatus("Reading your reference…");
-      const aiFields = await llmParse(pasteText, type, callModel);
-      if (Object.keys(aiFields).length === 0) {
-        setAiStatus("The model couldn’t read any fields from that text. Fill them in by hand.");
-        return;
-      }
-      // Merge AI values over the current fields; the review step still applies.
-      setFields((current) => ({ ...current, ...aiFields }));
-      setReviewConfirmed(false);
-      setAiStatus(`AI filled ${Object.keys(aiFields).length} field(s). Check each one against the source before copying.`);
-    } catch (error) {
-      const base = error instanceof Error ? error.message : "AI is unavailable.";
-      setAiStatus(
-        provider === "ollama"
-          ? `${base} — is Ollama running? Start it, run "ollama pull llama3.2:3b", and allow this site with OLLAMA_ORIGINS.`
-          : base,
-      );
-    } finally {
-      setAiBusy(false);
-    }
-  };
-
   const updateField = (id: string, value: string) => {
     setFields((current) => ({ ...current, [id]: value }));
     setReviewConfirmed(false);
@@ -435,7 +391,6 @@ function App() {
     setFields({});
     setReviewConfirmed(false);
     setReviewRequired(false);
-    setAiStatus("");
   };
 
   useEffect(() => {
@@ -465,6 +420,7 @@ function App() {
   };
 
   const topDetection = detections[0];
+  const pasteIsLink = looksLikeLink(pasteText.trim());
 
   return (
     <div className="app-shell">
@@ -543,20 +499,22 @@ function App() {
             <section className="paste-panel" aria-labelledby="paste-heading">
               <div className="paste-copy">
                 <p className="eyebrow">Start anywhere</p>
-                <h2 id="paste-heading">Paste the reference exactly as you found it.</h2>
+                <h2 id="paste-heading">Paste a reference, or a link.</h2>
                 <p>
-                  Detection only suggests a format. You always review the source
-                  type and every extracted field before copying.
+                  Drop in a citation (even a partial or APA-style one) or a web
+                  link, DOI or ISBN. The tool reads it and fills the boxes — you
+                  skim to confirm, then copy the correct citation.
                 </p>
               </div>
               <label className="paste-box">
-                <span className="sr-only">Citation text to check</span>
+                <span className="sr-only">A citation or a link to check</span>
                 <textarea
-                  placeholder={'Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26]'}
+                  placeholder={'Paste a reference, or a link / DOI / ISBN — e.g. Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26]'}
                   value={pasteText}
                   onChange={(event) => {
                     setPasteText(event.target.value);
                     setItalicRuns([]);
+                    setLinkStatus("");
                   }}
                   onPaste={(event) => {
                     const html = event.clipboardData?.getData("text/html");
@@ -568,68 +526,53 @@ function App() {
                     }
                   }}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey && topDetection) {
-                      event.preventDefault();
-                      selectType(topDetection.typeId, true);
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      if (pasteIsLink) {
+                        event.preventDefault();
+                        void resolveLinkAndFill(pasteText);
+                      } else if (topDetection) {
+                        event.preventDefault();
+                        selectType(topDetection.typeId, true);
+                      }
                     }
                   }}
                 />
                 <div className="paste-actions">
                   <span>
-                    {topDetection
-                      ? "Detected live · press Enter to use the top match"
-                      : `${pasteText.length} characters`}
+                    {pasteIsLink
+                      ? "Looks like a link · press Enter to look it up"
+                      : topDetection
+                        ? "Detected live · press Enter to use the top match"
+                        : `${pasteText.length} characters`}
                   </span>
-                  <button
-                    className="primary-button"
-                    disabled={!topDetection}
-                    onClick={() => topDetection && selectType(topDetection.typeId, true)}
-                    type="button"
-                  >
-                    {topDetection
-                      ? `Use ${guideTypeById[topDetection.typeId].name} →`
-                      : "Waiting for a reference"}
-                  </button>
-                </div>
-              </label>
-
-              <div className="link-panel">
-                <div className="link-divider"><span>or paste a link</span></div>
-                <label className="link-box">
-                  <span className="sr-only">A web link, DOI or ISBN to look up</span>
-                  <div className="link-row">
-                    <input
-                      type="text"
-                      inputMode="url"
-                      placeholder="Paste a DOI, an article URL, or an ISBN"
-                      value={linkUrl}
-                      onChange={(event) => setLinkUrl(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          void resolveLinkAndFill();
-                        }
-                      }}
-                    />
+                  {pasteIsLink ? (
                     <button
                       className="primary-button"
+                      disabled={linkBusy}
+                      onClick={() => void resolveLinkAndFill(pasteText)}
                       type="button"
-                      disabled={linkBusy || !linkUrl.trim()}
-                      onClick={() => void resolveLinkAndFill()}
                     >
-                      {linkBusy ? "Looking up…" : "Fetch details →"}
+                      {linkBusy ? "Looking up…" : "Look up link →"}
                     </button>
-                  </div>
-                  <p className="link-hint">
-                    Best for journal articles (via Crossref) and books (via Open
-                    Library). Court judgments rarely publish citation data, so
-                    paste those as text above.
-                  </p>
-                  {linkStatus && (
-                    <p className="link-status" aria-live="polite">{linkStatus}</p>
+                  ) : (
+                    <button
+                      className="primary-button"
+                      disabled={!topDetection}
+                      onClick={() => topDetection && selectType(topDetection.typeId, true)}
+                      type="button"
+                    >
+                      {topDetection
+                        ? `Use ${guideTypeById[topDetection.typeId].name} →`
+                        : "Waiting for a reference"}
+                    </button>
                   )}
-                </label>
-              </div>
+                </div>
+                {linkStatus && (
+                  <p className="link-status paste-link-status" aria-live="polite">
+                    {linkStatus}
+                  </p>
+                )}
+              </label>
 
               {detections.length > 0 && (
                 <div className="suggestions" aria-live="polite">
@@ -728,40 +671,6 @@ function App() {
                         Every required field was found. Check each one against the
                         source, then confirm below.
                       </span>
-                    )}
-                  </div>
-                )}
-
-                {mode === "paste" && pasteText.trim() && (
-                  <div className="ai-assist">
-                    <div className="ai-buttons">
-                      {isWebGpuAvailable() && (
-                        <button
-                          className="secondary-button ai-button"
-                          type="button"
-                          disabled={aiBusy}
-                          onClick={() => void aiAutoFill("webllm")}
-                        >
-                          {aiBusy ? "Working…" : "✨ AI auto-fill (in browser)"}
-                        </button>
-                      )}
-                      <button
-                        className="secondary-button ai-button"
-                        type="button"
-                        disabled={aiBusy}
-                        onClick={() => void aiAutoFill("ollama")}
-                      >
-                        {aiBusy ? "Working…" : "Use local AI (Ollama)"}
-                      </button>
-                    </div>
-                    <span className="ai-hint">
-                      Reads the pasted text with a small AI model. In-browser is
-                      free and private (nothing leaves your device; first run
-                      downloads the model, needs WebGPU). Local (Ollama) uses a
-                      model on your own machine — ideal for testing.
-                    </span>
-                    {aiStatus && (
-                      <p className="ai-status" aria-live="polite">{aiStatus}</p>
                     )}
                   </div>
                 )}

@@ -407,6 +407,12 @@ footer {
   line-height: 1.5;
 }
 
+.paste-link-status {
+  margin: 0;
+  padding: 14px 26px 18px;
+  border-top: 1px solid var(--line);
+}
+
 @media (max-width: 620px) {
   .link-row {
     flex-direction: column;

@@ -115,22 +115,13 @@ test("a formatted (rich) paste splits an italic title from its author", async ({
   );
 });
 
-test("the paste-a-link box appears and validates input client-side", async ({ page }) => {
-  const linkInput = page.locator(".link-row input");
-  await expect(linkInput).toBeVisible();
-  // Non-link text is rejected without any network request.
-  await linkInput.fill("Evidence Act 2006");
-  await page.locator(".link-row .primary-button").click();
-  await expect(page.locator(".link-status")).toContainText(/doesn.t look like a link/i);
-});
-
-test("the local-AI (Ollama) auto-fill option appears after a paste is typed", async ({ page }) => {
-  await page.locator("textarea").fill(
-    "Andrew Butler and Petra Butler The New Zealand Bill of Rights Act A Commentary 2nd ed LexisNexis Wellington 2015",
-  );
-  // Wait for live detection to settle, then open the form via the top match.
-  await expect(page.locator(".suggestion-top")).toBeVisible();
-  await page.locator(".suggestion-top").click();
-  await expect(page.locator("#citation-form")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Use local AI \(Ollama\)/ })).toBeVisible();
+test("the single box switches to link-lookup mode for a URL", async ({ page }) => {
+  const box = page.locator("textarea");
+  // Plain text shows the detection action…
+  await box.fill("Evidence Act 2006, s 8");
+  await expect(page.locator(".paste-actions")).toContainText(/Detected live|Use /i);
+  // …and a link switches the primary action to "Look up link".
+  await box.fill("https://doi.org/10.1000/xyz123");
+  await expect(page.getByRole("button", { name: /Look up link/i })).toBeVisible();
+  await expect(page.locator(".paste-actions")).toContainText(/Looks like a link/i);
 });
