@@ -9,12 +9,22 @@
  * second proxy as a fallback if the first is down.
  */
 import type { Fetchers } from "./linkResolve";
+import { CITATION_PROXY } from "../config";
 
 // Ways to fetch a third-party page's HTML from a static site. The page is tried
 // directly first (some sites send permissive CORS headers), then through free,
 // keyless CORS proxies. `json` proxies wrap the body in a JSON envelope.
 type Route = { build: (url: string) => string; json?: "contents" };
 const ROUTES: Route[] = [
+  // Your own Cloudflare Worker first, if configured — it reads the most sites.
+  ...(CITATION_PROXY
+    ? [
+        {
+          build: (url: string) =>
+            `${CITATION_PROXY.replace(/\/$/, "")}/?url=${encodeURIComponent(url)}`,
+        } as Route,
+      ]
+    : []),
   { build: (url) => url }, // direct — works when the site allows CORS
   { build: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, json: "contents" },
   { build: (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}` },
