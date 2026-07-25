@@ -146,6 +146,44 @@ test("a Law Commission report uses the publication year, not a year in its title
   assert.equal(f.year, "1994");
 });
 
+test("straight (ASCII) quotes detect and split like curly quotes", () => {
+  // A plain-text paste, PDF copy, or hand typing yields " and ', which must
+  // work as well as the Guide's curly “ ” — this was a silent failure.
+  const journal = 'Peter Watts "Birks’ Unjust Enrichment" (2005) 121 LQR 163 at 165';
+  assert.equal(detectTypes(journal, 1)[0].typeId, "journal-article");
+  const f = prefill("journal-article", journal);
+  assert.equal(f.author, "Peter Watts");
+  assert.equal(f.journalAbbrev, "LQR");
+
+  const news = 'Claire Browning "Deep in the political weeds" The New Zealand Herald (online ed, Auckland, 3 May 2019)';
+  assert.equal(detectTypes(news, 1)[0].typeId, "newspaper-magazine-article");
+});
+
+test("an essay in an edited book reads its starting page", () => {
+  const text =
+    'Jeremy Waldron "The Rule of Law" in Edward Zalta (ed) Stanford Encyclopedia of Philosophy (2016) 25 at 30';
+  const f = prefill("essay-in-edited-book", text);
+  assert.equal(f.startingPage, "25");
+  assert.equal(f.pinpoint, "30");
+});
+
+test("unreported cases detect via the file number and split cleanly", () => {
+  const reekie = prefill("unreported-case-file-number-nz", "R v Reekie CA339/03, 3 August 2004");
+  assert.equal(detectTypes("R v Reekie CA339/03, 3 August 2004", 1)[0].typeId, "unreported-case-file-number-nz");
+  assert.equal(reekie.caseName, "R v Reekie");
+  assert.equal(reekie.fileNumber, "CA339/03");
+  assert.equal(reekie.dateOfJudgment, "3 August 2004");
+  // No fabricated court/registry fragments carved out of the case name.
+  assert.equal(reekie.courtAbbreviation, undefined);
+  assert.equal(reekie.registry, undefined);
+
+  const tuhou = "R v Tuhou HC Napier CRI-2007-020-2820, 11 September 2008 at [13]";
+  assert.equal(detectTypes(tuhou, 1)[0].typeId, "unreported-case-file-number-nz");
+  const tf = prefill("unreported-case-file-number-nz", tuhou);
+  assert.equal(tf.caseName, "R v Tuhou");
+  assert.equal(tf.fileNumber, "CRI-2007-020-2820");
+});
+
 test("the scanner never invents a field the text does not contain", () => {
   // A bare title with no citation shape yields no neutral/reporter/pinpoint.
   const f = prefill("reported-case-nz", "Some Case Name With No Citation");

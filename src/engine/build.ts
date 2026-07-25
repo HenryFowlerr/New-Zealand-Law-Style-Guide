@@ -12,6 +12,7 @@ import {
 } from "../data/styleGuide";
 import {
   extractByTemplate,
+  normalizeQuotes,
   renderFromTemplate,
   tokensToHtml,
   tokensToText,
@@ -155,9 +156,12 @@ function italicComponentIds(type: GuideType): string[] {
  */
 export function prefillFromPaste(
   type: GuideType,
-  text: string,
+  rawText: string,
   italicRuns: ItalicRun[] = [],
 ): CitationFields {
+  // Normalise straight quotes to curly (length-preserving, so italic run
+  // offsets still line up) before any extraction.
+  const text = normalizeQuotes(rawText);
   const positional = extractByTemplate(type, text) ?? {};
   const italicIds = italicComponentIds(type);
   // With no usable italic runs, correct the positional guesses with shape-based
@@ -204,7 +208,7 @@ export type Detection = {
  * The user always confirms the type before anything is generated.
  */
 export function detectTypes(text: string, limit = 6): Detection[] {
-  const trimmed = text.trim();
+  const trimmed = normalizeQuotes(text.trim());
   if (!trimmed) return [];
   const lower = trimmed.toLowerCase();
   const normalise = (s: string) =>

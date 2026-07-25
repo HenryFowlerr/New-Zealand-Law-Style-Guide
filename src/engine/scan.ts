@@ -59,6 +59,13 @@ const PINPOINT_DIV =
 // An edition: "2nd ed", "3rd ed", "rev ed".
 const EDITION = /\b(\d{1,2}(?:st|nd|rd|th)\s+ed|rev\s+ed)\b/;
 
+// A court file / docket number: "CA339/03", "CRI-2007-020-2820",
+// "CIV-2007-409-2659", "CIV 7/2004", "AA506/10".
+const DOCKET =
+  /\b[A-Z]{2,4}[\s-]?\d+(?:[-/]\d+)+\b/;
+
+const escapeReg = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const MONTHS =
   "January|February|March|April|May|June|July|August|September|October|November|December";
 
@@ -70,7 +77,13 @@ const DATE = new RegExp(`\\b(\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4})\\b`);
 // full date. Used to cut "R v Reekie" out of "R v Reekie CA339/03, 3 August
 // 2004" when no bracketed report locus is present to anchor the boundary.
 const CITE_START = new RegExp(
-  `\\s+(?:\\[\\d{4}\\]|\\(\\d{4}\\)|[A-Z]{2,}\\d|[A-Z]{2,}\\s+\\d|\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4})`,
+  "\\s+(?:" +
+    "\\[\\d{4}\\]|\\(\\d{4}\\)|" + // a bracketed year
+    "[A-Z]{2,}\\d|[A-Z]{2,}\\s+\\d|" + // a court/report abbreviation + number
+    "(?:HC|CA|SC|DC|FC|ERA|EmpC|CoA|PC)\\b|" + // an unreported-case court token
+    "[A-Z]{2,4}[\\s-]?\\d+(?:[-/]\\d+)+|" + // a docket / file number
+    `\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4}` + // a full date
+    ")",
 );
 
 /** Find every self-identifying anchor in the pasted text, earliest first. */
@@ -347,6 +360,35 @@ export function refineFields(
     if (onlineEd && ids.has("onlineEd")) set("onlineEd", onlineEd[1]);
   }
 
+  // Unreported case: a court file number ("CA339/03", "CRI-2007-020-2820",
+  // "CIV 7/2004") is distinctive, so map it to fileNumber directly.
+  if (ids.has("fileNumber")) {
+    const docket = text.match(DOCKET);
+    if (docket) set("fileNumber", docket[0].trim());
+  }
+
+  // A starting page that follows the publication parenthesis before the
+  // pinpoint — "…(2016) 25 at 30" (essay/conference) — the "25". Overrides a
+  // non-numeric positional guess (which over-captures the book title).
+  if (ids.has("startingPage") && !/^\d+$/.test(fields.startingPage ?? "")) {
+    const sp = text.match(/\)\s+(\d+)\s+at\b/);
+    if (sp) set("startingPage", sp[1]);
+  }
+
+  // When the case name was placed from the "X v Y" anchor, drop any other field
+  // whose value is just a fragment carved out of that name by positional
+  // extraction (e.g. courtAbbreviation "v", registry "Reekie" from "R v Reekie").
+  if (fields.caseName) {
+    const name = fields.caseName;
+    for (const key of Object.keys(fields)) {
+      if (key === "caseName" || anchored.has(key)) continue; // never a scanner value
+      const v = fields[key];
+      if (v && v !== name && new RegExp(`\\b${escapeReg(v)}\\b`).test(name)) {
+        delete fields[key];
+      }
+    }
+  }
+
   // Clean up positional guesses for shape-typed fields the scanner didn't set.
   // A value is kept only if it still looks like that field (a numeric volume, a
   // year-shaped year, a pinpoint with a digit) — so a correct positional value
@@ -390,6 +432,7 @@ export function anchorSupport(type: GuideType, text: string): number {
   // match, so they decisively confirm the parliamentary-debate / edited-book
   // types over a permissive template that merely absorbed the same words.
   if (/\bNZPD\b/.test(text) && ids.has("abbreviatedTitle")) support += 4;
+  if (DOCKET.test(text) && ids.has("fileNumber")) support += 9;
   if (/\(eds?\)/.test(text) && ids.has("editor")) support += 4;
   if (/\b[LU]NTS\b|\bETS\b|\bCTS\b/.test(text) && ids.has("treatySeriesCitation")) {
     support += 4;

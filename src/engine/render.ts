@@ -345,10 +345,27 @@ function balanceBrackets(value: string): string {
   return text;
 }
 
+/**
+ * Convert straight quotes/apostrophes to the curly forms the Style Guide uses.
+ * A plain-text paste, a PDF copy, or hand typing yields ASCII " and ', which
+ * otherwise defeat the quote-aware detection and extraction (and would render
+ * incorrectly). An opening mark follows a space/bracket/start; everything else
+ * is a closing mark or an apostrophe.
+ */
+export function normalizeQuotes(text: string): string {
+  return text
+    .replace(/(^|[\s([{])"/g, "$1“") // opening double “
+    .replace(/"/g, "”") // closing double ”
+    .replace(/(^|[\s([{])'/g, "$1‘") // opening single ‘
+    .replace(/'/g, "’"); // closing single / apostrophe ’
+}
+
 export function extractByTemplate(
   type: GuideType,
   citation: string,
 ): Record<string, string> | null {
+  // Note: callers that receive raw pasted text (detectTypes, prefillFromPaste)
+  // normalise straight quotes first; the Guide's own examples are already curly.
   const stripped = citation.trim().replace(/\.$/, "");
   const norm = (s: string) => s.trim().replace(/\.$/, "").replace(/\s+/g, " ");
   // Try each form the type offers (e.g. modern vs older citation styles).
