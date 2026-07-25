@@ -9,4 +9,4 @@
  * Example after deploying the Worker:
  *   export const CITATION_PROXY = "https://citation-proxy.yourname.workers.dev";
  */
-export const CITATION_PROXY = "";
+export const CITATION_PROXY = "https://citation-proxy.henryfowler10.workers.dev";
