@@ -48,6 +48,11 @@ const NEUTRAL = /\[\d{4}\]\s+[A-Z][A-Za-z]{1,6}(?:\s+[A-Z][A-Za-z]{1,6})*\s+\d+[
 const REPORTER =
   /([[(]\d{4}[\])])\s+(\d+)\s+([A-Z][A-Za-z]*(?:\s[A-Z][A-Za-z]*)*)\s+(\d+)/;
 
+// The same locus without a volume number — "[1932] AC 562". Restricted to named
+// law report series so a case name can never be mistaken for a series.
+const REPORT_SERIES_NO_VOLUME =
+  /([[(]\d{4}[\])])\s+(AC|QB|KB|Ch|WLR|All ER|ER|App Cas|NZLR|CLR|SLT|SC|DLR|SCR|Fam|P|Lloyd's Rep)\s+(\d+)/;
+
 // A pinpoint introduced by "at": "at [26]", "at 165", "at 9.60", "at 12–14".
 const PINPOINT_AT = /\bat\s+(\[[\d.]+\]|\d+(?:[-–]\d+)?(?:\.\d+)?)/;
 
@@ -121,6 +126,21 @@ export function scanAnchors(text: string): Anchor[] {
         volume: "",
         series: noVol[2].trim(),
         page: noVol[3],
+      });
+    }
+  } else {
+    // A law report can be volume-less too — "Donoghue v Stevenson [1932] AC
+    // 562" — and without an anchor the year and series were dropped outright,
+    // rebuilding the case as "Donoghue v Stevenson 562 (HL)". The general
+    // no-volume pattern above is unsafe for a case (it would read a case name
+    // as a series), so this one is keyed on the named report series instead.
+    const namedSeries = text.match(REPORT_SERIES_NO_VOLUME);
+    if (namedSeries) {
+      push("reporter", namedSeries, {
+        year: namedSeries[1],
+        volume: "",
+        series: namedSeries[2].trim(),
+        page: namedSeries[3],
       });
     }
   }
@@ -323,6 +343,14 @@ export function refineFields(
   } else if (ids.has("shortTitle") && hasHead) {
     // Legislation: the short title is everything before the year.
     set("shortTitle", head);
+  } else if (ids.has("title") && !quotedTitleFound && hasHead) {
+    // A type whose leading free-text field is plainly "title" — a treaty, an
+    // ordinance, a legislative instrument. Without this these fell through
+    // every branch above and kept whatever the lazy positional regex had cut,
+    // which is the FIRST WORD only: "Te Tiriti o Waitangi 1840, art 3" built
+    // as "Te 1840, art 3." A confident, badly wrong citation is the one
+    // outcome this tool is supposed to make impossible.
+    set("title", head);
   }
 
   // Edited collection: "… in {editor} (ed) {bookTitle} (…" — the "(ed)"/"(eds)"
@@ -389,6 +417,57 @@ export function refineFields(
     }
   }
 
+  // An unreported judgment names its court and registry between the case name
+  // and the file number — "R v Tuhou HC Napier CRI-2007-020-2820, 11 September
+  // 2008". Positional extraction cuts the case name too early, so those two
+  // words land inside the name and are then dropped as duplicates by the pass
+  // above; the citation rebuilds as "R v Tuhou CRI-2007-020-2820, …", silently
+  // short of the court that decided it. Recover them from the gap the anchors
+  // leave between the name and the docket (or, for a historic judgment with no
+  // docket, the date).
+  if (fields.caseName) {
+    const courtId = ids.has("courtAbbreviation")
+      ? "courtAbbreviation"
+      : ids.has("courtAbbrev")
+        ? "courtAbbrev"
+        : "";
+    const placeId = ids.has("registry")
+      ? "registry"
+      : ids.has("location")
+        ? "location"
+        : "";
+    if (courtId && !fields[courtId]) {
+      const nameAt = text.indexOf(fields.caseName);
+      const after = nameAt >= 0 ? nameAt + fields.caseName.length : -1;
+      const docket = text.match(DOCKET);
+      const date = text.match(DATE);
+      const stop =
+        docket?.index != null
+          ? docket.index
+          : date?.index != null
+            ? date.index
+            : -1;
+      if (after >= 0 && stop > after) {
+        const gap = text.slice(after, stop).replace(/[,\s]+$/, "").trim();
+        const words = gap ? gap.split(/\s+/) : [];
+        // The court is the leading abbreviation; the registry is the town that
+        // follows it. Anything else in the gap is not one of these two fields,
+        // so nothing is claimed rather than guessed.
+        if (words.length && /^(HC|CA|SC|DC|FC|ERA|EmpC|CoA|PC|EnvC|MLC)$/.test(words[0])) {
+          set(courtId, words[0]);
+          // The gap is authoritative for both fields, so overwrite the place
+          // rather than leaving a positional value that still begins with the
+          // court token — that rendered the court twice, "SC SC Wellington".
+          if (placeId) {
+            const rest = words.slice(1).join(" ");
+            if (rest) set(placeId, rest);
+            else delete fields[placeId];
+          }
+        }
+      }
+    }
+  }
+
   // Clean up positional guesses for shape-typed fields the scanner didn't set.
   // A value is kept only if it still looks like that field (a numeric volume, a
   // year-shaped year, a pinpoint with a digit) — so a correct positional value
@@ -403,7 +482,81 @@ export function refineFields(
     if (!positionalValueLooksValid(id, value)) delete fields[id];
   }
 
-  return fields;
+  dropOverlapWithAnchoredName(fields, anchored);
+
+  return stripBracketsSuppliedByTemplate(type, fields);
+}
+
+/**
+ * Remove text a neighbouring field duplicates from the anchored case name.
+ *
+ * The positional regex cuts on the first plausible space, so for "Jones v Smith
+ * SC Wellington, 2 April 1844 …" it reads the case name as "Jones", the court
+ * as "v", and the location as "Smith SC Wellington". The case-name anchor then
+ * correctly rewrites the name to "Jones v Smith" — but the stale fields still
+ * hold its tail, and the citation is rendered with the name twice over:
+ * "Jones v Smith Smith SC Wellington …".
+ *
+ * Whatever a following field repeats from the end of the anchored name belongs
+ * to the name, not to that field, so it is stripped.
+ */
+function dropOverlapWithAnchoredName(
+  fields: Record<string, string>,
+  anchored: Set<string>,
+): void {
+  if (!anchored.has("caseName")) return;
+  const nameWords = (fields.caseName ?? "").trim().split(/\s+/);
+  if (nameWords.length < 2) return;
+  for (const [id, raw] of Object.entries(fields)) {
+    if (id === "caseName") continue;
+    const value = (raw ?? "").trim();
+    if (!value) continue;
+    const words = value.split(/\s+/);
+    // The longest run of leading words that is also a tail of the case name.
+    let overlap = 0;
+    for (let n = Math.min(words.length, nameWords.length - 1); n > 0; n--) {
+      const lead = words.slice(0, n).join(" ");
+      const tail = nameWords.slice(nameWords.length - n).join(" ");
+      if (lead === tail) {
+        overlap = n;
+        break;
+      }
+    }
+    if (!overlap) continue;
+    const remainder = words.slice(overlap).join(" ").trim();
+    if (remainder) fields[id] = remainder;
+    else delete fields[id];
+  }
+}
+
+/**
+ * Drop brackets from a value when the template already writes them.
+ *
+ * The year anchor deliberately keeps its brackets, because for most types the
+ * Guide's bracket style is itself the information (a "[2009]" year-organised
+ * report versus a "(1992)" volume-organised one). But a handful of templates
+ * write the brackets themselves — "[{year}] {courtIdentifier}" — and for those
+ * the anchored value arrived pre-bracketed and rendered as "[[2011]]".
+ *
+ * That is not only wrong on the page: it also meant the correct type failed to
+ * reproduce the reference it had just read, losing the reconstruction bonus
+ * that detection leans on, so the paste was misclassified as well.
+ */
+function stripBracketsSuppliedByTemplate(
+  type: GuideType,
+  fields: Record<string, string>,
+): Record<string, string> {
+  const result = { ...fields };
+  for (const [id, raw] of Object.entries(result)) {
+    const value = (raw ?? "").trim();
+    if (!value) continue;
+    if (type.outputTemplate.includes(`[{${id}}]`) && /^\[.*\]$/.test(value)) {
+      result[id] = value.slice(1, -1).trim();
+    } else if (type.outputTemplate.includes(`({${id}})`) && /^\(.*\)$/.test(value)) {
+      result[id] = value.slice(1, -1).trim();
+    }
+  }
+  return result;
 }
 
 /**
@@ -455,4 +608,211 @@ export function anchorSupport(type: GuideType, text: string): number {
   }
   if (/\(\s*online ed\b/i.test(text) && ids.has("onlineEd")) support += 3;
   return support;
+}
+
+/**
+ * The negative counterpart to {@link anchorSupport}: structure the text plainly
+ * carries that this type has nowhere to put.
+ *
+ * A reference containing a docket number, a neutral citation, a reporter locus
+ * or a year is telling us a great deal about what it is. A type with no
+ * component capable of holding that evidence has not explained the reference —
+ * it has absorbed the evidence into some free-text field and quietly discarded
+ * its meaning. Without this, the loosest templates in the Guide (an
+ * encyclopaedia entry, a bare cross-reference) win almost every paste, because
+ * a template that is nothing but free text can "match" anything at all.
+ */
+export function anchorMismatch(type: GuideType, text: string): number {
+  const ids = idsOf(type);
+  const holds = (...needles: string[]): boolean =>
+    [...ids].some((id) => {
+      const lower = id.toLowerCase();
+      return needles.some((needle) => lower.includes(needle));
+    });
+  let mismatch = 0;
+  // Deliberately generous id matching: a compound component such as
+  // "courtAndYear" or "publicationDetails" legitimately carries a year, so it
+  // counts as a home for one. Only a type with no such component is penalised.
+  if (/\b(19|20)\d{2}\b|\b1[0-8]\d{2}\b/.test(text) && !holds("year", "date", "citation", "publication", "details", "reference", "laws")) {
+    mismatch += 1;
+  }
+  if (NEUTRAL.test(text) && !holds("citation", "neutral", "number", "court", "report")) {
+    mismatch += 1;
+  }
+  if (REPORTER.test(text) && !holds("series", "report", "journal", "volume", "publication", "citation", "page")) {
+    mismatch += 1;
+  }
+  if (DOCKET.test(text) && !holds("number", "citation", "file", "docket", "reference")) {
+    mismatch += 1;
+  }
+  if (EDITION.test(text) && !holds("edition", "ed", "reissue", "publication")) {
+    mismatch += 1;
+  }
+  return mismatch;
+}
+
+/**
+ * Court, report-series and statute markers that name a jurisdiction outright.
+ * The Guide is organised jurisdiction-first, so these are the single most
+ * decisive signal available — "NZLR" settles New Zealand as surely as "EWCA"
+ * settles England, and nothing else in a citation competes with them.
+ */
+const JURISDICTION_MARKERS: { jurisdiction: string; pattern: RegExp }[] = [
+  {
+    jurisdiction: "nz",
+    pattern:
+      /\bNZ(LR|SC|CA|HC|DC|FC|ERA|EnvC|AR|FLR|BLC|RMA|CC|PD|LC|Gaz)\b|\bNew Zealand\b|\bAotearoa\b|\bWaitangi\b|\bNZPD\b/,
+  },
+  { jurisdiction: "uk", pattern: /\bEW(CA|HC)\b|\bUK(SC|HL|PC)\b|\b(AC|WLR|QB|KB|Ch)\b|\bEngland\b/ },
+  { jurisdiction: "scotland", pattern: /\bCSIH\b|\bCSOH\b|\bSLT\b|\bSC \(HL\)\b/ },
+  { jurisdiction: "australia", pattern: /\bHCA\b|\bFCA\b|\bCLR\b|\bALR\b|\bNSWLR\b|\bVR\b/ },
+  { jurisdiction: "canada", pattern: /\bSCC\b|\bSCR\b|\bDLR\b|\bRSC\b|\bONCA\b/ },
+  { jurisdiction: "us", pattern: /\bUSC\b|\bF (2d|3d)\b|\bS Ct\b|\bUS\b|\bStat\b/ },
+  { jurisdiction: "eu", pattern: /\bECLI\b|\bECR\b|\bCJEU\b|\bECJ\b/ },
+  { jurisdiction: "echr", pattern: /\bECHR\b|\bEHRR\b/ },
+];
+
+/** Which jurisdiction a source type belongs to, from its id. */
+function typeJurisdiction(type: GuideType): string {
+  const id = type.id;
+  if (/^australia-/.test(id)) return "australia";
+  if (/^canada-/.test(id)) return "canada";
+  if (/^(england-wales|uk-)/.test(id)) return "uk";
+  if (/^scotland-/.test(id)) return "scotland";
+  if (/^us-/.test(id)) return "us";
+  if (/^eu-/.test(id)) return "eu";
+  if (/^(echr|european-commission)/.test(id)) return "echr";
+  if (
+    /^(treaty$|icj|international|un-|wto|gatt)/.test(id) ||
+    type.group === "International & foreign"
+  ) {
+    return "international";
+  }
+  if (type.group === "Subsequent references") return "any";
+  // Everything else in the Guide — cases, legislation, parliamentary material,
+  // and the secondary sources — is New Zealand material.
+  return "nz";
+}
+
+/**
+ * Does the reference name a jurisdiction this type does not belong to?
+ *
+ * Without this, "Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA)"
+ * scored identically as a New Zealand reported case and as an English one: both
+ * templates are "case name, year, volume, series, page, court", and every other
+ * signal is blind to the fact that NZLR is a New Zealand series. The tie then
+ * fell to whichever type the loop happened to reach first.
+ */
+export function jurisdictionConflict(type: GuideType, text: string): number {
+  const own = typeJurisdiction(type);
+  if (own === "any") return 0;
+  const found = JURISDICTION_MARKERS.filter((m) => m.pattern.test(text)).map(
+    (m) => m.jurisdiction,
+  );
+  if (!found.length) return 0;
+  if (found.includes(own)) return 0;
+  // A treaty or UN document need not carry a national marker; only penalise an
+  // international type when the text is unambiguously domestic to one country.
+  if (own === "international" && found.length > 1) return 0;
+  return 1;
+}
+
+const MONTH =
+  /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i;
+const FOUR_DIGIT_YEAR = /\b\d{4}\b/;
+
+/** Components whose value is only ever a date. */
+const DATE_FIELDS = new Set([
+  "date",
+  "dateOfJudgment",
+  "dateOfDebate",
+  "hearingDate",
+  "dateOpened",
+  "dateInForce",
+  "newspaperDate",
+  "interviewDetails",
+]);
+
+/** Components whose value is only ever (or contains) a four-digit year. */
+const YEAR_FIELDS = new Set(["year", "neutralYear", "yearOfJournal", "regnalYear"]);
+
+/** Components whose value is a page or page range. */
+const PAGE_FIELDS = new Set(["startingPage", "page", "pageOrNoticeNumber"]);
+
+/** Components whose value must contain a digit somewhere. */
+const NUMERIC_FIELDS = new Set([
+  "volume",
+  "issueNumber",
+  "number",
+  "judgmentNumber",
+  "caseNumber",
+  "billNumber",
+  "barNumber",
+  "fileNumber",
+  "waiNumber",
+  "resolutionNumber",
+  "sessionNumber",
+  "documentNumber",
+  "ordinanceNumber",
+  "noticeNumber",
+  "orderNumber",
+  "sopNumber",
+]);
+
+/** Types whose case name really is an "X v Y" (or "Re X") party string. */
+const PARTY_STYLE_CASE_TYPES = new Set([
+  "reported-case-nz",
+  "neutral-citation-case-nz",
+  "unreported-case-file-number-nz",
+  "australia-case",
+  "canada-case",
+  "england-wales-case-modern",
+  "england-wales-nominate-report",
+  "scotland-case",
+  "us-federal-case",
+  "us-state-case",
+]);
+
+const PARTY_STYLE =
+  /(\sv\s|\sv\.\s)|^(re|in re|ex parte|application|the queen|police)\b/i;
+
+/**
+ * How badly a set of extracted values contradicts the shape each component is
+ * defined to have.
+ *
+ * Detection matches every one of the 86 templates positionally, so a permissive
+ * template — "{caseName} {courtAbbreviation} {registry} {fileNumber},
+ * {dateOfJudgment}" — will happily "read" a statute, landing "Crimes" in the
+ * case name and "s 167(a)" in the date of judgment. The positional match cannot
+ * see anything wrong with that, and because the loose type has MORE required
+ * fields it then outscores the statute type that actually models the source.
+ *
+ * This is the check that notices. A date field holding "s 167(a)", a page field
+ * holding "!!!", or a case name with no parties in it are all evidence that the
+ * type has mis-read the reference rather than explained it.
+ */
+export function fieldShapeViolations(
+  type: GuideType,
+  fields: Record<string, string>,
+): number {
+  let violations = 0;
+  for (const [id, raw] of Object.entries(fields)) {
+    const value = (raw ?? "").trim();
+    if (!value) continue;
+    if (DATE_FIELDS.has(id) && !MONTH.test(value) && !FOUR_DIGIT_YEAR.test(value)) {
+      violations++;
+    }
+    if (YEAR_FIELDS.has(id) && !FOUR_DIGIT_YEAR.test(value)) violations++;
+    if (PAGE_FIELDS.has(id) && !/\d|^[ivxlcdm]+$/i.test(value)) violations++;
+    if (NUMERIC_FIELDS.has(id) && !/\d/.test(value)) violations++;
+    if (id === "url" && !/:\/\/|^www\./i.test(value)) violations++;
+    if (
+      id === "caseName" &&
+      PARTY_STYLE_CASE_TYPES.has(type.id) &&
+      !PARTY_STYLE.test(value)
+    ) {
+      violations++;
+    }
+  }
+  return violations;
 }

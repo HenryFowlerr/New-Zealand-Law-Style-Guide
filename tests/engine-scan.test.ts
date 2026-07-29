@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { detectTypes, prefillFromPaste } from "../src/engine/build.ts";
+import { buildCitation, detectTypes, prefillFromPaste } from "../src/engine/build.ts";
 import { guideTypeById } from "../src/data/styleGuide.ts";
 
 const prefill = (id: string, text: string) =>
@@ -190,4 +190,81 @@ test("the scanner never invents a field the text does not contain", () => {
   assert.equal(f.neutralCitation, undefined);
   assert.equal(f.reportSeries, undefined);
   assert.equal(f.pinpoint, undefined);
+});
+
+test("a paste out of a PDF or Word survives its whitespace", () => {
+  // Non-breaking spaces, a wrapped line and double spaces all defeated
+  // detection outright, and any run of spaces that survived was carried into
+  // the generated citation.
+  const canonical =
+    "Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26].";
+  const pastes = [
+    canonical.replace(/ /g, " "),
+    canonical.replace(/ /g, "  "),
+    canonical.replace("Committee [2008]", "Committee\n[2008]"),
+    `   ${canonical}   `,
+  ];
+  for (const paste of pastes) {
+    const top = detectTypes(paste, 1)[0];
+    assert.ok(top, `no detection for: ${JSON.stringify(paste)}`);
+    assert.equal(top.typeId, "reported-case-nz");
+    const type = guideTypeById[top.typeId];
+    const built = buildCitation(type.id, prefillFromPaste(type, paste, []));
+    assert.equal(built.text, canonical);
+  }
+});
+
+test("an unreported judgment keeps the court and registry that decided it", () => {
+  const text = "R v Tuhou HC Napier CRI-2007-020-2820, 11 September 2008 at [13].";
+  const type = guideTypeById["unreported-case-file-number-nz"];
+  const fields = prefillFromPaste(type, text, []);
+  assert.equal(fields.courtAbbreviation, "HC");
+  assert.equal(fields.registry, "Napier");
+  assert.equal(buildCitation(type.id, fields).text, text);
+});
+
+test("a title-led source keeps its whole title, not just the first word", () => {
+  // "Te Tiriti o Waitangi 1840, art 3" once built as "Te 1840, art 3." — a
+  // confident, badly wrong citation.
+  for (const text of [
+    "Te Tiriti o Waitangi 1840, art 3.",
+    "Treaty of Waitangi 1840, art 3.",
+    "Costs in Criminal Cases Regulations 1987, reg 3.",
+  ]) {
+    const top = detectTypes(text, 1)[0];
+    const type = guideTypeById[top.typeId];
+    const built = buildCitation(type.id, prefillFromPaste(type, text, []));
+    assert.equal(built.text, text);
+  }
+});
+
+test("a case name is never rendered twice over", () => {
+  const text =
+    "Jones v Smith SC Wellington, 2 April 1844 reported in The New Zealand Gazette and Wellington Spectator (Wellington, 17 April 1844) 3 at 3.";
+  const type = guideTypeById["historic-judgment-newspaper"];
+  const built = buildCitation(type.id, prefillFromPaste(type, text, []));
+  assert.equal(built.text, text);
+});
+
+test("a report citation with no volume number keeps its year and series", () => {
+  const text = "Donoghue v Stevenson [1932] AC 562 (HL) at 580.";
+  const top = detectTypes(text, 1)[0];
+  const type = guideTypeById[top.typeId];
+  const built = buildCitation(type.id, prefillFromPaste(type, text, []));
+  assert.equal(built.text, text);
+});
+
+test("a jurisdiction marker settles which country's type wins", () => {
+  assert.equal(
+    detectTypes("Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398.", 1)[0].typeId,
+    "reported-case-nz",
+  );
+  assert.equal(
+    detectTypes("Donoghue v Stevenson [1932] AC 562 (HL) at 580.", 1)[0].typeId,
+    "england-wales-case-modern",
+  );
+  assert.equal(
+    detectTypes("Mabo v Queensland (No 2) (1992) 175 CLR 1 (HCA) at 42.", 1)[0].typeId,
+    "australia-case",
+  );
 });

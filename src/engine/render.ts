@@ -360,6 +360,50 @@ export function normalizeQuotes(text: string): string {
     .replace(/'/g, "’"); // closing single / apostrophe ’
 }
 
+/** A canonicalised paste, plus the offset map back to the text it came from. */
+export type NormalizedPaste = {
+  text: string;
+  /** `fromRaw[i]` is the offset in `text` of raw character `i`. */
+  fromRaw: number[];
+};
+
+/**
+ * Canonicalise pasted text before any parsing.
+ *
+ * Real pastes do not arrive as clean single-spaced strings: copying out of a
+ * PDF gives non-breaking spaces, copying out of Word or a database record wraps
+ * lines mid-citation, and hand-editing leaves double spaces behind. Every one of
+ * those defeated detection outright, and any run of spaces that survived was
+ * carried into the fields and out into the generated citation.
+ *
+ * So every kind of whitespace collapses to a single plain space here, once, at
+ * the boundary. Because that changes offsets, the returned `fromRaw` map lets a
+ * rich paste's italic runs be re-based onto the normalised text.
+ */
+export function normalizePaste(raw: string): NormalizedPaste {
+  const fromRaw: number[] = new Array(raw.length + 1);
+  let out = "";
+  let pendingSpace = false;
+  for (let i = 0; i < raw.length; i++) {
+    fromRaw[i] = out.length;
+    const ch = raw[i];
+    if (/\s/.test(ch)) {
+      // Collapse a run of any whitespace into one space, and drop it entirely
+      // at the start so the citation begins at its first real character.
+      pendingSpace = out.length > 0;
+      continue;
+    }
+    if (pendingSpace) {
+      fromRaw[i] = out.length + 1;
+      out += " ";
+      pendingSpace = false;
+    }
+    out += ch;
+  }
+  fromRaw[raw.length] = out.length;
+  return { text: normalizeQuotes(out), fromRaw };
+}
+
 export function extractByTemplate(
   type: GuideType,
   citation: string,
