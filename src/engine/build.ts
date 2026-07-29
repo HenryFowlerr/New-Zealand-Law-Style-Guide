@@ -28,6 +28,7 @@ import {
   jurisdictionConflict,
   refineFields,
 } from "./scan";
+import { applyGuideRules } from "./rules";
 
 export type CitationFields = Record<string, string>;
 
@@ -107,7 +108,20 @@ export function buildCitation(
   if (!type) {
     throw new Error(`Unknown citation type: ${typeId}`);
   }
-  const issues = validate(type, fields);
+  // Apply the Guide's conditional rules before anything else: a component the
+  // Guide says does not belong alongside what is already present is dropped
+  // here, with a note so the interface can explain the omission rather than
+  // silently discarding something the user typed.
+  const ruled = applyGuideRules(type, fields);
+  const fieldsToRender = ruled.fields;
+  const issues = validate(type, fieldsToRender);
+  for (const applied of ruled.applied) {
+    issues.push({
+      level: "note",
+      field: applied.field,
+      message: `Left out under rule ${applied.rule}. ${applied.why}`,
+    });
+  }
   const hasError = issues.some((issue) => issue.level === "error");
   if (hasError) {
     return { status: "incomplete", type, tokens: [], text: "", html: "", issues };
@@ -118,7 +132,7 @@ export function buildCitation(
     type.components.filter((component) => component.italic).map((c) => c.id),
   );
   const values: Record<string, ComponentValue> = {};
-  for (const [id, raw] of Object.entries(fields)) {
+  for (const [id, raw] of Object.entries(fieldsToRender)) {
     const text = typeof raw === "string" ? raw.trim() : "";
     values[id] = italicIds.has(id) ? { text, italic: true } : text;
   }

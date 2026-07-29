@@ -381,6 +381,15 @@ export function refineFields(
     const pub = text.match(/\(([^()]*\b(?:1[6-9]|20)\d{2})\)/);
     if (pub) {
       const parts = pub[1].split(/\s*,\s*/).map((part) => part.trim()).filter(Boolean);
+      // A parenthesis holding nothing but a year — "(2016)" — gives the year
+      // and nothing else. Any publisher or place a positional guess put there
+      // is that same year read twice.
+      if (parts.length === 1 && /^\(?(1[6-9]|20)\d{2}\)?$/.test(parts[0])) {
+        if (ids.has("year")) set("year", parts[0]);
+        for (const id of ["publisher", "place", "placeOfPublication"]) {
+          if (fields[id] && parts[0].includes(fields[id])) delete fields[id];
+        }
+      }
       if (parts.length >= 2) {
         const year = parts[parts.length - 1];
         let rest = parts.slice(0, -1);
