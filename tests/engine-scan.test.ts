@@ -268,3 +268,67 @@ test("a jurisdiction marker settles which country's type wins", () => {
     "australia-case",
   );
 });
+
+test("the publication parenthesis is read from the right", () => {
+  // "(publisher, place, year)" with no edition shifted every part one to the
+  // left, publishing the essay in "(Sydney, 1987, 1987)".
+  const text =
+    "Robin Cooke “Tort and Contract” in PD Finn (ed) Essays on Contract (Law Book Company, Sydney, 1987) 222 at 229.";
+  const type = guideTypeById["essay-in-edited-book"];
+  const fields = prefillFromPaste(type, text, []);
+  assert.equal(fields.publisher, "Law Book Company");
+  assert.equal(fields.place, "Sydney");
+  assert.equal(fields.year, "1987");
+  assert.equal(fields.editor, "PD Finn");
+  assert.equal(fields.bookTitle, "Essays on Contract");
+});
+
+test("an editor that opens the reference is split from the title", () => {
+  const type = guideTypeById["looseleaf-online-commentary"];
+  const fields = prefillFromPaste(
+    type,
+    "Mathew Downs (ed) Cross on Evidence (online ed, LexisNexis) at [1.2].",
+    [],
+  );
+  assert.equal(fields.editor, "Mathew Downs");
+  assert.equal(fields.title, "Cross on Evidence");
+  assert.equal(fields.edition, "online ed");
+});
+
+test("a Māori Land Court decision keeps its block and minute book", () => {
+  const text =
+    "Pacey v Adlam – Matata Parish 39A 2B 2B 2A (2017) 178 Waiariki MB 32 (178 WAR 32).";
+  const type = guideTypeById["maori-land-court"];
+  const fields = prefillFromPaste(type, text, []);
+  assert.equal(fields.caseName, "Pacey v Adlam");
+  assert.equal(fields.blockName, "Matata Parish 39A 2B 2B 2A");
+  assert.equal(fields.minuteBookReference, "178 Waiariki MB 32");
+  assert.equal(buildCitation(type.id, fields).text, text);
+});
+
+test("a type with two formats renders the one the facts fit", () => {
+  // Rendering always took the first alternate form, so a pre-2011 transcript
+  // came out as the 2011+ skeleton with its own facts dropped.
+  const text = "Couch v Attorney-General Transcript SC49/2006, 17 April 2007.";
+  const type = guideTypeById["supreme-court-transcript"];
+  const built = buildCitation(type.id, prefillFromPaste(type, text, []));
+  assert.equal(built.text, text);
+});
+
+test("a title never runs into the publication bracket", () => {
+  const text =
+    "Halsbury’s Laws of England (5th ed, 2017) vol 9 Children and Young Persons at [651].";
+  const type = guideTypeById["legal-encyclopaedia"];
+  const fields = prefillFromPaste(type, text, []);
+  assert.equal(fields.title, "Halsbury’s Laws of England");
+  assert.equal(buildCitation(type.id, fields).text, text);
+});
+
+test("a pre-1854 Ordinance splits its regnal year from its number", () => {
+  const text = "Distillation Prohibition Ordinance 1841 4 Vict 5, cl 1.";
+  const type = guideTypeById["nz-pre-1854-ordinance"];
+  const fields = prefillFromPaste(type, text, []);
+  assert.equal(fields.regnalYear, "4 Vict");
+  assert.equal(fields.ordinanceNumber, "5");
+  assert.equal(buildCitation(type.id, fields).text, text);
+});

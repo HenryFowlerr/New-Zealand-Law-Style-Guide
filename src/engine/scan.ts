@@ -61,8 +61,12 @@ const PINPOINT_AT = /\bat\s+(\[[\d.]+\]|\d+(?:[-–]\d+)?(?:\.\d+)?)/;
 const PINPOINT_DIV =
   /,\s*((?:ss?|sch|pt|arts?|regs?|cls?|ch)\s+[\dA-Za-z]+(?:[-–(][\dA-Za-z)]+)*)\s*$/;
 
-// An edition: "2nd ed", "3rd ed", "rev ed".
-const EDITION = /\b(\d{1,2}(?:st|nd|rd|th)\s+ed|rev\s+ed)\b/;
+// An edition: "2nd ed", "3rd ed", "rev ed", and the standing editions a
+// looseleaf service or an online commentary carries instead of a number —
+// without those, rule 6.3 could never be completed and the tool simply refused
+// to generate a citation for any looseleaf or online text.
+const EDITION =
+  /\b(\d{1,2}(?:st|nd|rd|th)\s+ed|rev\s+ed|looseleaf\s+ed|online\s+ed|eBook\s+ed)\b/i;
 
 // A court file / docket number: "CA339/03", "CRI-2007-020-2820",
 // "CIV-2007-409-2659", "CIV 7/2004", "AA506/10".
@@ -86,6 +90,7 @@ const CITE_START = new RegExp(
     "\\[\\d{4}\\]|\\(\\d{4}\\)|" + // a bracketed year
     "[A-Z]{2,}\\d|[A-Z]{2,}\\s+\\d|" + // a court/report abbreviation + number
     "(?:HC|CA|SC|DC|FC|ERA|EmpC|CoA|PC)\\b|" + // an unreported-case court token
+    "Transcript\\b|" + // a Supreme Court transcript designator
     "[A-Z]{2,4}[\\s-]?\\d+(?:[-/]\\d+)+|" + // a docket / file number
     `\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4}` + // a full date
     ")",
@@ -315,7 +320,15 @@ export function refineFields(
   // Carve the free-text head (author / creator / title) from what precedes the
   // citation, when the type leads with such a field and it wasn't already
   // placed by a rich-paste italic run.
-  const head = text.slice(0, earliestCitation).trim();
+  let head = text.slice(0, earliestCitation).trim();
+  // An anchor inside the publication parenthesis — an edition, a year — leaves
+  // the head holding the unclosed bracket that opened it, so the title came out
+  // as "Halsbury's Laws of England (5th ed" and the bracket was then written
+  // again by the template.
+  const openParen = head.lastIndexOf("(");
+  if (openParen >= 0 && !head.slice(openParen).includes(")")) {
+    head = head.slice(0, openParen).trim();
+  }
   const quotedTitleFound = anchors.some((a) => a.kind === "quotedTitle");
   const hasHead = Boolean(head) && earliestCitation < text.length;
 
@@ -353,11 +366,88 @@ export function refineFields(
     set("title", head);
   }
 
+  // The publication parenthesis — "(2nd ed, Thomson Reuters, Wellington, 2009)"
+  // — is a comma-separated list read from the right: the year closes it, then
+  // the place, then the publisher, with an edition in front if one is given.
+  // Positional extraction cannot count backwards like that, so it shifted every
+  // part left whenever the edition was absent, publishing Robin Cooke's essay
+  // in "(Sydney, 1987, 1987)" instead of "(Law Book Company, Sydney, 1987)".
+  const placeId = ids.has("placeOfPublication")
+    ? "placeOfPublication"
+    : ids.has("place")
+      ? "place"
+      : "";
+  if (ids.has("publisher") || placeId) {
+    const pub = text.match(/\(([^()]*\b(?:1[6-9]|20)\d{2})\)/);
+    if (pub) {
+      const parts = pub[1].split(/\s*,\s*/).map((part) => part.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        const year = parts[parts.length - 1];
+        let rest = parts.slice(0, -1);
+        if (rest.length && /\bed\b|\breissue\b|\blooseleaf\b|\bonline\b/i.test(rest[0])) {
+          if (ids.has("edition")) set("edition", rest[0]);
+          rest = rest.slice(1);
+        }
+        if (ids.has("year")) set("year", year);
+        // Whatever remains is publisher then place, in that order.
+        if (rest.length >= 2) {
+          if (ids.has("publisher")) set("publisher", rest[0]);
+          if (placeId) set(placeId, rest[rest.length - 1]);
+        } else if (rest.length === 1) {
+          if (ids.has("publisher")) set("publisher", rest[0]);
+          else if (placeId) set(placeId, rest[0]);
+        }
+      }
+    }
+  }
+
+  // A Māori Land Court decision names the block of land after an en dash:
+  // "Pacey v Adlam – Matata Parish 39A 2B 2B 2A (2017) 178 Waiariki MB 32".
+  // The dash is the only boundary there is, and without it the case name
+  // swallowed the block, leaving a required field empty so that the tool
+  // refused to generate anything at all.
+  if (ids.has("blockName")) {
+    const dash = text.match(/^(.+?)\s+[–—]\s+(.+?)(?=\s+[[(]\d{4}[\])]|\s*$)/);
+    if (dash) {
+      set("caseName", dash[1]);
+      set("blockName", dash[2]);
+    }
+    // What follows the year is the minute book reference, up to the abbreviated
+    // citation the Guide puts in brackets at the very end: "… (2017) 178
+    // Waiariki MB 32 (178 WAR 32)".
+    const book = text.match(
+      /[[(]\d{4}[\])]\s+(.+?)\s*\(([^()]+)\)\s*\.?\s*$/,
+    );
+    if (book) {
+      set("minuteBookReference", book[1]);
+      if (ids.has("citation")) set("citation", book[2]);
+    }
+  }
+
+  // A pre-1854 Ordinance is dated by regnal year: "1841 4 Vict 5" is the
+  // calendar year, then the regnal year, then the ordinance number.
+  if (ids.has("regnalYear")) {
+    const regnal = text.match(
+      /\b(\d{1,2}\s+(?:Vict|Geo|Will|Eliz|Edw|Anne|Car|Jac|Hen)[A-Za-z]*\.?(?:\s+[IVX]+)?)\s+(\d+)\b/,
+    );
+    if (regnal) {
+      set("regnalYear", regnal[1]);
+      if (ids.has("ordinanceNumber")) set("ordinanceNumber", regnal[2]);
+    }
+  }
+
   // Edited collection: "… in {editor} (ed) {bookTitle} (…" — the "(ed)"/"(eds)"
   // marker cleanly separates the editor from the book title, which positional
   // extraction (no "(ed)" in the template) cannot.
   if (ids.has("editor")) {
-    const edited = text.match(/\bin\s+(.+?)\s+\(eds?\)\s+(.+?)\s*[([]/);
+    // "… in PD Finn (ed) Essays on Contract (…" for a chapter, but also
+    // "Mathew Downs (ed) Cross on Evidence (…" for a looseleaf service, where
+    // the editor opens the reference and there is no "in" to key on. Without
+    // the second form the split fell to the positional pass, which cut on the
+    // first space: editor "Mathew", title "Downs".
+    const edited =
+      text.match(/\bin\s+(.+?)\s+\(eds?\)\s+(.+?)\s*[([]/) ??
+      text.match(/^(.+?)\s+\(eds?\)\s+(.+?)\s*\(/);
     if (edited) {
       set("editor", edited[1]);
       if (ids.has("bookTitle")) set("bookTitle", edited[2]);

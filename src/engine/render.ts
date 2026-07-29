@@ -101,11 +101,50 @@ function cleanLiteral(text: string): string {
     .replace(/\s{2,}/g, " ");
 }
 
+/**
+ * Pick the alternate template form that fits the facts we actually hold.
+ *
+ * Several types in the Guide are genuinely two formats under one rule — a
+ * Supreme Court transcript is "[year] NZSC Trans number" from 2011 and
+ * "Transcript fileNumber, hearingDate" before it; a Gazette notice changed
+ * shape in October 2017. Rendering always took the first form, so a pre-2011
+ * transcript came out as "Couch v Attorney-General Transcript [2006] NZSC
+ * Trans" — the first form's skeleton with the second form's facts dropped on
+ * the floor.
+ *
+ * The right form is the one that uses the most of what we have and leaves the
+ * fewest of its own slots empty.
+ */
+function chooseForm(
+  template: string,
+  values: Record<string, ComponentValue>,
+): string {
+  const forms = templateForms(template);
+  if (forms.length === 1) return forms[0];
+  const filled = new Set(
+    Object.keys(values).filter((id) => valueText(values[id]).trim() !== ""),
+  );
+  let best = forms[0];
+  let bestScore = -Infinity;
+  for (const form of forms) {
+    const slots = [...new Set([...form.matchAll(/\{([^}]+)\}/g)].map((m) => m[1]))];
+    const used = slots.filter((id) => filled.has(id)).length;
+    const empty = slots.length - used;
+    const unused = [...filled].filter((id) => !slots.includes(id)).length;
+    const score = used * 2 - empty - unused;
+    if (score > bestScore) {
+      bestScore = score;
+      best = form;
+    }
+  }
+  return best;
+}
+
 export function renderFromTemplate(
   template: string,
   values: Record<string, ComponentValue>,
 ): Token[] {
-  const tpl = parseTemplate(templateForms(template)[0]);
+  const tpl = parseTemplate(chooseForm(template, values));
   const out: Token[] = [];
   let litBuffer = "";
   // Whether an optional component was dropped since the buffer was last flushed.

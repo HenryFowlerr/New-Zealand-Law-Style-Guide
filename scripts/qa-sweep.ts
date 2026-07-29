@@ -121,7 +121,7 @@ console.log(
   `  ${rows.length - wrongOutput.length}/${rows.length} reproduced the Guide example EXACTLY ` +
     `(${(((rows.length - wrongOutput.length) / rows.length) * 100).toFixed(1)}%)`,
 );
-for (const r of wrongOutput.slice(0, 40)) {
+for (const r of wrongOutput) {
   console.log(`\n    [${r.rule}] ${r.typeName}`);
   console.log(`        want: ${r.example}`);
   console.log(`        got : ${r.built || "(nothing generated)"}`);
