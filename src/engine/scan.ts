@@ -53,13 +53,18 @@ const REPORTER =
 const REPORT_SERIES_NO_VOLUME =
   /([[(]\d{4}[\])])\s+(AC|QB|KB|Ch|WLR|All ER|ER|App Cas|NZLR|CLR|SLT|SC|DLR|SCR|Fam|P|Lloyd's Rep)\s+(\d+)/;
 
-// A pinpoint introduced by "at": "at [26]", "at 165", "at 9.60", "at 12–14".
-const PINPOINT_AT = /\bat\s+(\[[\d.]+\]|\d+(?:[-–]\d+)?(?:\.\d+)?)/;
+// A pinpoint introduced by "at". Beyond a plain page or paragraph — "at [26]",
+// "at 165", "at 9.60", "at 12–14" — the Guide's own examples attach a footnote
+// ("at 189, n 92"), a chapter ("at ch 1") and bracketed locators that are not
+// purely numeric ("at [ED1.01(2)]", "at [38–033]"). Requiring digits alone
+// silently dropped the footnote from Burrows on Restitution.
+const PINPOINT_AT =
+  /\bat\s+(\[[\dA-Za-z.()\u2013\u2014-]+\]|ch\s+\d+|\d+(?:[-\u2013]\d+)?(?:\.\d+)?(?:,\s*n\s*\d+)?)/;
 
 // A legislation pinpoint: a trailing division reference — "s 8", "ss 3–5",
 // "sch 2", "pt 1", "art 5", "reg 4", "cl 2" — usually after a comma.
 const PINPOINT_DIV =
-  /,\s*((?:ss?|sch|pt|arts?|regs?|cls?|ch)\s+[\dA-Za-z]+(?:[-–(][\dA-Za-z)]+)*)\s*$/;
+  /,\s*((?:ss?|sch|pt|arts?|regs?|cls?|ch|SO)\s+[\dA-Za-z]+(?:[-–(][\dA-Za-z)]+)*.*?|long title|preamble|schedule)\s*\.?\s*$/i;
 
 // An edition: "2nd ed", "3rd ed", "rev ed", and the standing editions a
 // looseleaf service or an online commentary carries instead of a number —
@@ -407,6 +412,30 @@ export function refineFields(
           else if (placeId) set(placeId, rest[0]);
         }
       }
+    }
+  }
+
+  // Hansard names the debate instead of a column: "(16 August 2017) 724 NZPD
+  // (Maritime Transport Amendment Bill – Second Reading, Julie Anne Genter)."
+  // That trailing parenthesis IS the pinpoint, and requiring a number meant the
+  // tool refused to cite any debate reported this way. Restricted to types with
+  // no publication parenthesis of their own, so a book's "(2nd ed, LexisNexis,
+  // Wellington, 2015)" can never be mistaken for one.
+  if (
+    ids.has("pinpoint") &&
+    !fields.pinpoint &&
+    !ids.has("publisher") &&
+    !ids.has("place") &&
+    !ids.has("placeOfPublication") &&
+    !ids.has("edition") &&
+    !ids.has("officialCitation") &&
+    !ids.has("citation")
+  ) {
+    const trailing = text.match(/\s(\([^()]*\))\s*\.?\s*$/);
+    const inner = trailing?.[1] ?? "";
+    const words = (inner.match(/[A-Za-z]{3,}/g) ?? []).length;
+    if (inner && words >= 3 && !/\b(1[6-9]|20)\d{2}\b/.test(inner)) {
+      set("pinpoint", inner);
     }
   }
 
