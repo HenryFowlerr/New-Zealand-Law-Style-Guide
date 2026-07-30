@@ -20,7 +20,7 @@
  */
 import type { GuideType } from "../data/styleGuide.ts";
 import { splitAuthor } from "./names.ts";
-import { chooseForm, parseTemplate, renderFromTemplate, tokensToText } from "./render.ts";
+import { chooseForm, parseTemplate, renderFromTemplate, templateForms, tokensToText } from "./render.ts";
 
 export type Anchor = {
   kind:
@@ -1351,14 +1351,49 @@ export function anchorMismatch(type: GuideType, text: string): number {
   }
   // A select committee report on a Bill, or an explanatory note, says which it
   // is. Its template is two free-text slots that will otherwise swallow any
-  // Bill at all.
+  // Bill at all. The words that distinguish it live in the LOCATOR's value rather
+  // than in the template, so the general check below cannot see them.
   if (
     /^(bill-select-committee|supplementary-order)/.test(type.id) &&
     !/\b(explanatory note|select committee report)\b/i.test(text)
   ) {
     mismatch += 2;
   }
+
+  // A template that ASSERTS a word the reference never contained.
+  //
+  // Nineteen types write a distinctive word of their own — "Transcript",
+  // "Interview", "Letter from", "reported in", "as cited in", "forthcoming",
+  // "New Zealand Gazette". Matching one is already rewarded; missing one was
+  // merely not rewarded, which is the wrong shape. Writing a word the source
+  // never had is an INVENTION, and it produced the tool's single worst answer: a
+  // bare case name came back as "Taylor v New Zealand Poultry Board Transcript."
+  // — a Supreme Court transcript that does not exist, formatted impeccably.
+  //
+  // Judged per FORM, because a type's alternate forms differ: rule 9.3.1's first
+  // form writes no distinctive word at all, so a Canadian statute must not be
+  // penalised for the Charter wording it is not using. A form that asserts
+  // nothing is satisfiable by anything, and exempts its type.
+  if (!templateLiteralsSatisfied(type, text)) mismatch += 2;
   return mismatch;
+}
+
+/** Words too common to be evidence of anything. */
+const UNDISTINCTIVE = new Set(["above", "being", "under", "other", "where", "which", "their"]);
+
+/**
+ * Does at least one of this type's forms assert only words the paste actually
+ * contains? A form asserting nothing counts as satisfied.
+ */
+function templateLiteralsSatisfied(type: GuideType, text: string): boolean {
+  const lower = text.toLowerCase();
+  for (const form of templateForms(type.outputTemplate)) {
+    const literals = (form.replace(/\*|\{[^}]+\}/g, " ").match(/[A-Za-z]{5,}/g) ?? [])
+      .map((word) => word.toLowerCase())
+      .filter((word) => !UNDISTINCTIVE.has(word));
+    if (literals.every((word) => lower.includes(word))) return true;
+  }
+  return false;
 }
 
 /**

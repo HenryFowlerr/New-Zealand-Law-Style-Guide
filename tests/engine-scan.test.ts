@@ -743,3 +743,40 @@ test("stripping a prefix never eats the whole paste", () => {
   assert.equal(referencePrefixLength("12"), 0);
   assert.equal(referencePrefixLength("Week 4:"), 0);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A template must not assert a word the reference never contained
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a bare case name does not become a transcript that does not exist", () => {
+  // Was: "Taylor v New Zealand Poultry Board Transcript." — a Supreme Court
+  // transcript, invented out of nothing and formatted impeccably. Nineteen types
+  // write a distinctive word of their own; missing one used to cost nothing.
+  for (const text of ["Taylor v New Zealand Poultry Board", "R v Smith"]) {
+    const top = detectTypes(text, 1)[0];
+    const built = buildCitation(top.typeId, prefillFromPaste(guideTypeById[top.typeId], text, []));
+    assert.ok(
+      !/\bTranscript\b/i.test(built.text ?? ""),
+      `invented a transcript for ${JSON.stringify(text)}: ${built.text}`,
+    );
+  }
+});
+
+test("a real transcript is still recognised", () => {
+  const text = "Couch v Attorney-General Transcript SC49/2006, 17 April 2007.";
+  assert.equal(detectTypes(text, 1)[0].typeId, "supreme-court-transcript");
+  assert.equal(
+    buildCitation("supreme-court-transcript", prefill("supreme-court-transcript", text)).text,
+    text,
+  );
+});
+
+test("a type whose form asserts nothing is not penalised for it", () => {
+  // Rule 9.3.1's first form writes no distinctive word, so a Canadian statute
+  // must not be marked down for the Charter wording its other form carries.
+  const text = "Arctic Waters Pollution Prevention Act RSC 1985 c A-12, s 15.";
+  assert.ok(
+    detectTypes(text, 6).some((d) => d.typeId === "canada-statute"),
+    "canada-statute fell out of the visible list",
+  );
+});
