@@ -140,11 +140,51 @@ function chooseForm(
   return best;
 }
 
+/**
+ * Drop brackets from a value that the template is about to write itself.
+ *
+ * A student reading a judgment types the year exactly as it is printed —
+ * "(1986)" or "[2009]" — and several templates supply those brackets around the
+ * slot, so the citation came out "((1986))". The paste path already guarded
+ * against this, but a hand-typed field went straight through, which is the one
+ * path a careful user is most likely to take.
+ */
+function stripSuppliedBrackets(
+  tpl: TplToken[],
+  values: Record<string, ComponentValue>,
+): Record<string, ComponentValue> {
+  const out = { ...values };
+  for (let i = 0; i < tpl.length; i++) {
+    const token = tpl[i];
+    if (token.kind !== "ph") continue;
+    const before = tpl[i - 1];
+    const after = tpl[i + 1];
+    const opener = before?.kind === "lit" ? before.text.trimEnd().slice(-1) : "";
+    const closer = after?.kind === "lit" ? after.text.trimStart().slice(0, 1) : "";
+    const pair =
+      (opener === "[" && closer === "]") || (opener === "(" && closer === ")");
+    if (!pair) continue;
+    const raw = out[token.id];
+    const text = valueText(raw);
+    if (!text) continue;
+    const stripped =
+      (opener === "[" && /^\[.*\]$/.test(text)) ||
+      (opener === "(" && /^\(.*\)$/.test(text))
+        ? text.slice(1, -1).trim()
+        : text;
+    if (stripped === text) continue;
+    out[token.id] =
+      typeof raw === "object" && raw ? { ...raw, text: stripped } : stripped;
+  }
+  return out;
+}
+
 export function renderFromTemplate(
   template: string,
-  values: Record<string, ComponentValue>,
+  rawValues: Record<string, ComponentValue>,
 ): Token[] {
-  const tpl = parseTemplate(chooseForm(template, values));
+  const tpl = parseTemplate(chooseForm(template, rawValues));
+  const values = stripSuppliedBrackets(tpl, rawValues);
   const out: Token[] = [];
   let litBuffer = "";
   // Whether an optional component was dropped since the buffer was last flushed.

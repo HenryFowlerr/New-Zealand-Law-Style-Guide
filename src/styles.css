@@ -1001,22 +1001,35 @@ footer {
   gap: 9px;
 }
 
+/* A plain dot was too quiet for the one thing that decides whether the
+   citation can be trusted: whether every required part is actually there. */
 .result-status > span {
-  width: 7px;
-  height: 7px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
 }
 
 .result-status.ready {
-  color: var(--green);
+  color: #2f6b4a;
 }
 
 .result-status.ready > span {
-  background: #4a956d;
+  background: #2f8a55;
+}
+
+.result-status.waiting {
+  color: #9d2f2f;
 }
 
 .result-status.waiting > span {
-  background: #ba8a3f;
+  background: #c0392b;
 }
 
 .citation-preview {

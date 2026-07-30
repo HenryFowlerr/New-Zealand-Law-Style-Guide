@@ -765,8 +765,12 @@ function App() {
                 <div className="result-card">
                   <div className="result-card-head">
                     <span className={`result-status ${copyReady ? "ready" : "waiting"}`}>
-                      <span aria-hidden="true" />
-                      {copyReady ? "Ready to copy" : "Waiting for details"}
+                      <span aria-hidden="true">{copyReady ? "✓" : "!"}</span>
+                      {copyReady
+                        ? "Complete — every required part is filled in"
+                        : missing.length === 1
+                          ? `1 required part still missing: ${missing[0].label}`
+                          : `${missing.length} required parts still missing`}
                     </span>
                     <span>NZLSG {type.rule}</span>
                   </div>
