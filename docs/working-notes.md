@@ -22,7 +22,7 @@ Never report a single accuracy number. It hides which layer is broken.
 | | What it asks | Where | Now |
 |---|---|---|---|
 | **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **149/149, all 86 types, none skipped** |
-| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 214/216 fields, 206/216 exact |
+| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 214/216 fields, 207/216 exact |
 | **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 148/216 |
 | **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 16/16 type, 6/6 exact |
 
@@ -112,6 +112,13 @@ LOST holdout (50 → 44 of 92), which is the signal not to apply it. So the pass
 runs where the boxes are filled and not where the type is ranked, and detection
 still sees what it was fitted on. Anything that touches a feature must be
 measured on classification too, not just on the layer it was aimed at.
+
+This has now happened three times — span reconciliation, the shape penalty in form
+choice, and splitting a neutral citation into its three boxes, which gained one
+citation and cost six identifications. **Treat it as the standing rule: work that
+improves the FIELDS belongs in `prefillFromPaste`, after `refineFields`, not
+inside it.** Both passes that do this are called from there for exactly this
+reason.
 
 **Believing the corpus measures everything.** The corpus is 216 citations printed
 in the Guide, and it is printed correctly, in mixed case, fully punctuated. Real
@@ -284,7 +291,7 @@ pre-1854 ordinances were already passing, and the Gazette problem turned out to 
 partly this repo's own fixture. Re-derive the clusters from
 `scripts/failure-shapes.ts` rather than trusting a list.
 
-- **Paste→output 206/216.** By defect shape: 4 truncated, 3 other, 2 refused,
+- **Paste→output 207/216.** By defect shape: 3 truncated, 3 other, 2 refused,
   1 duplicated. Run `scripts/failure-shapes.ts` rather than reading this list; it
   goes stale.
 - **The two remaining refusals are the same modelling gap.** Rule 8.5's
