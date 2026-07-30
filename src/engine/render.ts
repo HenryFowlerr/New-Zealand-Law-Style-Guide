@@ -115,7 +115,7 @@ function cleanLiteral(text: string): string {
  * The right form is the one that uses the most of what we have and leaves the
  * fewest of its own slots empty.
  */
-function chooseForm(
+export function chooseForm(
   template: string,
   values: Record<string, ComponentValue>,
 ): string {

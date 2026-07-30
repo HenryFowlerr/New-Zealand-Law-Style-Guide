@@ -20,6 +20,7 @@
  */
 import type { GuideType } from "../data/styleGuide.ts";
 import { splitAuthor } from "./names.ts";
+import { chooseForm, renderFromTemplate, tokensToText } from "./render.ts";
 
 export type Anchor = {
   kind:
@@ -637,6 +638,217 @@ export function refineFields(
   dropOverlapWithAnchoredName(fields, anchored);
 
   return stripBracketsSuppliedByTemplate(type, fields);
+}
+
+/** Words of a value, for building prefixes and suffixes of it. */
+const words = (value: string): string[] => value.trim().split(/\s+/).filter(Boolean);
+
+/** Trim separators and unmatched brackets a word-boundary cut leaves behind. */
+function tidyFragment(value: string): string {
+  let text = value.trim().replace(/^[,;:–—-]+\s*/, "").replace(/\s*[,;:–—-]+$/, "");
+  // A cut inside a bracketed run leaves one half of the pair; drop it, since
+  // the template supplies its own brackets and an unmatched one is never right.
+  for (const [open, close] of [["(", ")"], ["[", "]"]] as const) {
+    while (text.startsWith(close)) text = text.slice(1).trim();
+    while (text.endsWith(open)) text = text.slice(0, -1).trim();
+    const opens = text.split(open).length - 1;
+    const closes = text.split(close).length - 1;
+    if (closes > opens && text.endsWith(close)) text = text.slice(0, -1).trim();
+    if (opens > closes && text.startsWith(open)) text = text.slice(1).trim();
+  }
+  return text.trim();
+}
+
+/** Enough of a value to be worth locating: a bare digit or letter is ambiguous. */
+const locatable = (value: string): boolean => value.replace(/[^\p{L}\p{N}]/gu, "").length >= 2;
+
+/**
+ * How badly a field set fails to account for the paste, in words.
+ *
+ * A citation built from a paste should contain each word of that paste exactly
+ * as often as the paste does. A word written twice is a duplicated field; a word
+ * missing is a dropped one. Summing both differences gives one number that
+ * ranks candidate readings of the same text without appealing to any Style Guide
+ * rule — it only asks which reading loses or repeats least of what was pasted.
+ *
+ * The trailing full stop and the pinpoint apparatus are ignored, because the
+ * template supplies those itself.
+ */
+function wordImbalance(rendered: string, source: string): number {
+  const tally = (s: string): Map<string, number> => {
+    const counts = new Map<string, number>();
+    for (const word of s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []) {
+      counts.set(word, (counts.get(word) ?? 0) + 1);
+    }
+    return counts;
+  };
+  const out = tally(rendered);
+  const src = tally(source);
+  let penalty = 0;
+  for (const word of new Set([...out.keys(), ...src.keys()])) {
+    penalty += Math.abs((out.get(word) ?? 0) - (src.get(word) ?? 0));
+  }
+  return penalty;
+}
+
+/** Fields laid out in the order the chosen form writes them. */
+function formOrder(type: GuideType, fields: Record<string, string>): { form: string; order: string[] } {
+  const form = chooseForm(type.outputTemplate, fields);
+  const order: string[] = [];
+  for (const match of form.matchAll(/\{([^}]+)\}/g)) {
+    if (!order.includes(match[1])) order.push(match[1]);
+  }
+  return { form, order };
+}
+
+/**
+ * One pass of span reconciliation under a fixed policy for conflicts.
+ *
+ * A citation read back into its boxes is a partition of the pasted text: each
+ * field holds a different run of it, and the runs appear in the order the
+ * template writes them. So the fields are walked in template order behind a
+ * cursor, each claiming the first occurrence of its value at or after the
+ * cursor.
+ *
+ * When a field's value only appears BEHIND the cursor, two fields have claimed
+ * the same run and one of them is wrong — but which one is not knowable from the
+ * text alone. Either the later field over-reached backwards (cut it down to the
+ * tail that is genuinely its own) or the earlier field swallowed it (cut the
+ * earlier field back to where the later one starts). Both policies are tried;
+ * the caller keeps whichever reading accounts for the paste better.
+ *
+ * A value of fewer than two letters or digits is left alone throughout: "3" or
+ * "1" occurs all over a citation and locating it proves nothing.
+ */
+function reconcilePass(
+  type: GuideType,
+  fields: Record<string, string>,
+  text: string,
+  policy: "trimLater" | "shrinkEarlier",
+): Record<string, string> {
+  const { order } = formOrder(type, fields);
+  const required = new Set(type.components.filter((c) => c.required).map((c) => c.id));
+  const result = { ...fields };
+  const claims: { id: string; start: number; end: number }[] = [];
+  let cursor = 0;
+
+  /** The longest tail of `value` that occurs at or after `from`. */
+  const placeTail = (value: string, from: number): { text: string; at: number } | null => {
+    const parts = words(value);
+    for (let skip = 1; skip < parts.length; skip++) {
+      const tail = tidyFragment(parts.slice(skip).join(" "));
+      if (!tail || !locatable(tail)) continue;
+      const at = text.indexOf(tail, from);
+      if (at >= 0) return { text: tail, at };
+    }
+    return null;
+  };
+
+  /** The longest head of `value` starting at `start` that ends at or before `before`. */
+  const shrinkHead = (value: string, start: number, before: number): string | null => {
+    const parts = words(value);
+    for (let take = parts.length - 1; take >= 1; take--) {
+      const head = parts.slice(0, take).join(" ");
+      if (start + head.length > before) continue;
+      const tidy = tidyFragment(head);
+      if (tidy && locatable(tidy) && text.indexOf(tidy, start) === start) return tidy;
+    }
+    return null;
+  };
+
+  for (const id of order) {
+    const value = (result[id] ?? "").trim();
+    if (!value || !locatable(value)) continue;
+    const ahead = text.indexOf(value, cursor);
+    if (ahead >= 0) {
+      claims.push({ id, start: ahead, end: ahead + value.length });
+      cursor = ahead + value.length;
+      continue;
+    }
+    const behind = text.indexOf(value);
+    const previous = claims[claims.length - 1];
+    // Cut the earlier field back to where this one starts. Always attempted when
+    // the policy asks for it, and as a last resort under the other policy when a
+    // required field would otherwise be lost.
+    const yieldEarlier =
+      behind >= 0 &&
+      previous != null &&
+      behind >= previous.start &&
+      behind < previous.end &&
+      (policy === "shrinkEarlier" || required.has(id));
+    if (yieldEarlier && previous) {
+      const head = shrinkHead(result[previous.id] ?? "", previous.start, behind);
+      if (head) {
+        result[previous.id] = head;
+        previous.end = previous.start + head.length;
+        claims.push({ id, start: behind, end: behind + value.length });
+        cursor = behind + value.length;
+        continue;
+      }
+    }
+    const tail = placeTail(value, cursor);
+    if (tail) {
+      result[id] = tail.text;
+      claims.push({ id, start: tail.at, end: tail.at + tail.text.length });
+      cursor = tail.at + tail.text.length;
+      continue;
+    }
+    // Nothing of this value is left unclaimed. Drop it if the citation can do
+    // without it; keep it (duplication and all) if the Guide requires it.
+    if (behind >= 0 && !required.has(id)) delete result[id];
+  }
+  return result;
+}
+
+/**
+ * Stop a run of the paste being written into two boxes at once.
+ *
+ * The template's positional regex and the shape anchors extract independently,
+ * and they routinely both claim the same run of text. The renderer then writes
+ * it twice, which is how a third of the corpus's wrong outputs looked:
+ *
+ *   Arms Amendment Bill (No 3) 2005 (No 3) 2005 (248-1).
+ *   Morissens v Belgium (1988) 56 DR (1988) 56 DR 127.
+ *   Charles Rickett Laws of New Zealand Equity Laws of New Zealand Equity …
+ *   Home Office Report … (Cmd 8932, Cmd 8932, 1953).
+ *
+ * A duplicated word makes a citation useless just as surely as a missing one.
+ *
+ * Which of the two claimants over-reached is genuinely ambiguous, and guessing
+ * from the punctuation was wrong often enough to cost thirteen correct type
+ * identifications. So both readings are built and compared against the paste by
+ * word count, and the one that repeats and loses least of it wins. Doing nothing
+ * is on the ballot too, and wins any tie — a reading is only adopted when it can
+ * be shown to account for the reference better than leaving it alone.
+ *
+ * A reading that empties a field the Guide requires is discarded outright: a
+ * citation with a word written twice is wrong, but one the tool refuses to build
+ * at all is worse.
+ */
+export function reconcileAgainstSource(
+  type: GuideType,
+  fields: Record<string, string>,
+  text: string,
+): Record<string, string> {
+  const { form } = formOrder(type, fields);
+  const required = type.components.filter((c) => c.required).map((c) => c.id);
+  const render = (values: Record<string, string>) =>
+    tokensToText(renderFromTemplate(form, values));
+  const keeps = (values: Record<string, string>) =>
+    required.every((id) => !(fields[id] ?? "").trim() || (values[id] ?? "").trim());
+
+  let best = fields;
+  let bestPenalty = wordImbalance(render(fields), text);
+  for (const policy of ["trimLater", "shrinkEarlier"] as const) {
+    const candidate = reconcilePass(type, fields, text, policy);
+    if (!keeps(candidate)) continue;
+    const penalty = wordImbalance(render(candidate), text);
+    if (penalty < bestPenalty) {
+      best = candidate;
+      bestPenalty = penalty;
+    }
+  }
+  return best;
 }
 
 /**
