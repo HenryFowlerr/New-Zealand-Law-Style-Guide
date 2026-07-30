@@ -114,6 +114,12 @@ should be checked against the source before the citation is used.
   correct semicolons, final “and”, and single full stop; it persists on your
   device.
 
+## Contributing
+
+`docs/working-notes.md` records how the project is measured, the traps that have
+already cost work to find, and what is still open. Read it before changing the
+engine.
+
 ## Local development
 
 Requires Node.js 22.13 or newer.
