@@ -63,8 +63,12 @@ const PINPOINT_AT =
 
 // A legislation pinpoint: a trailing division reference — "s 8", "ss 3–5",
 // "sch 2", "pt 1", "art 5", "reg 4", "cl 2" — usually after a comma.
+// "rr?" matters: a rule is pinpointed "r 19.5" or "rr 4–6", the form court
+// rules and deemed regulations always use. Leaving it out meant the title of
+// every one of them collapsed to its first word — "Civil" for the Civil
+// Aviation Rules.
 const PINPOINT_DIV =
-  /,\s*((?:ss?|sch|pt|arts?|regs?|cls?|ch|SO)\s+[\dA-Za-z]+(?:[-–(][\dA-Za-z)]+)*.*?|long title|preamble|schedule)\s*\.?\s*$/i;
+  /,\s*((?:ss?|sch|pt|arts?|regs?|rr?|cls?|ch|SO)\s+[\dA-Za-z]+(?:[-–(][\dA-Za-z)]+)*.*?|long title|preamble|schedule)\s*\.?\s*$/i;
 
 // An edition: "2nd ed", "3rd ed", "rev ed", and the standing editions a
 // looseleaf service or an online commentary carries instead of a number —
@@ -242,6 +246,9 @@ function positionalValueLooksValid(id: string, value: string): boolean {
     case "year":
       return /^[[(]?\d{4}[\])]?$/.test(v);
     case "volume":
+      // The AJHR numbers its volumes in Roman — "[1984–1985] I AJHR A6" — and
+      // requiring digits dropped the volume from every citation of it.
+      return /^\d+[A-Za-z]?$/.test(v) || /^[IVXLC]{1,6}$/.test(v);
     case "startingPage":
       return /^\d+[A-Za-z]?$/.test(v);
     case "pinpoint":
@@ -294,6 +301,11 @@ export function refineFields(
       }
       case "pinpoint":
         set("pinpoint", anchor.parts.value);
+        // A pinpoint is citation apparatus just as a year is, so the free-text
+        // head must stop before it. Without this a title ran on to swallow its
+        // own pinpoint and the citation rendered it twice: "Cabinet Manual 2008
+        // at [2.91]. at [2.91]."
+        earliestCitation = Math.min(earliestCitation, anchor.start);
         break;
       case "edition":
         set("edition", anchor.parts.value);
@@ -305,7 +317,13 @@ export function refineFields(
         break;
       case "year":
         set("year", anchor.parts.value);
-        earliestCitation = Math.min(earliestCitation, anchor.start);
+        // Only treat the year as the start of the citation apparatus when this
+        // type actually has somewhere to put one. The Cabinet Manual is titled
+        // "Cabinet Manual 2008" and has no year component, so cutting the head
+        // at the year stripped the title down to "Cabinet Manual" and lost it.
+        if (ids.has("year")) {
+          earliestCitation = Math.min(earliestCitation, anchor.start);
+        }
         break;
       case "quotedTitle":
         // The quoted run is the article/essay/chapter title, under whichever id

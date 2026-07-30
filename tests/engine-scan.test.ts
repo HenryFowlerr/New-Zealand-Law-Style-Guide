@@ -332,3 +332,30 @@ test("a pre-1854 Ordinance splits its regnal year from its number", () => {
   assert.equal(fields.ordinanceNumber, "5");
   assert.equal(buildCitation(type.id, fields).text, text);
 });
+
+test("a volume numbered in Roman is kept", () => {
+  // The AJHR numbers volumes "I", "II"; requiring digits dropped it silently.
+  const text =
+    "Geoffrey Palmer “A Bill of Rights for New Zealand: A White Paper” [1984–1985] I AJHR A6 at 29.";
+  const type = guideTypeById["ajhr"];
+  const fields = prefillFromPaste(type, text, []);
+  assert.equal(fields.volume, "I");
+  assert.equal(buildCitation(type.id, fields).text, text);
+});
+
+test("a year inside a title survives when the type has no year field", () => {
+  // The Cabinet Manual is titled "Cabinet Manual 2008"; cutting the free text
+  // at the year stripped the title back to "Cabinet Manual".
+  const text = "Cabinet Office Cabinet Manual 2008 at [2.91].";
+  const type = guideTypeById["cabinet-manual"];
+  const fields = prefillFromPaste(type, text, []);
+  assert.equal(fields.title, "Cabinet Manual 2008");
+  assert.equal(buildCitation(type.id, fields).text, text);
+});
+
+test("a rule pinpoint is recognised, so the title is not cut to one word", () => {
+  const type = guideTypeById["court-rules"];
+  const fields = prefillFromPaste(type, "High Court Rules 2016, r 14.3.", []);
+  assert.equal(fields.pinpoint, "r 14.3");
+  assert.equal(buildCitation(type.id, fields).text, "High Court Rules 2016, r 14.3.");
+});

@@ -48,7 +48,7 @@ for (const typeId of MUST_BE_PERFECT) {
  * Whole-corpus floor. Raise this as defects are fixed; it must never fall.
  * Recorded when the published Guide was first audited against the engine.
  */
-const BASELINE_EXACT = 126;
+const BASELINE_EXACT = 128;
 
 test("the published Guide corpus does not regress", () => {
   const exact = GUIDE_CORPUS.filter((c) => rebuild(c.typeId, c.text) === c.text).length;
