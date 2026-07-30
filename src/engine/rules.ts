@@ -213,3 +213,26 @@ export function normaliseForComparison(text: string): string {
     .replace(/\s{2,}/g, " ")
     .trim();
 }
+
+
+/**
+ * "ibid" is not a form this Guide uses.
+ *
+ * Rule 2.3 is explicit: "Use this method for subsequent references instead of
+ * using ibid." A student arrives with the habit from history, politics or any
+ * discipline that uses it, and the tool happily produced "Ibid at 45." — a
+ * citation the Guide forbids, offered without comment.
+ *
+ * Returns the sentence to show, or null. It deliberately does not rewrite
+ * anything: only the writer knows which footnote is meant, and rule 2.3 needs
+ * that number.
+ */
+export function forbiddenShortForm(text: string): string | null {
+  if (!/\bibid\b/i.test(text)) return null;
+  return (
+    "Rule 2.3 does not use “ibid”. A later reference to a source already cited " +
+    "takes the form “Smith, above n 12, at 431” — or, where the source is obvious " +
+    "from the sentence, just the pinpoint: “At 535.” Only you know which footnote " +
+    "the number should be, so nothing here has been changed for you."
+  );
+}

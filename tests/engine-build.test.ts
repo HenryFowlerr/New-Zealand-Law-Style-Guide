@@ -4,6 +4,7 @@
  * missing required components, and html escaping.
  */
 import assert from "node:assert/strict";
+import { forbiddenShortForm } from "../src/engine/rules.ts";
 import test from "node:test";
 import { buildCitation, prefillFromPaste, visibleComponents } from "../src/engine/build.ts";
 import { guideTypeById } from "../src/data/styleGuide.ts";
@@ -145,4 +146,24 @@ test("plain-text paste falls back to template extraction that round-trips", () =
   // The exact author/title split from unformatted text may be imperfect, but
   // the extracted fields must rebuild the original citation.
   assert.equal(buildCitation("nz-statute", fields).text, "Evidence Act 2006, s 8.");
+});
+
+test("“ibid” is flagged, because rule 2.3 does not use it", () => {
+  // "Use this method for subsequent references instead of using ibid." — rule 2.3,
+  // read off the published Guide. A student arrives with the habit from another
+  // discipline and the tool produced "Ibid at 45." without comment.
+  assert.ok(forbiddenShortForm("Ibid at 45."));
+  assert.ok(forbiddenShortForm("ibid"));
+  // The correct form is not flagged, and neither is a party whose name merely
+  // contains the letters.
+  assert.equal(forbiddenShortForm("Taylor v New Zealand Poultry Board, above n 5, at 398."), null);
+  assert.equal(forbiddenShortForm("Ibiden Co Ltd v X [2019] NZHC 1."), null);
+});
+
+test("the “ibid” notice does not rewrite anything", () => {
+  // Only the writer knows which footnote is meant, and rule 2.3 needs that
+  // number, so the tool says so rather than guessing one.
+  const message = forbiddenShortForm("Ibid at 45.") ?? "";
+  assert.match(message, /above n/);
+  assert.match(message, /nothing here has been changed/i);
 });

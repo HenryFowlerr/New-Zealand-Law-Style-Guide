@@ -18,6 +18,7 @@ import {
   type ItalicRun,
 } from "./engine/build";
 import { pasteIsAllCaps, splitReferences } from "./engine/render";
+import { forbiddenShortForm } from "./engine/rules";
 import { resolveLink, looksLikeLink } from "./engine/linkResolve";
 import { browserFetchers } from "./engine/browserFetch";
 
@@ -289,6 +290,12 @@ function App() {
       result?.status === "ready" &&
       pasteIsAllCaps(splitReferences(pasteText)[activeReference] ?? pasteText),
     [reviewRequired, filledFromLink, result, pasteText, activeReference],
+  );
+
+  // "ibid" is a habit from other disciplines; rule 2.3 does not use it.
+  const shortFormWarning = useMemo(
+    () => forbiddenShortForm(splitReferences(pasteText)[activeReference] ?? pasteText),
+    [pasteText, activeReference],
   );
 
   const footnoteResults = useMemo(
@@ -780,6 +787,12 @@ function App() {
                   </a>
                 </div>
 
+                {shortFormWarning && (
+                  <div className="review-banner extraction-summary">
+                    <strong>“ibid” is not used in this Guide</strong>
+                    <span>{shortFormWarning}</span>
+                  </div>
+                )}
                 {filledFromLink && linkStatus && (
                   // Where the fields came from, shown beside them. The status was
                   // only rendered in the paste view, so the one thing a reader
