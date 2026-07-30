@@ -40,7 +40,13 @@ export type Anchor = {
 
 // A neutral citation: [year] COURT [division] number — letters immediately
 // after the year, then a number (e.g. "[2008] NZSC 55", "[2019] EWCA Civ 20").
-const NEUTRAL = /\[\d{4}\]\s+[A-Z][A-Za-z]{1,6}(?:\s+[A-Z][A-Za-z]{1,6})*\s+\d+[A-Za-z]?/;
+// The court is an ABBREVIATION — NZSC, NZCA, EWCA Civ, NZERA Christchurch —
+// optionally followed by one division or registry word. Allowing a run of
+// ordinary Title Case words let a journal locus match: "[1994] NZ Recent Law
+// Review 245" read as a neutral citation, which both credited every case type
+// and penalised the journal type for having nowhere to put one.
+const NEUTRAL =
+  /\[\d{4}\]\s+[A-Z]{2,}[A-Za-z]*(?:\s+[A-Z][A-Za-z]{1,11})?\s+\d+[A-Za-z]?/;
 
 // A reporter / journal locus: (year) volume SERIES page — a DIGIT volume
 // between the year and a letters series (e.g. "[2009] 1 NZLR 1", "(2005) 121
@@ -753,6 +759,28 @@ export function anchorSupport(type: GuideType, text: string): number {
     support += 3;
   }
   if (/\(\s*online ed\b/i.test(text) && ids.has("onlineEd")) support += 3;
+
+  // A statute and a regulation are written identically — "{title} {year},
+  // {pinpoint}" — so nothing in the shape of the citation tells them apart.
+  // The title does: an Act is an Act, and Regulations, Rules, an Order, a Code
+  // or a Notice are secondary legislation. Without this every regulation a
+  // student cited was offered as an Act.
+  const legislationKind = /\b(Act|Regulations?|Rules|Order|Code|Notice)\b\s+(?:\(No \d+\)\s+)?\d{4}\b/.exec(text);
+  if (legislationKind) {
+    const isAct = /^Act$/i.test(legislationKind[1]);
+    const statuteLike = type.id === "nz-statute" || type.id === "nz-provincial-legislation";
+    const instrumentLike =
+      type.id === "legislative-instrument" ||
+      type.id === "court-rules" ||
+      type.id === "other-instrument-dinli";
+    if (isAct && statuteLike) support += 6;
+    if (!isAct && instrumentLike) support += 6;
+    // A rule of court says so outright.
+    if (/\b(High Court|District Court|Supreme Court|Court of Appeal)\s+Rules\b/.test(text) &&
+        type.id === "court-rules") {
+      support += 4;
+    }
+  }
   return support;
 }
 
@@ -903,6 +931,12 @@ const NUMERIC_FIELDS = new Set([
   "noticeNumber",
   "orderNumber",
   "sopNumber",
+  // An official citation is a numbered series designation — "NZLC R91",
+  // "Occasional Paper 11/01". Without this, a book's place of publication landed
+  // there and every text with a plain "(publisher, place, year)" was offered as
+  // a government paper: "Lord Denning The Discipline of Law (Butterworths,
+  // London, 1979)" read London as its official citation.
+  "officialCitation",
 ]);
 
 /** Types whose case name really is an "X v Y" (or "Re X") party string. */

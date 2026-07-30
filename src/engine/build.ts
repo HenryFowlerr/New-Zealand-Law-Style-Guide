@@ -387,19 +387,26 @@ export function detectionCandidates(
     );
     const editorInInput = /\(eds?\)/.test(trimmed);
     const holdsEditor = type.components.some((c) => c.id === "editor");
-    // Capture is scored as a FRACTION of the slots this template actually has.
-    // As a raw count it rewarded a template purely for being wide: the US
-    // session-law template filled six boxes from "Evidence Act 2006, s 8" —
-    // nonsense in every one — and outscored the New Zealand statute type that
-    // read it correctly into three.
-    const slotCount = templateComponentIds(type).length;
+    // How many DISTINCT facts this type managed to separate, capped so a very
+    // wide template cannot win on breadth alone.
+    //
+    // Neither obvious measure works by itself. A raw count rewards a template
+    // for being wide — the US session-law template filled six boxes from
+    // "Evidence Act 2006, s 8", nonsense in every one. A fraction of the
+    // template's own slots rewards a template for being NARROW, which is worse:
+    // "{billCitation} ({locator})" fills both of its two slots by swallowing an
+    // entire book into them and scores a perfect 1.0, beating the book type
+    // that correctly separated author, title, publisher, place and year.
+    //
+    // Counting the facts separated, capped, prefers the type that actually
+    // explains the reference. The shape checks below stop it running away.
     candidates.push({
       typeId: type.id,
       fields,
       features: {
         requiredCoverage: required.length ? requiredCovered / required.length : 1,
         requiredMissing: required.length - requiredCovered,
-        captured: slotCount ? Object.keys(fields).length / slotCount : 0,
+        captured: Math.min(Object.keys(fields).length, 8) / 8,
         refit,
         literalHits,
         shapeSupport: anchorSupport(type, trimmed),
