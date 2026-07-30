@@ -460,3 +460,105 @@ export function composeFootnote(results: BuildResult[]): {
     tokens,
   };
 }
+
+/**
+ * Something worth showing the user about the citation just generated: a detail
+ * from their paste that did not survive, or a run of text the citation repeats.
+ */
+export type CitationWarning = {
+  text: string;
+  kind: "missing" | "repeated";
+};
+
+const AUDIT_STOPWORDS = new Set([
+  "the", "and", "of", "in", "at", "on", "for", "to", "a", "an", "v", "vs",
+  "ed", "eds", "vol", "no", "pt", "ch", "online", "looseleaf", "ebook",
+  "press", "release", "podcast", "above", "n",
+]);
+
+/**
+ * What the paste said that the citation does not.
+ *
+ * Identifying the source type is the weakest part of the tool, and a wrongly
+ * chosen type usually fails in the same way: a detail the reference plainly
+ * contained is quietly left out, because the type had nowhere to put it. That
+ * is invisible in the finished citation — it reads perfectly well — so the one
+ * moment a student could catch it is the moment they compare it against what
+ * they pasted, which is exactly the comparison nobody makes.
+ *
+ * This makes it for them. It needs no knowledge of the Guide: any year, number,
+ * docket or distinctive word that was in the paste and is missing from the
+ * output is worth showing, whatever the rule says.
+ *
+ * It deliberately does not judge. Some omissions are correct — rule 3.2 drops a
+ * court identifier when a neutral citation is present — so this reports what
+ * changed and leaves the reading of it to the user.
+ */
+export function auditAgainstPaste(
+  paste: string,
+  citation: string,
+): CitationWarning[] {
+  if (!paste.trim() || !citation.trim()) return [];
+  // Compare case-insensitively, but report the words as the user wrote them:
+  // showing "maxton" back to someone who typed "Maxton" reads like a fault in
+  // the tool rather than a question about their citation.
+  const source = normalizePaste(paste).text;
+  const output = normalizePaste(citation).text.toLowerCase().replace(/[“”‘’"']/g, "");
+  const lost: CitationWarning[] = [];
+  const seen = new Set<string>();
+
+  const report = (raw: string) => {
+    const token = raw.toLowerCase().replace(/[“”‘’"']/g, "");
+    if (!token || seen.has(token)) return;
+    seen.add(token);
+    if (!output.includes(token)) lost.push({ text: raw, kind: "missing" });
+  };
+
+  // Numbers carry the facts a citation is built from — years, volumes, pages,
+  // paragraph numbers, dockets — and a lost one is always worth reporting.
+  for (const match of source.matchAll(/[A-Za-z]*\d[\w./-]*/g)) {
+    if (match[0].length >= 2) report(match[0]);
+  }
+  // Words of substance: a dropped party, publisher or reporter abbreviation.
+  for (const match of source.matchAll(/[A-Za-zĀ-ſ][\w’'-]{2,}/g)) {
+    if (!AUDIT_STOPWORDS.has(match[0].toLowerCase())) report(match[0]);
+  }
+
+  return [...lost, ...repeatedRuns(citation)];
+}
+
+/**
+ * Runs of the citation that appear twice over.
+ *
+ * The other half of what a wrongly chosen type does. Where it has nowhere to
+ * put a detail the reference cannot lose it — the positional pass and the
+ * anchors disagree about where one component ends — so it writes the same words
+ * again: "(2017) 178 Waiariki MB 32 (2017) 178 Waiariki MB 32". Comparing
+ * against the paste cannot see this, because nothing was lost; only the output
+ * shows it.
+ *
+ * Template literals repeat legitimately ("at", brackets, "New Zealand"), so
+ * only a run of several substantial words counts.
+ */
+function repeatedRuns(citation: string): CitationWarning[] {
+  const words = citation
+    .replace(/[“”‘’"']/g, "")
+    .split(/\s+/)
+    .filter(Boolean);
+  const found: CitationWarning[] = [];
+  const reported = new Set<string>();
+  const MIN_RUN = 3;
+  for (let length = Math.min(8, Math.floor(words.length / 2)); length >= MIN_RUN; length--) {
+    for (let start = 0; start + length * 2 <= words.length; start++) {
+      const run = words.slice(start, start + length).join(" ");
+      // Substance, not punctuation: a repeated run of brackets proves nothing.
+      if ((run.match(/[A-Za-z\d]{2,}/g) ?? []).length < MIN_RUN) continue;
+      const rest = words.slice(start + length).join(" ");
+      if (!rest.includes(run)) continue;
+      if ([...reported].some((seen) => seen.includes(run))) continue;
+      reported.add(run);
+      found.push({ text: run, kind: "repeated" });
+    }
+  }
+  return found;
+}

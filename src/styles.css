@@ -1570,3 +1570,19 @@ footer p {
 .reference-done > button > span:first-child {
   color: var(--accent);
 }
+
+/* A detail from the paste that did not survive into the citation, or a run the
+   citation repeats. Neither is necessarily wrong — rule 3.2 drops a court
+   identifier on purpose — so this asks rather than asserts. */
+.issue-check > span {
+  background: var(--amber-pale);
+  color: var(--amber);
+}
+
+.issue-check {
+  color: #7a5f19;
+}
+
+.issue-check strong {
+  font-weight: 600;
+}

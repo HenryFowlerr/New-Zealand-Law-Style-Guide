@@ -13,6 +13,7 @@ import {
   missingRequiredComponents,
   prefillFromPaste,
   visibleComponents,
+  auditAgainstPaste,
   type CitationFields,
   type ItalicRun,
 } from "./engine/build";
@@ -262,6 +263,15 @@ function App() {
   // auto-filled fields are still flagged as read from the paste so they invite
   // a skim, but the extra confirmation step was pure friction.
   const copyReady = result?.status === "ready";
+  // Compare the finished citation against what was pasted. Choosing the source
+  // type is the least reliable part of the tool, and a wrong choice fails
+  // quietly: a detail is dropped, or written twice, and the citation still
+  // reads perfectly well. This is the one moment that is catchable.
+  const citationWarnings = useMemo(() => {
+    if (!reviewRequired || result?.status !== "ready") return [];
+    const source = splitReferences(pasteText)[activeReference] ?? pasteText;
+    return auditAgainstPaste(source, result.text);
+  }, [reviewRequired, result, pasteText, activeReference]);
 
   const footnoteResults = useMemo(
     () => footnoteEntries.map((entry) => buildCitation(entry.typeId, entry.fields)),
@@ -740,8 +750,8 @@ function App() {
                       </span>
                     ) : (
                       <span>
-                        Every required field was found. Check each one against the
-                        source, then confirm below.
+                        Every required field was read from your reference. Check
+                        each one against the source before you copy.
                       </span>
                     )}
                   </div>
@@ -796,7 +806,21 @@ function App() {
                         <p>{issue.message}</p>
                       </div>
                     ))}
-                    {copyReady && !result.issues.length && (
+                    {citationWarnings.length > 0 && (
+                      <div className="issue issue-check">
+                        <span aria-hidden="true">?</span>
+                        <p>
+                          {citationWarnings.some((w) => w.kind === "repeated")
+                            ? "This citation repeats itself — check the format is right: "
+                            : "These details are in what you pasted but not in the citation: "}
+                          <strong>
+                            {citationWarnings.slice(0, 6).map((w) => w.text).join("; ")}
+                          </strong>
+                          {citationWarnings.length > 6 ? " …" : ""}
+                        </p>
+                      </div>
+                    )}
+                    {copyReady && !result.issues.length && !citationWarnings.length && (
                       <div className="issue issue-success">
                         <span aria-hidden="true">✓</span>
                         <p>All required fields for this format are complete.</p>
