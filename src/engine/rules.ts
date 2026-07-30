@@ -28,8 +28,13 @@ export type GuideRule = {
   typeId: string;
   /** The component left out when the condition holds. */
   omit: string;
-  /** The condition: any one of these components carrying a value. */
-  whenAnyPresent: string[];
+  /**
+   * The condition: these components carrying values that genuinely look like a
+   * neutral citation. A shape is required, not merely a non-empty box —
+   * positional extraction fills these with case-name words when it mis-splits,
+   * and acting on that deleted the court from perfectly good citations.
+   */
+  whenAllMatch: { field: string; shape: RegExp }[];
   /** The Style Guide paragraph this comes from. */
   rule: string;
   /** Shown to the user, so the omission is explained rather than silent. */
@@ -40,21 +45,29 @@ export const GUIDE_RULES: GuideRule[] = [
   {
     typeId: "reported-case-nz",
     omit: "courtIdentifier",
-    whenAnyPresent: ["neutralCitation"],
+    whenAllMatch: [{ field: "neutralCitation", shape: /\[\d{4}\]\s+[A-Za-z]{2,}\s*\w*\s*\d/ }],
     rule: "3.2",
     why: "The court identifier is omitted when a neutral citation is given — the neutral citation already shows the court.",
   },
   {
     typeId: "england-wales-case-modern",
     omit: "court",
-    whenAnyPresent: ["neutralYear", "neutralCourt", "number"],
+    whenAllMatch: [
+      { field: "neutralYear", shape: /^\[?\d{4}\]?$/ },
+      { field: "neutralCourt", shape: /^[A-Z]{2,}[A-Za-z]*$/ },
+      { field: "number", shape: /\d/ },
+    ],
     rule: "8.4.1",
     why: "The court is included only where there is no neutral citation.",
   },
   {
     typeId: "australia-case",
     omit: "jurisdictionCourt",
-    whenAnyPresent: ["neutralYear", "neutralCourt", "number"],
+    whenAllMatch: [
+      { field: "neutralYear", shape: /^\[?\d{4}\]?$/ },
+      { field: "neutralCourt", shape: /^[A-Z]{2,}[A-Za-z]*$/ },
+      { field: "number", shape: /\d/ },
+    ],
     rule: "8.2",
     why: "The jurisdiction and court are omitted where a neutral citation makes the court evident.",
   },
@@ -78,7 +91,11 @@ export function applyGuideRules(
   for (const rule of GUIDE_RULES) {
     if (rule.typeId !== type.id) continue;
     if (!has(result, rule.omit)) continue;
-    if (!rule.whenAnyPresent.some((id) => has(result, id))) continue;
+    const triggered = rule.whenAllMatch.every(({ field, shape }) => {
+      const value = (result[field] ?? "").trim();
+      return value !== "" && shape.test(value);
+    });
+    if (!triggered) continue;
     delete result[rule.omit];
     applied.push({ field: rule.omit, rule: rule.rule, why: rule.why });
   }

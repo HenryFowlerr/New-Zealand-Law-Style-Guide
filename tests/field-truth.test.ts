@@ -19,3 +19,41 @@ for (const truth of FIELD_TRUTH) {
     assert.equal(built.text, truth.want);
   });
 }
+
+/**
+ * The conditional rules must fire on an actual neutral citation, never on a
+ * box that merely holds something. Positional extraction fills the neutral
+ * fields with case-name words when it mis-splits, and acting on that deleted
+ * the court from citations that were perfectly correct.
+ */
+test("a mis-split neutral field never deletes a real court identifier", () => {
+  const built = buildCitation("australia-case", {
+    caseName: "South Australia v Johnson",
+    // What a bad split leaves behind: words, not a neutral citation.
+    neutralCourt: "Australia",
+    number: "v",
+    year: "(1982)",
+    volume: "26",
+    reportSeries: "SASR",
+    startingPage: "41",
+    jurisdictionCourt: "SC",
+  });
+  assert.match(built.text, /\(SC\)\.$/);
+});
+
+test("a real neutral citation still drops the court under rule 3.2", () => {
+  const built = buildCitation("reported-case-nz", {
+    caseName: "Z v Dental Complaints Assessment Committee",
+    neutralCitation: "[2008] NZSC 55",
+    year: "[2009]",
+    volume: "1",
+    reportSeries: "NZLR",
+    startingPage: "1",
+    courtIdentifier: "SC",
+    pinpoint: "[26]",
+  });
+  assert.equal(
+    built.text,
+    "Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26].",
+  );
+});
