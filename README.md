@@ -12,8 +12,9 @@ NZ Law Cite is deliberately fail-closed:
 
 - it never invents missing source facts;
 - it does not generate a copyable citation while required details are missing;
-- pasted text is treated as unverified until the user confirms the extracted
-  source type and fields;
+- the source type is always confirmed by the user before anything is generated,
+  and every auto-filled field is marked as read from the paste rather than
+  known, so it invites a check;
 - every supported format links to its controlling Style Guide paragraph; and
 - source types not yet fully tested are labelled unsupported rather than being
   approximated.
@@ -65,7 +66,8 @@ citation is generated. Where two details cannot be split apart reliably from
 unformatted text — for example a book's author and title once italics are lost —
 the tool captures the longer part (the title) so it need not be retyped and
 leaves the author blank and flagged as needed, rather than guessing the split.
-Every extracted field is unverified until you confirm it against the source.
+Every extracted field is marked as read from your paste rather than known, and
+should be checked against the source before the citation is used.
 
 ## Working quickly
 

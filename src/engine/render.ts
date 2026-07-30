@@ -478,3 +478,64 @@ export function extractByTemplate(
   }
   return best;
 }
+
+/**
+ * Split a paste into the separate references it contains.
+ *
+ * A reading list, a footnote block or a bibliography is pasted as several
+ * citations at once, and the tool read only the first and silently dropped the
+ * rest — the worst possible failure, because the student gets a citation back
+ * and no sign that anything is missing. Numbered lists were worse still: the
+ * marker was absorbed into the case name ("1. Attorney-General v X").
+ *
+ * The difficulty is that a single citation also wraps across lines when it is
+ * copied out of a PDF, so a line break alone means nothing. A new reference is
+ * taken to start only where the previous line finished a sentence AND the next
+ * line opens like a citation — or where a blank line or a list marker says so
+ * outright.
+ */
+export function splitReferences(raw: string): string[] {
+  if (!raw.trim()) return [];
+  const lines = raw
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    // A footnote marker is at most three digits: bounding it stops a bracketed
+    // YEAR opening a wrapped line — "[1984] 1 NZLR 394 (CA) at 398." — from
+    // being stripped as if it were "[12]".
+    .map((line) => line.replace(/^\s*(?:\d{1,3}[.)]|\[\d{1,3}\]|[-•*‣—–])\s+/, "").trim());
+
+  const blocks: string[] = [];
+  let current: string[] = [];
+  const flush = () => {
+    const joined = current.join(" ").replace(/\s+/g, " ").trim();
+    if (joined) blocks.push(joined);
+    current = [];
+  };
+
+  // A line that opens a citation: a capital, a quotation mark, or a bracketed
+  // date — the shapes every one of the Guide's formats can begin with.
+  const opensCitation = /^(?:[“"(\[]|[A-ZĀ-ſ])/;
+  // A line that closes one: a full stop, allowing a closing quote or bracket.
+  const closesCitation = /[.!?][”"')\]]?$/;
+
+  for (const [index, line] of lines.entries()) {
+    if (!line) {
+      flush();
+      continue;
+    }
+    const previous = current.length ? current[current.length - 1] : "";
+    const startsNew =
+      current.length > 0 &&
+      closesCitation.test(previous) &&
+      opensCitation.test(line) &&
+      // A list marker was already stripped, so a numbered list always splits.
+      (/^\s*(?:\d{1,3}[.)]|\[\d{1,3}\])\s+/.test(raw.split("\n")[index] ?? "") ||
+        closesCitation.test(previous));
+    if (startsNew) flush();
+    current.push(line);
+  }
+  flush();
+
+  // Anything too short to be a reference is a stray fragment, not a citation.
+  return blocks.filter((block) => block.replace(/\W/g, "").length >= 8);
+}
