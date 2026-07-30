@@ -45,9 +45,16 @@ test("leaving out one optional part removes it and disturbs nothing else", () =>
       delete reduced[drop];
       const out = buildCitation(typeId, reduced);
       if (out.status !== "ready") continue;
+      // Only values the template actually writes. A few types carry a
+      // composite component the renderer never emits (australia-case's
+      // "reportCitation" is the year, volume, series and page together); it
+      // cannot survive dropping one of its parts, and should not.
+      const rendered = new Set(
+        [...type.outputTemplate.matchAll(/\{([^}]+)\}/g)].map((m) => m[1]),
+      );
       for (const [id, value] of Object.entries(reduced)) {
         const v = value.trim();
-        if (!v || id === drop) continue;
+        if (!v || id === drop || !rendered.has(id)) continue;
         assert.ok(
           out.text.includes(v),
           `${type.name}: omitting "${drop}" lost ${id} ("${v}")\n  ${out.text}`,

@@ -136,7 +136,14 @@ export function buildCitation(
     const text = typeof raw === "string" ? raw.trim() : "";
     values[id] = italicIds.has(id) ? { text, italic: true } : text;
   }
-  const tokens = withFinalStop(renderFromTemplate(type.outputTemplate, values));
+  // The Guide records, per component, the separator that introduces it. The
+  // renderer needs that to know whose comma a stranded separator was.
+  const separators = Object.fromEntries(
+    type.components.map((component) => [component.id, component.separatorBefore]),
+  );
+  const tokens = withFinalStop(
+    renderFromTemplate(type.outputTemplate, values, separators),
+  );
   return {
     status: "ready",
     type,

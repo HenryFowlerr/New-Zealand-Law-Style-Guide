@@ -179,9 +179,31 @@ function stripSuppliedBrackets(
   return out;
 }
 
+/**
+ * Does the separator after an absent field belong to the NEXT field?
+ *
+ * Both of these leave a comma stranded when the middle field is empty:
+ *
+ *   {caseName} {neutralCitation}, {year} ...     — comma must GO
+ *   {title} {year}, {pinpoint}                   — comma must STAY
+ *
+ * The difference is whose comma it is, and the Guide records that on each
+ * component. A pinpoint under rule 4.3.4 is introduced by "', '" outright, so
+ * the comma is the pinpoint's and survives its neighbour. A reported case's
+ * year is introduced by "', ' (after neutral citation) or space" — conditional
+ * on the neutral citation being there — so with no neutral citation there is no
+ * comma either.
+ */
+function separatorBelongsToNext(separatorBefore: string | undefined): boolean {
+  if (!separatorBefore) return false;
+  if (/\bor\b/.test(separatorBefore)) return false;
+  return /^['"\u2018\u201c]?\s*,/.test(separatorBefore.trim());
+}
+
 export function renderFromTemplate(
   template: string,
   rawValues: Record<string, ComponentValue>,
+  separators: Record<string, string> = {},
 ): Token[] {
   const tpl = parseTemplate(chooseForm(template, rawValues));
   const values = stripSuppliedBrackets(tpl, rawValues);
@@ -211,7 +233,8 @@ export function renderFromTemplate(
     litBuffer = "";
     elision = false;
   };
-  for (const t of tpl) {
+  for (let i = 0; i < tpl.length; i++) {
+    const t = tpl[i];
     if (t.kind === "lit") {
       if (t.italic) {
         flushLit();
@@ -234,7 +257,15 @@ export function renderFromTemplate(
       // Only trigger comma-collapse when the absent field's OWN separator was
       // punctuation (not a unit word already handled above); this keeps a comma
       // that belongs to the NEXT, present field (e.g. a parallel citation).
-      if (litBuffer === before) elision = true;
+      if (litBuffer === before) {
+        // Look ahead: if the next field owns the separator that follows this
+        // absent one, that separator must survive.
+        const next = tpl.slice(i + 1).find((t) => t.kind === "ph");
+        elision =
+          next && next.kind === "ph"
+            ? !separatorBelongsToNext(separators[next.id])
+            : true;
+      }
       continue;
     }
     flushLit();

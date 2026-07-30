@@ -533,4 +533,243 @@ export const FIELD_TRUTH: FieldTruth[] = [
     },
     want: "Smith “Rethinking the Defence of Mistake”, above n 25, at 431.",
   },
+
+  // ═══════════════════ Coverage of every remaining student-facing type ═══════
+  // Fields written out by hand against each template; every `want` is a worked
+  // example from the Guide, verbatim.
+
+  {
+    typeId: "maori-land-court",
+    fields: {
+      caseName: "Pacey v Adlam", blockName: "Matata Parish 39A 2B 2B 2A",
+      year: "(2017)", minuteBookReference: "178 Waiariki MB 32",
+      citation: "178 WAR 32",
+    },
+    want: "Pacey v Adlam – Matata Parish 39A 2B 2B 2A (2017) 178 Waiariki MB 32 (178 WAR 32).",
+  },
+  {
+    typeId: "maori-land-court",
+    fields: {
+      caseName: "Faulkner v Hoete", blockName: "Motiti North C No 1",
+      year: "[2018]", minuteBookReference: "Māori Appellate Court MB 17",
+      citation: "2018 APPEAL 17",
+    },
+    want: "Faulkner v Hoete – Motiti North C No 1 [2018] Māori Appellate Court MB 17 (2018 APPEAL 17).",
+  },
+  {
+    typeId: "waitangi-tribunal-report",
+    fields: {
+      author: "Waitangi Tribunal", title: "The East Coast Settlement Report",
+      waiNumber: "2190", year: "2010", pinpoint: "51",
+    },
+    want: "Waitangi Tribunal The East Coast Settlement Report (Wai 2190, 2010) at 51.",
+  },
+  {
+    typeId: "waitangi-tribunal-report",
+    fields: {
+      author: "Waitangi Tribunal",
+      title: "Ko Aotearoa Tēnei: A Report into Claims Concerning New Zealand Law and Policy Affecting Māori Culture and Identity",
+      waiNumber: "262", year: "2011", volume: "2", pinpoint: "500",
+    },
+    want: "Waitangi Tribunal Ko Aotearoa Tēnei: A Report into Claims Concerning New Zealand Law and Policy Affecting Māori Culture and Identity (Wai 262, 2011) vol 2 at 500.",
+  },
+  {
+    typeId: "supreme-court-transcript",
+    fields: { caseName: "Westpac New Zealand Ltd v Map & Associates Ltd", year: "2011", number: "15", pinpoint: "7" },
+    want: "Westpac New Zealand Ltd v Map & Associates Ltd [2011] NZSC Trans 15 at 7.",
+  },
+  {
+    typeId: "supreme-court-transcript",
+    fields: { caseName: "Dollars & Sense Ltd v Nathan", fileNumber: "SC31/2007", hearingDate: "22 November 2007" },
+    want: "Dollars & Sense Ltd v Nathan Transcript SC31/2007, 22 November 2007.",
+  },
+  {
+    typeId: "nz-provincial-legislation",
+    fields: { shortTitle: "Manawatu Racecourse Act", year: "1869", province: "Wellington" },
+    want: "Manawatu Racecourse Act 1869 (Wellington).",
+  },
+  {
+    typeId: "nz-pre-1854-ordinance",
+    fields: { title: "Distillation Prohibition Ordinance", year: "1841", regnalYear: "4 Vict", ordinanceNumber: "5", pinpoint: "cl 1" },
+    want: "Distillation Prohibition Ordinance 1841 4 Vict 5, cl 1.",
+  },
+  {
+    typeId: "nz-pre-1854-ordinance",
+    fields: { title: "Scab Ordinance of New Munster", year: "1849", regnalYear: "13 Vict", ordinanceNumber: "4" },
+    want: "Scab Ordinance of New Munster 1849 13 Vict 4.",
+  },
+  {
+    typeId: "treaty-of-waitangi",
+    fields: { title: "Te Tiriti o Waitangi", year: "1840", pinpoint: "art 3" },
+    want: "Te Tiriti o Waitangi 1840, art 3.",
+  },
+  {
+    typeId: "court-rules",
+    fields: { title: "High Court Rules", year: "2016", rule: "14.3" },
+    want: "High Court Rules 2016, r 14.3.",
+  },
+  {
+    typeId: "other-instrument-dinli",
+    fields: { title: "Electricity Industry Participation Code", year: "2010", pinpoint: "cl 10.15" },
+    want: "Electricity Industry Participation Code 2010, cl 10.15.",
+  },
+  {
+    typeId: "other-instrument-dinli",
+    // No year: rule 4.3.4 still puts a comma before the pinpoint.
+    fields: { title: "Civil Aviation Rules", pinpoint: "r 19.5" },
+    want: "Civil Aviation Rules, r 19.5.",
+  },
+  {
+    typeId: "ajhr",
+    fields: {
+      author: "Geoffrey Palmer", title: "A Bill of Rights for New Zealand: A White Paper",
+      yearOfJournal: "1984–1985", volume: "I", referenceNumber: "A6", pinpoint: "29",
+    },
+    want: "Geoffrey Palmer “A Bill of Rights for New Zealand: A White Paper” [1984–1985] I AJHR A6 at 29.",
+  },
+  {
+    typeId: "standing-orders",
+    fields: { title: "Standing Orders of the House of Representatives", year: "2017", orderNumber: "265(5)" },
+    want: "Standing Orders of the House of Representatives 2017, SO 265(5).",
+  },
+  {
+    typeId: "cabinet-manual",
+    fields: { author: "Cabinet Office", title: "Cabinet Manual 2008", pinpoint: "[2.91]" },
+    want: "Cabinet Office Cabinet Manual 2008 at [2.91].",
+  },
+  {
+    typeId: "select-committee-report-other",
+    fields: {
+      committeeName: "Foreign Affairs, Defence and Trade Committee",
+      title: "Briefing on Egypt and the Middle East", date: "18 March 2011", pinpoint: "2",
+    },
+    want: "Foreign Affairs, Defence and Trade Committee Briefing on Egypt and the Middle East (18 March 2011) at 2.",
+  },
+  {
+    typeId: "paper-or-report",
+    fields: {
+      author: "Roger Procter", title: "Enhancing Productivity: Towards an Updated Action Agenda",
+      publisher: "Ministry of Economic Development", officialCitation: "Occasional Paper 11/01",
+      date: "March 2011", pinpoint: "10",
+    },
+    want: "Roger Procter Enhancing Productivity: Towards an Updated Action Agenda (Ministry of Economic Development, Occasional Paper 11/01, March 2011) at 10.",
+  },
+  {
+    typeId: "paper-or-report",
+    fields: { author: "Ministry of Education", title: "Briefing to the Incoming Minister", date: "November 2008" },
+    want: "Ministry of Education Briefing to the Incoming Minister (November 2008).",
+  },
+  {
+    typeId: "ebook-electronic-only",
+    fields: {
+      author: "Paul Grussendorf",
+      title: "My Trials: What I Learned in Immigration Court – Inside America’s Deportation Factories",
+      edition: "2nd ed", ebookEd: "eBook ed", publisher: "eBooks by Barb", year: "2011",
+    },
+    want: "Paul Grussendorf My Trials: What I Learned in Immigration Court – Inside America’s Deportation Factories (2nd ed, eBook ed, eBooks by Barb, 2011).",
+  },
+  {
+    typeId: "looseleaf-online-commentary",
+    fields: {
+      editor: "Simon France", title: "Adams on Criminal Law – Evidence",
+      edition: "looseleaf ed", publisher: "Thomson Reuters", pinpoint: "[ED1.01(2)]",
+    },
+    want: "Simon France (ed) Adams on Criminal Law – Evidence (looseleaf ed, Thomson Reuters) at [ED1.01(2)].",
+  },
+  {
+    typeId: "legal-encyclopaedia",
+    fields: {
+      title: "Halsbury’s Laws of England", edition: "5th ed", year: "2017",
+      volume: "9", topic: "Children and Young Persons", pinpoint: "[651]",
+    },
+    want: "Halsbury’s Laws of England (5th ed, 2017) vol 9 Children and Young Persons at [651].",
+  },
+  {
+    typeId: "legal-encyclopaedia",
+    fields: {
+      title: "Halsbury’s Laws of England", edition: "4th ed", reissue: "reissue",
+      year: "1998", volume: "9(1)", topic: "Contract", pinpoint: "[859]",
+    },
+    want: "Halsbury’s Laws of England (4th ed, reissue, 1998) vol 9(1) Contract at [859].",
+  },
+  {
+    typeId: "laws-of-new-zealand",
+    fields: { author: "Charles Rickett", title: "Laws of New Zealand", topic: "Equity", pinpoint: "[98]" },
+    want: "Charles Rickett Laws of New Zealand Equity at [98].",
+  },
+  {
+    typeId: "laws-of-new-zealand",
+    fields: {
+      author: "Colin Pidgeon", title: "Laws of New Zealand",
+      topic: "Civil Procedure: Supreme Court and Court of Appeal",
+      reissue: "Reissue 1", pinpoint: "[59]",
+    },
+    want: "Colin Pidgeon Laws of New Zealand Civil Procedure: Supreme Court and Court of Appeal (Reissue 1) at [59].",
+  },
+  {
+    typeId: "podcast",
+    fields: {
+      host: "Russ Roberts", title: "Richard Epstein on Regulation", podcastMarker: "podcast",
+      date: "30 August 2010", websiteName: "EconTalk", url: "<www.econtalk.org>",
+    },
+    want: "Russ Roberts “Richard Epstein on Regulation” (podcast, 30 August 2010) EconTalk <www.econtalk.org>.",
+  },
+  {
+    typeId: "press-release",
+    fields: { author: "Air New Zealand", title: "Lock-out notice issued to EPMU", description: "press release", date: "21 April 2009" },
+    want: "Air New Zealand “Lock-out notice issued to EPMU” (press release, 21 April 2009).",
+  },
+
+  // Foreign authority a New Zealand court reasons from.
+  {
+    typeId: "australia-case",
+    fields: {
+      caseName: "South Australia v Johnson", year: "(1982)", volume: "26",
+      reportSeries: "SASR", startingPage: "41", jurisdictionCourt: "SC",
+      reportCitation: "(1982) 26 SASR 41",
+    },
+    want: "South Australia v Johnson (1982) 26 SASR 41 (SC).",
+  },
+  {
+    typeId: "england-wales-case-modern",
+    fields: {
+      caseName: "Universal Thermosensors Ltd v Hibben", year: "[1992]", volume: "1",
+      reportSeries: "WLR", startingPage: "840", court: "Ch",
+      reportCitation: "[1992] 1 WLR 840",
+    },
+    want: "Universal Thermosensors Ltd v Hibben [1992] 1 WLR 840 (Ch).",
+  },
+  {
+    typeId: "england-wales-case-modern",
+    fields: {
+      caseName: "Foskett v McKeown", year: "[2001]", volume: "1",
+      reportSeries: "AC", startingPage: "102", court: "HL",
+      reportCitation: "[2001] 1 AC 102",
+    },
+    want: "Foskett v McKeown [2001] 1 AC 102 (HL).",
+  },
+  {
+    typeId: "canada-case",
+    fields: { caseName: "Bruni v Bruni", neutralCitationNoBrackets: "2010 ONSC 6568", reportCitation: "2010 ONSC 6568" },
+    want: "Bruni v Bruni 2010 ONSC 6568.",
+  },
+  {
+    typeId: "scotland-case",
+    fields: {
+      caseName: "Musaj v Secretary of State for the Home Department",
+      year: "2004", reportSeries: "SLT", startingPage: "623", court: "OH",
+    },
+    want: "Musaj v Secretary of State for the Home Department 2004 SLT 623 (OH).",
+  },
+  {
+    typeId: "treaty",
+    fields: {
+      treatyName: "United Nations Convention against Illicit Traffic in Narcotic Drugs and Psychotropic Substances",
+      treatySeriesCitation: "1582 UNTS 95",
+      signatureDetails: "opened for signature 20 December 1988, entered into force 11 November 1990",
+      date: "20 December 1988",
+      pinpoint: "art 5",
+    },
+    want: "United Nations Convention against Illicit Traffic in Narcotic Drugs and Psychotropic Substances 1582 UNTS 95 (opened for signature 20 December 1988, entered into force 11 November 1990), art 5.",
+  },
 ];
