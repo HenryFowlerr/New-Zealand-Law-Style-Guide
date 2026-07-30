@@ -21,9 +21,9 @@ Never report a single accuracy number. It hides which layer is broken.
 
 | | What it asks | Where | Now |
 |---|---|---|---|
-| **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **148/148, all 86 types** |
-| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 209/216 fields, 194/216 exact |
-| **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 147/216 |
+| **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **149/149, all 86 types, none skipped** |
+| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 214/216 fields, 199/216 exact |
+| **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 148/216 |
 | **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 16/16 type, 6/6 exact |
 
 RENDER is the promise; the other three are convenience. It is now measured for
@@ -284,16 +284,16 @@ pre-1854 ordinances were already passing, and the Gazette problem turned out to 
 partly this repo's own fixture. Re-derive the clusters from
 `scripts/failure-shapes.ts` rather than trusting a list.
 
-- **Paste→output 194/216.** By defect shape: 11 truncated, 7 refused, 3 other,
+- **Paste→output 199/216.** By defect shape: 11 truncated, 3 other, 2 refused,
   1 duplicated. Run `scripts/failure-shapes.ts` rather than reading this list; it
   goes stale.
-- **The seven refusals are each a modelling gap.** Rule 8.5's neutral-citation-only
-  form ("Inveresk plc v Tullis Russell Papermakers Ltd [2009] CSIH 56") needs
-  neither a year nor a report series, but both are marked required. Rule 9.3.1's
-  Charter form needs only a short title. Rule 10.3.2's arbitral decisions put the
-  arbitrators' names where a body's abbreviation normally goes. **Validating
-  per-form has been tried and does not pay — see the trap below before attempting
-  it again.**
+- **The two remaining refusals are the same modelling gap.** Rule 8.5's
+  neutral-citation-only form ("Inveresk plc v Tullis Russell Papermakers Ltd
+  [2009] CSIH 56") needs neither a year nor a report series, but both are marked
+  required, and rule 9.3.1's Charter form needs only a short title. **Validating
+  per-form has been tried and does not pay — read the trap of that name before
+  attempting it again.** Where one component simply takes another's place, the
+  narrow fix is `STANDS_IN_FOR` in `build.ts`, which has one entry citing its rule.
 - **The link layer covers five New Zealand sites and nothing else.** Westlaw and
   LexisNexis are paywalled and their URLs carry no citation, so they cannot be
   read this way; a student pasting one should be told to paste the reference text
