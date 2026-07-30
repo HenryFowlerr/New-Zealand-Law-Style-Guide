@@ -12,11 +12,14 @@ NZ Law Cite is deliberately fail-closed:
 
 - it never invents missing source facts;
 - it does not generate a copyable citation while required details are missing;
-- pasted text is treated as unverified until the user confirms the extracted
-  source type and fields;
-- every supported format links to its controlling Style Guide paragraph; and
-- source types not yet fully tested are labelled unsupported rather than being
-  approximated.
+- the source type is always confirmed by the user before anything is generated,
+  and every auto-filled field is marked as read from the paste rather than
+  known, so it invites a check;
+- every format links to its controlling Style Guide paragraph; and
+- the Guide's conditional rules are applied and explained — where a component
+  must be left out because another is present (a court identifier alongside a
+  neutral citation, under rule 3.2), the interface says so and cites the rule
+  rather than silently dropping what you typed.
 
 Accuracy still depends on the bibliographic facts supplied by the user and on
 any institution-specific requirements that depart from Appendix 7.
@@ -39,12 +42,39 @@ source, and one final full stop.
 
 ## Accuracy
 
-The Guide's own worked examples are the oracle: each is parsed back into field
-values via its template, re-rendered, and required to match. The current engine
-reproduces **186 of 216 examples exactly (86%)**, and of the examples the parser
-reads cleanly the renderer is correct on all but a handful of documented
-edge cases (complex/rare foreign formats and the special subsequent-reference
-form). The score is a committed regression gate (`tests/accuracy.test.ts`).
+Three different things can go wrong, and they are measured separately, because
+a single headline number hides which one is failing.
+
+**Generating the citation** — the guarantee. With the right source type chosen
+and the right values in the boxes, does the citation match the Style Guide
+exactly, to the comma? `tests/fixtures/field-truth.ts` holds field sets written
+out **by hand** for every student-facing type, each expected against a worked
+example from the Guide quoted verbatim. Nothing is derived from the extractor,
+so a pass shows the renderer matches the Guide rather than showing that our own
+two halves agree with each other. **80 of 80 exact.**
+
+Two further properties are checked without needing ground truth, since they hold
+of any correct citation: leaving out one optional detail removes that detail and
+nothing else (`scripts/render-omission.ts`), and no combination of absent
+optional fields can produce an empty bracket, a doubled comma or a dangling
+"at" (`scripts/render-invariants.ts`).
+
+**Reading a pasted reference** — putting the values into the right boxes.
+Around 92% for the formats a New Zealand essay uses.
+
+**Identifying the source type** from a paste — the weakest layer, around 76%.
+The interface always shows several candidates and the user confirms one before
+anything is generated, and a wrongly-ranked type usually renders identically
+anyway; but this is where the remaining risk lives, and it is why the tool asks
+you to confirm the format rather than assuming it.
+
+Everything is measured against citations read off the **published** Guide at
+lawfoundation.org.nz rather than only against the copy ingested here
+(`tests/fixtures/guide-corpus.ts`, `scripts/guide-audit.ts`) — sixty of those
+were missing from the ingested data entirely, and testing only against our own
+copy would have made an ingestion error invisible.
+
+Run them with `npm run qa`.
 
 ## Rich paste
 
@@ -65,7 +95,8 @@ citation is generated. Where two details cannot be split apart reliably from
 unformatted text — for example a book's author and title once italics are lost —
 the tool captures the longer part (the title) so it need not be retyped and
 leaves the author blank and flagged as needed, rather than guessing the split.
-Every extracted field is unverified until you confirm it against the source.
+Every extracted field is marked as read from your paste rather than known, and
+should be checked against the source before the citation is used.
 
 ## Working quickly
 
@@ -74,6 +105,11 @@ Every extracted field is unverified until you confirm it against the source.
 - **Keyboard flow** — the build-from-details search selects the first result on
   Enter; inside a form, `Ctrl`/`⌘`+`Enter` copies a ready citation and `Esc`
   steps back.
+- **Several references at once** — paste a reading list, a footnote block or a
+  numbered list and each reference is separated, detected and built on its own
+  terms; adding one to the footnote moves on to the next.
+- **Completeness at a glance** — a green tick when every required part of the
+  citation is present, a red mark naming what is still missing.
 - **Footnote composer** — collect several authorities into one footnote with the
   correct semicolons, final “and”, and single full stop; it persists on your
   device.

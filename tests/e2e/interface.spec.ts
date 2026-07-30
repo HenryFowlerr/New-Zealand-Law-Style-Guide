@@ -21,7 +21,6 @@ test("live detection recognises a reported case and builds it exactly", async ({
   await expect(page.locator(".suggestion-top strong")).toContainText(/Reported case/);
   await page.locator("textarea").press("Enter");
   await expect(page.locator("#citation-form")).toBeVisible();
-  await page.locator(".confirmation-box input").check();
   await expect(page.locator(".result-status.ready")).toBeVisible();
   await expect(page.locator(".citation-preview p")).toHaveText(
     "Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26].",
@@ -124,4 +123,24 @@ test("the single box switches to link-lookup mode for a URL", async ({ page }) =
   await box.fill("https://doi.org/10.1000/xyz123");
   await expect(page.getByRole("button", { name: /Look up link/i })).toBeVisible();
   await expect(page.locator(".paste-actions")).toContainText(/Looks like a link/i);
+});
+
+test("a pasted list of references is worked through, not silently truncated", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("textarea").fill(
+    "1. Attorney-General v X [2007] NZCA 388 at [70].\n2. Evidence Act 2006, s 44.\n3. Peter Watts “Birks’ Unjust Enrichment” (2005) 121 LQR 163 at 165.",
+  );
+  await expect(page.locator(".reference-item")).toHaveCount(3);
+
+  // The first reference is the one in hand, and its own type is detected.
+  await page.getByRole("button", { name: /^Use Neutral-citation/ }).click();
+  await expect(page.locator("#citation-form")).toBeVisible();
+  await expect(page.locator(".citation-preview p")).toHaveText(
+    "Attorney-General v X [2007] NZCA 388 at [70].",
+  );
+
+  // Adding it moves on to the second, which is a statute rather than a case.
+  await page.getByRole("button", { name: /Add this authority/ }).click();
+  await expect(page.locator(".reference-done")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /^Use New Zealand statute/ })).toBeVisible();
 });

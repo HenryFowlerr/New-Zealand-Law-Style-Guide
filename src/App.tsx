@@ -16,6 +16,7 @@ import {
   type CitationFields,
   type ItalicRun,
 } from "./engine/build";
+import { splitReferences } from "./engine/render";
 import { resolveLink, looksLikeLink } from "./engine/linkResolve";
 import { browserFetchers } from "./engine/browserFetch";
 
@@ -232,10 +233,13 @@ function App() {
   const [italicRuns, setItalicRuns] = useState<ItalicRun[]>([]);
   const [detections, setDetections] = useState<ReturnType<typeof detectTypes>>([]);
   const [analysisAttempted, setAnalysisAttempted] = useState(false);
+  /** Index into `references` — which of several pasted citations is in hand. */
+  const [activeReference, setActiveReference] = useState(0);
+  /** Indices already added to the footnote, so the list shows progress. */
+  const [doneReferences, setDoneReferences] = useState<number[]>([]);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [fields, setFields] = useState<CitationFields>({});
   const [reviewRequired, setReviewRequired] = useState(false);
-  const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [query, setQuery] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
   const [linkStatus, setLinkStatus] = useState("");
@@ -254,7 +258,10 @@ function App() {
     ? components.filter((c) => (fields[c.id] ?? "").trim()).length
     : 0;
   const missing = type ? missingRequiredComponents(type, fields) : [];
-  const copyReady = result?.status === "ready" && (!reviewRequired || reviewConfirmed);
+  // Copying is gated on the citation being complete, not on a tick box. The
+  // auto-filled fields are still flagged as read from the paste so they invite
+  // a skim, but the extra confirmation step was pure friction.
+  const copyReady = result?.status === "ready";
 
   const footnoteResults = useMemo(
     () => footnoteEntries.map((entry) => buildCitation(entry.typeId, entry.fields)),
@@ -282,11 +289,13 @@ function App() {
       return;
     }
     const handle = window.setTimeout(() => {
-      setDetections(detectTypes(pasteText));
+      const parts = splitReferences(pasteText);
+      const target = parts[activeReference] ?? parts[0] ?? pasteText;
+      setDetections(detectTypes(target));
       setAnalysisAttempted(true);
     }, 220);
     return () => window.clearTimeout(handle);
-  }, [pasteText, mode, selectedType]);
+  }, [pasteText, mode, selectedType, activeReference]);
 
   const switchMode = (nextMode: Mode) => {
     setMode(nextMode);
@@ -296,18 +305,18 @@ function App() {
     setDetections([]);
     setAnalysisAttempted(false);
     setReviewRequired(false);
-    setReviewConfirmed(false);
     setLinkStatus("");
   };
 
   const selectType = (id: string, fromPaste = mode === "paste") => {
     setSelectedType(id);
+    const parts = splitReferences(pasteText);
+    const source = parts[activeReference] ?? parts[0] ?? pasteText;
     const prefill = fromPaste
-      ? prefillFromPaste(guideTypeById[id], pasteText, italicRuns)
+      ? prefillFromPaste(guideTypeById[id], source, parts.length > 1 ? [] : italicRuns)
       : {};
     setFields(prefill);
     setReviewRequired(fromPaste);
-    setReviewConfirmed(false);
     const missingNow = missingRequiredComponents(guideTypeById[id], prefill);
     const focusId = missingNow[0]
       ? `input-${missingNow[0].id}`
@@ -342,7 +351,6 @@ function App() {
       setSelectedType(resolved.typeId);
       setFields(resolved.fields);
       setReviewRequired(true);
-      setReviewConfirmed(false);
       if (resolved.source === "url-only") {
         // The page blocked automated reading; only the URL/slug was usable.
         setLinkStatus(
@@ -374,7 +382,6 @@ function App() {
 
   const updateField = (id: string, value: string) => {
     setFields((current) => ({ ...current, [id]: value }));
-    setReviewConfirmed(false);
   };
 
   const handleCopy = async (plainText: string, html: string, rich: boolean) => {
@@ -389,7 +396,6 @@ function App() {
   const goBack = () => {
     setSelectedType(null);
     setFields({});
-    setReviewConfirmed(false);
     setReviewRequired(false);
   };
 
@@ -403,7 +409,7 @@ function App() {
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-        if (result?.status === "ready" && (!reviewRequired || reviewConfirmed)) {
+        if (result?.status === "ready") {
           event.preventDefault();
           void handleCopy(result.text, result.html, true);
         }
@@ -411,14 +417,36 @@ function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedType, result, reviewRequired, reviewConfirmed]);
+  }, [selectedType, result]);
 
   const addToFootnote = () => {
     if (!selectedType || !copyReady) return;
     setFootnoteEntries((current) => [...current, { typeId: selectedType, fields }]);
+    const parts = splitReferences(pasteText);
+    if (parts.length > 1) {
+      setDoneReferences((done) =>
+        done.includes(activeReference) ? done : [...done, activeReference],
+      );
+      // Move to the next reference that has not been dealt with yet.
+      const next = parts.findIndex(
+        (_, index) => index !== activeReference && !doneReferences.includes(index),
+      );
+      if (next >= 0) {
+        setActiveReference(next);
+        setSelectedType(null);
+        setFields({});
+        setCopyStatus(`Added — ${parts.length - doneReferences.length - 1} to go`);
+        return;
+      }
+    }
     setCopyStatus("Added to footnote");
   };
 
+  // A reading list or footnote block is pasted as several citations at once.
+  // Each is handled in turn rather than the first being used and the rest
+  // silently dropped.
+  const references = useMemo(() => splitReferences(pasteText), [pasteText]);
+  const currentReference = references[activeReference] ?? pasteText;
   const topDetection = detections[0];
   const pasteIsLink = looksLikeLink(pasteText.trim());
 
@@ -515,6 +543,8 @@ function App() {
                     setPasteText(event.target.value);
                     setItalicRuns([]);
                     setLinkStatus("");
+                    setActiveReference(0);
+                    setDoneReferences([]);
                   }}
                   onPaste={(event) => {
                     const html = event.clipboardData?.getData("text/html");
@@ -573,6 +603,48 @@ function App() {
                   </p>
                 )}
               </label>
+
+              {references.length > 1 && (
+                <div className="reference-list" aria-live="polite">
+                  <div className="result-heading">
+                    <div>
+                      <span className="step-pill">
+                        {references.length} references
+                      </span>
+                      <h3>Work through them one at a time</h3>
+                    </div>
+                    <span className="safe-note">
+                      {doneReferences.length} of {references.length} added
+                    </span>
+                  </div>
+                  <ol className="reference-items">
+                    {references.map((reference, index) => {
+                      const done = doneReferences.includes(index);
+                      const active = index === activeReference;
+                      return (
+                        <li
+                          className={`reference-item${active ? " reference-active" : ""}${
+                            done ? " reference-done" : ""
+                          }`}
+                          key={`${index}-${reference.slice(0, 24)}`}
+                        >
+                          <button
+                            onClick={() => {
+                              setActiveReference(index);
+                              setSelectedType(null);
+                              setFields({});
+                            }}
+                            type="button"
+                          >
+                            <span aria-hidden="true">{done ? "✓" : index + 1}</span>
+                            <span>{reference}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              )}
 
               {detections.length > 0 && (
                 <div className="suggestions" aria-live="polite">
@@ -687,29 +759,18 @@ function App() {
                   ))}
                 </div>
 
-                {reviewRequired && (
-                  <label className="confirmation-box">
-                    <input
-                      checked={reviewConfirmed}
-                      onChange={(event) => setReviewConfirmed(event.target.checked)}
-                      type="checkbox"
-                    />
-                    <span>
-                      <strong>I checked these details against the source.</strong>
-                      <small>
-                        Required before copying anything derived from pasted text.
-                      </small>
-                    </span>
-                  </label>
-                )}
               </div>
 
               <aside className="result-column" aria-live="polite">
                 <div className="result-card">
                   <div className="result-card-head">
                     <span className={`result-status ${copyReady ? "ready" : "waiting"}`}>
-                      <span aria-hidden="true" />
-                      {copyReady ? "Ready to copy" : "Waiting for details"}
+                      <span aria-hidden="true">{copyReady ? "✓" : "!"}</span>
+                      {copyReady
+                        ? "Complete — every required part is filled in"
+                        : missing.length === 1
+                          ? `1 required part still missing: ${missing[0].label}`
+                          : `${missing.length} required parts still missing`}
                     </span>
                     <span>NZLSG {type.rule}</span>
                   </div>
@@ -735,12 +796,6 @@ function App() {
                         <p>{issue.message}</p>
                       </div>
                     ))}
-                    {result.status === "ready" && reviewRequired && !reviewConfirmed && (
-                      <div className="issue issue-error">
-                        <span aria-hidden="true">!</span>
-                        <p>Confirm that you checked the extracted details.</p>
-                      </div>
-                    )}
                     {copyReady && !result.issues.length && (
                       <div className="issue issue-success">
                         <span aria-hidden="true">✓</span>

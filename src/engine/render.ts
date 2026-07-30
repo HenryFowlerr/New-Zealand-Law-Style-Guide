@@ -101,11 +101,112 @@ function cleanLiteral(text: string): string {
     .replace(/\s{2,}/g, " ");
 }
 
-export function renderFromTemplate(
+/**
+ * Pick the alternate template form that fits the facts we actually hold.
+ *
+ * Several types in the Guide are genuinely two formats under one rule — a
+ * Supreme Court transcript is "[year] NZSC Trans number" from 2011 and
+ * "Transcript fileNumber, hearingDate" before it; a Gazette notice changed
+ * shape in October 2017. Rendering always took the first form, so a pre-2011
+ * transcript came out as "Couch v Attorney-General Transcript [2006] NZSC
+ * Trans" — the first form's skeleton with the second form's facts dropped on
+ * the floor.
+ *
+ * The right form is the one that uses the most of what we have and leaves the
+ * fewest of its own slots empty.
+ */
+function chooseForm(
   template: string,
   values: Record<string, ComponentValue>,
+): string {
+  const forms = templateForms(template);
+  if (forms.length === 1) return forms[0];
+  const filled = new Set(
+    Object.keys(values).filter((id) => valueText(values[id]).trim() !== ""),
+  );
+  let best = forms[0];
+  let bestScore = -Infinity;
+  for (const form of forms) {
+    const slots = [...new Set([...form.matchAll(/\{([^}]+)\}/g)].map((m) => m[1]))];
+    const used = slots.filter((id) => filled.has(id)).length;
+    const empty = slots.length - used;
+    const unused = [...filled].filter((id) => !slots.includes(id)).length;
+    const score = used * 2 - empty - unused;
+    if (score > bestScore) {
+      bestScore = score;
+      best = form;
+    }
+  }
+  return best;
+}
+
+/**
+ * Drop brackets from a value that the template is about to write itself.
+ *
+ * A student reading a judgment types the year exactly as it is printed —
+ * "(1986)" or "[2009]" — and several templates supply those brackets around the
+ * slot, so the citation came out "((1986))". The paste path already guarded
+ * against this, but a hand-typed field went straight through, which is the one
+ * path a careful user is most likely to take.
+ */
+function stripSuppliedBrackets(
+  tpl: TplToken[],
+  values: Record<string, ComponentValue>,
+): Record<string, ComponentValue> {
+  const out = { ...values };
+  for (let i = 0; i < tpl.length; i++) {
+    const token = tpl[i];
+    if (token.kind !== "ph") continue;
+    const before = tpl[i - 1];
+    const after = tpl[i + 1];
+    const opener = before?.kind === "lit" ? before.text.trimEnd().slice(-1) : "";
+    const closer = after?.kind === "lit" ? after.text.trimStart().slice(0, 1) : "";
+    const pair =
+      (opener === "[" && closer === "]") || (opener === "(" && closer === ")");
+    if (!pair) continue;
+    const raw = out[token.id];
+    const text = valueText(raw);
+    if (!text) continue;
+    const stripped =
+      (opener === "[" && /^\[.*\]$/.test(text)) ||
+      (opener === "(" && /^\(.*\)$/.test(text))
+        ? text.slice(1, -1).trim()
+        : text;
+    if (stripped === text) continue;
+    out[token.id] =
+      typeof raw === "object" && raw ? { ...raw, text: stripped } : stripped;
+  }
+  return out;
+}
+
+/**
+ * Does the separator after an absent field belong to the NEXT field?
+ *
+ * Both of these leave a comma stranded when the middle field is empty:
+ *
+ *   {caseName} {neutralCitation}, {year} ...     — comma must GO
+ *   {title} {year}, {pinpoint}                   — comma must STAY
+ *
+ * The difference is whose comma it is, and the Guide records that on each
+ * component. A pinpoint under rule 4.3.4 is introduced by "', '" outright, so
+ * the comma is the pinpoint's and survives its neighbour. A reported case's
+ * year is introduced by "', ' (after neutral citation) or space" — conditional
+ * on the neutral citation being there — so with no neutral citation there is no
+ * comma either.
+ */
+function separatorBelongsToNext(separatorBefore: string | undefined): boolean {
+  if (!separatorBefore) return false;
+  if (/\bor\b/.test(separatorBefore)) return false;
+  return /^['"\u2018\u201c]?\s*,/.test(separatorBefore.trim());
+}
+
+export function renderFromTemplate(
+  template: string,
+  rawValues: Record<string, ComponentValue>,
+  separators: Record<string, string> = {},
 ): Token[] {
-  const tpl = parseTemplate(templateForms(template)[0]);
+  const tpl = parseTemplate(chooseForm(template, rawValues));
+  const values = stripSuppliedBrackets(tpl, rawValues);
   const out: Token[] = [];
   let litBuffer = "";
   // Whether an optional component was dropped since the buffer was last flushed.
@@ -132,7 +233,8 @@ export function renderFromTemplate(
     litBuffer = "";
     elision = false;
   };
-  for (const t of tpl) {
+  for (let i = 0; i < tpl.length; i++) {
+    const t = tpl[i];
     if (t.kind === "lit") {
       if (t.italic) {
         flushLit();
@@ -155,7 +257,15 @@ export function renderFromTemplate(
       // Only trigger comma-collapse when the absent field's OWN separator was
       // punctuation (not a unit word already handled above); this keeps a comma
       // that belongs to the NEXT, present field (e.g. a parallel citation).
-      if (litBuffer === before) elision = true;
+      if (litBuffer === before) {
+        // Look ahead: if the next field owns the separator that follows this
+        // absent one, that separator must survive.
+        const next = tpl.slice(i + 1).find((t) => t.kind === "ph");
+        elision =
+          next && next.kind === "ph"
+            ? !separatorBelongsToNext(separators[next.id])
+            : true;
+      }
       continue;
     }
     flushLit();
@@ -360,6 +470,50 @@ export function normalizeQuotes(text: string): string {
     .replace(/'/g, "’"); // closing single / apostrophe ’
 }
 
+/** A canonicalised paste, plus the offset map back to the text it came from. */
+export type NormalizedPaste = {
+  text: string;
+  /** `fromRaw[i]` is the offset in `text` of raw character `i`. */
+  fromRaw: number[];
+};
+
+/**
+ * Canonicalise pasted text before any parsing.
+ *
+ * Real pastes do not arrive as clean single-spaced strings: copying out of a
+ * PDF gives non-breaking spaces, copying out of Word or a database record wraps
+ * lines mid-citation, and hand-editing leaves double spaces behind. Every one of
+ * those defeated detection outright, and any run of spaces that survived was
+ * carried into the fields and out into the generated citation.
+ *
+ * So every kind of whitespace collapses to a single plain space here, once, at
+ * the boundary. Because that changes offsets, the returned `fromRaw` map lets a
+ * rich paste's italic runs be re-based onto the normalised text.
+ */
+export function normalizePaste(raw: string): NormalizedPaste {
+  const fromRaw: number[] = new Array(raw.length + 1);
+  let out = "";
+  let pendingSpace = false;
+  for (let i = 0; i < raw.length; i++) {
+    fromRaw[i] = out.length;
+    const ch = raw[i];
+    if (/\s/.test(ch)) {
+      // Collapse a run of any whitespace into one space, and drop it entirely
+      // at the start so the citation begins at its first real character.
+      pendingSpace = out.length > 0;
+      continue;
+    }
+    if (pendingSpace) {
+      fromRaw[i] = out.length + 1;
+      out += " ";
+      pendingSpace = false;
+    }
+    out += ch;
+  }
+  fromRaw[raw.length] = out.length;
+  return { text: normalizeQuotes(out), fromRaw };
+}
+
 export function extractByTemplate(
   type: GuideType,
   citation: string,
@@ -394,4 +548,65 @@ export function extractByTemplate(
     }
   }
   return best;
+}
+
+/**
+ * Split a paste into the separate references it contains.
+ *
+ * A reading list, a footnote block or a bibliography is pasted as several
+ * citations at once, and the tool read only the first and silently dropped the
+ * rest — the worst possible failure, because the student gets a citation back
+ * and no sign that anything is missing. Numbered lists were worse still: the
+ * marker was absorbed into the case name ("1. Attorney-General v X").
+ *
+ * The difficulty is that a single citation also wraps across lines when it is
+ * copied out of a PDF, so a line break alone means nothing. A new reference is
+ * taken to start only where the previous line finished a sentence AND the next
+ * line opens like a citation — or where a blank line or a list marker says so
+ * outright.
+ */
+export function splitReferences(raw: string): string[] {
+  if (!raw.trim()) return [];
+  const lines = raw
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    // A footnote marker is at most three digits: bounding it stops a bracketed
+    // YEAR opening a wrapped line — "[1984] 1 NZLR 394 (CA) at 398." — from
+    // being stripped as if it were "[12]".
+    .map((line) => line.replace(/^\s*(?:\d{1,3}[.)]|\[\d{1,3}\]|[-•*‣—–])\s+/, "").trim());
+
+  const blocks: string[] = [];
+  let current: string[] = [];
+  const flush = () => {
+    const joined = current.join(" ").replace(/\s+/g, " ").trim();
+    if (joined) blocks.push(joined);
+    current = [];
+  };
+
+  // A line that opens a citation: a capital, a quotation mark, or a bracketed
+  // date — the shapes every one of the Guide's formats can begin with.
+  const opensCitation = /^(?:[“"(\[]|[A-ZĀ-ſ])/;
+  // A line that closes one: a full stop, allowing a closing quote or bracket.
+  const closesCitation = /[.!?][”"')\]]?$/;
+
+  for (const [index, line] of lines.entries()) {
+    if (!line) {
+      flush();
+      continue;
+    }
+    const previous = current.length ? current[current.length - 1] : "";
+    const startsNew =
+      current.length > 0 &&
+      closesCitation.test(previous) &&
+      opensCitation.test(line) &&
+      // A list marker was already stripped, so a numbered list always splits.
+      (/^\s*(?:\d{1,3}[.)]|\[\d{1,3}\])\s+/.test(raw.split("\n")[index] ?? "") ||
+        closesCitation.test(previous));
+    if (startsNew) flush();
+    current.push(line);
+  }
+  flush();
+
+  // Anything too short to be a reference is a stray fragment, not a citation.
+  return blocks.filter((block) => block.replace(/\W/g, "").length >= 8);
 }

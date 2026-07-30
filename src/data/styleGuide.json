@@ -2849,7 +2849,7 @@
       "group": "Secondary sources",
       "rule": "6.1",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-6.html#6.1.1",
-      "outputTemplate": "{author} {title} ({edition}, {publisher}, {placeOfPublication}, {year}) vol {volume} at {pinpoint}",
+      "outputTemplate": "{author} {title} ({edition}, {publisher}, {placeOfPublication}, {year}) vol {volume} at {pinpoint} | {editor} (ed) {title} ({edition}, {publisher}, {placeOfPublication}, {year}) vol {volume} at {pinpoint}",
       "components": [
         {
           "id": "author",
@@ -2862,6 +2862,18 @@
           "omittedWhen": "omit and begin with the title where no author is given",
           "formatting": "name as used in the work; initials not separated by spaces; no titles/honorifics/post-nominals (Sir, Dame, Prof, Dr, QC) EXCEPT peerage titles and 'Lord'/'Lady' for UK Supreme Court Justices/Law Lords; judges writing extrajudicially named plainly (e.g. 'Grant Hammond'); 2–3 authors joined by 'and'; 4+ → first author + 'and others'; editors take '(ed)'/'(eds)'",
           "notes": "6.1.2"
+        },
+        {
+          "id": "editor",
+          "label": "Editor",
+          "required": false,
+          "italic": false,
+          "order": 1.5,
+          "separatorBefore": "",
+          "includedWhen": "included where the work names an editor rather than an author; followed by the '(ed)' or '(eds)' marker",
+          "omittedWhen": "omit where the work names an author",
+          "formatting": "as for an author; the marker follows the name in round brackets, '(ed)' for one editor and '(eds)' for more",
+          "notes": "NZLSG 6.1.2, 6.3"
         },
         {
           "id": "title",
@@ -3105,7 +3117,7 @@
       "group": "Secondary sources",
       "rule": "6.2",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.6.2.html#6.2.1",
-      "outputTemplate": "{author} “{essayTitle}” in {editor} {bookTitle} ({edition}, {publisher}, {place}, {year}) {startingPage} at {pinpoint}",
+      "outputTemplate": "{author} “{essayTitle}” in {editor} (ed) {bookTitle} ({edition}, {publisher}, {place}, {year}) {startingPage} at {pinpoint} | {author} “{essayTitle}” in {bookAuthors} {bookTitle} ({edition}, {publisher}, {place}, {year}) {startingPage} at {pinpoint} | {author} “{essayTitle}” in {bookTitle} ({edition}, {publisher}, {place}, {year}) {startingPage} at {pinpoint}",
       "components": [
         {
           "id": "author",
@@ -3134,14 +3146,26 @@
         {
           "id": "editor",
           "label": "Editor + title of book etc.",
-          "required": true,
+          "required": false,
           "italic": false,
           "order": 3,
           "separatorBefore": "' in '",
           "includedWhen": "always",
           "omittedWhen": "if there is no editor, give the essay/chapter authors as the book's authors (all if ≤3, else first + 'and others')",
           "formatting": "editor name + '(ed)'/'(eds)', then book title in italics, edition, publisher, place, year per 6.1.2–6.1.7",
-          "notes": "6.2.4"
+          "notes": "6.2.4 Optional: rule 6.2 provides for a collection with no named editor, where the essay authors are given as the book's authors instead."
+        },
+        {
+          "id": "bookAuthors",
+          "label": "Book authors (collection with no editor)",
+          "required": false,
+          "italic": false,
+          "order": 3.5,
+          "separatorBefore": "in",
+          "includedWhen": "used instead of an editor where the collection names no editor: give the essay/chapter authors as the book's authors",
+          "omittedWhen": "omit whenever an editor is named",
+          "formatting": "all authors if three or fewer, otherwise the first author followed by 'and others'; no '(ed)' marker",
+          "notes": "NZLSG 6.2"
         },
         {
           "id": "startingPage",
@@ -3259,7 +3283,7 @@
       "group": "Secondary sources",
       "rule": "6.3",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.6.3.html#6.3.1",
-      "outputTemplate": "{editor} {title} ({edition}, {publisher}) at {pinpoint}",
+      "outputTemplate": "{editor} (ed) {title} ({edition}, {publisher}) at {pinpoint} | {title} ({edition}, {publisher}) at {pinpoint}",
       "components": [
         {
           "id": "editor",

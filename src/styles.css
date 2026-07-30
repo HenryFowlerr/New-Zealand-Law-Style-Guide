@@ -1001,22 +1001,35 @@ footer {
   gap: 9px;
 }
 
+/* A plain dot was too quiet for the one thing that decides whether the
+   citation can be trusted: whether every required part is actually there. */
 .result-status > span {
-  width: 7px;
-  height: 7px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
 }
 
 .result-status.ready {
-  color: var(--green);
+  color: #2f6b4a;
 }
 
 .result-status.ready > span {
-  background: #4a956d;
+  background: #2f8a55;
+}
+
+.result-status.waiting {
+  color: #9d2f2f;
 }
 
 .result-status.waiting > span {
-  background: #ba8a3f;
+  background: #c0392b;
 }
 
 .citation-preview {
@@ -1495,4 +1508,65 @@ footer p {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+/* Several references pasted at once: each is listed so none is silently lost. */
+.reference-list {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.reference-items {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.reference-item button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  gap: 0.75rem;
+  align-items: baseline;
+  text-align: left;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.reference-item button:hover {
+  border-color: var(--ink);
+}
+
+.reference-item > button > span:first-child {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.reference-item > button > span:last-child {
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.reference-active button {
+  border-color: var(--ink);
+  background: var(--paper-raised);
+}
+
+.reference-done > button > span:last-child {
+  color: var(--ink-soft);
+  text-decoration: line-through;
+}
+
+.reference-done > button > span:first-child {
+  color: var(--accent);
 }
