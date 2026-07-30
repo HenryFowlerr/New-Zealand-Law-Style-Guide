@@ -22,8 +22,8 @@ Never report a single accuracy number. It hides which layer is broken.
 | | What it asks | Where | Now |
 |---|---|---|---|
 | **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **148/148, all 86 types** |
-| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 196/216 fields, 175/216 exact |
-| **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 144/216 |
+| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 209/216 fields, 194/216 exact |
+| **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 147/216 |
 | **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 16/16 type, 6/6 exact |
 
 RENDER is the promise; the other three are convenience. It is now measured for
@@ -261,9 +261,16 @@ pre-1854 ordinances were already passing, and the Gazette problem turned out to 
 partly this repo's own fixture. Re-derive the clusters from
 `scripts/failure-shapes.ts` rather than trusting a list.
 
-- **Paste→output 173/216.** By defect shape: 22 refused (a required field the
-  extractor cannot find), 16 truncated, 9 other, 5 duplicated. The refusals are
-  the ones worth taking next — a refusal is a citation the student does not get.
+- **Paste→output 194/216.** By defect shape: 11 truncated, 7 refused, 3 other,
+  1 duplicated. Run `scripts/failure-shapes.ts` rather than reading this list; it
+  goes stale.
+- **The seven refusals are each a modelling gap, not a pattern to widen.** Rule
+  8.5's neutral-citation-only form ("Inveresk plc v Tullis Russell Papermakers Ltd
+  [2009] CSIH 56") needs neither a year nor a report series, but both are marked
+  required. Rule 9.3.1's Charter form needs only a short title. Rule 10.3.2's
+  arbitral decisions put the arbitrators' names where a body's abbreviation
+  normally goes. Each wants the required-per-form question answered first — see
+  the multi-form note below.
 - **The link layer covers five New Zealand sites and nothing else.** Westlaw and
   LexisNexis are paywalled and their URLs carry no citation, so they cannot be
   read this way; a student pasting one should be told to paste the reference text
@@ -280,30 +287,18 @@ partly this repo's own fixture. Re-derive the clusters from
   space. That is faithful but hostile: a student will type "RSC" into one box and
   be told the jurisdiction is missing. A labelling problem, not a correctness
   one.
-- **Journal articles with a long or punctuated name refuse to build.** `(2004)
-  9(2) Australia & New Zealand Journal of Law & Education 3` and `(2007) 48 Wm &
-  Mary L Rev 1605`. The reporter-locus pattern needs each word of a series to be
-  capitalised and letters-only, so "&" and "of" defeat it and `journalAbbrev` and
-  `startingPage` are left empty. Two of the audit's nine remaining failures.
 - **A book with an editor rather than an author loses its "(ed)".** `Peter
   Blanchard (ed) Civil Remedies in New Zealand (2nd ed, …)` under 6.1.2. Check the
   published 6.1.2 for what the element list actually is before changing the type.
 - **A publication parenthesis with a nested bracket breaks.** `Chatswood (NSW),
   2016) at [1206]` puts the pinpoint in the year, because the paren pattern
   refuses to nest.
-- **A newspaper date range loses its first day.** `24–30 September 2011` reads as
-  `30 September 2011` (rule 7.2).
-- **Hansard naming a debate instead of a column still refuses.** The trailing-
-  parenthesis pinpoint rule exists but does not fire for `(16 August 2017) 724
-  NZPD (Maritime Transport Amendment Bill – Second Reading, Julie Anne Genter)`.
-- **Guide audit 141/150.**
-- **Classification 139/216; international 28/79.** Much weaker than domestic. The
+- **Guide audit 147/150.**
+- **Classification 147/216.** Much weaker than domestic. The
   foreign *case* types matter most, since New Zealand common law reasons from
-  English and Australian authority — Canada (8.3) and Scotland (8.5) now read
-  correctly, but US state and federal cases (8.6.2, 8.6.3) still rank low because
-  their locus has no bracketed year to anchor on. A year-less "volume SERIES page"
-  anchor is the obvious next move; it was not attempted because it is loose enough
-  to need careful measuring.
+  English and Australian authority. Canada (8.3), Scotland (8.5) and the American
+  courts (8.6.2, 8.6.3) now READ correctly; ranking them first is the part still
+  outstanding, and it is a fitted-model question rather than a pattern one.
 - **A capitalised paste has two defects that the text cannot settle.** In capitals
   an abbreviation and an ordinary word look identical, so `BOARD OF TRADE 546`
   reads as though "TRADE" started the citation, and a Gazette notice number is
