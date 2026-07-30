@@ -1,15 +1,23 @@
 /**
- * The guarantee that matters: correct fields in, perfect citation out.
+ * TEMPLATE ROUND-TRIP — not the guarantee. Read this before quoting the number.
  *
- * scripts/accuracy-report.ts cannot show this. It extracts each example's
- * fields with the very template it then renders them back through — close to an
- * identity operation — it tries EVERY alternate form and passes if any one of
- * them matches, and it strips the trailing full stop before comparing. So it
- * reports 216/216 while saying nothing about what the tool actually produces.
+ * The guarantee (correct fields in, perfect citation out) is measured by
+ * tests/fixtures/field-truth.ts, where every field set is written out BY HAND for
+ * every one of the 86 source types. That is 148/148.
  *
- * This runs the production path instead: buildCitation(), which picks ONE form
- * and finishes the footnote, compared byte-for-byte against the Guide's own
- * worked example, full stop included.
+ * This script asks something narrower: can a type's own template read its own
+ * worked example back into fields, and do those fields then render to the example?
+ * It is a useful check on `extractByTemplate` — nothing else exercises it in
+ * isolation — but its failures are almost all the EXTRACTOR mis-splitting, not the
+ * renderer. A reported case shows this plainly: with the neutral citation optional,
+ * the lazy capture leaves the case name empty and shunts everything one field
+ * right, so the year box gets "Taylor" and the build is refused. The paste path
+ * does not do that, because the shape anchors in scan.ts correct it; this script
+ * deliberately does not use them.
+ *
+ * So a failure here means "the template alone cannot parse this", which is worth
+ * knowing and is not a broken citation. Do not read the percentage as the
+ * guarantee, and do not "fix" the renderer to satisfy it.
  *
  *   npx tsx scripts/render-truth.ts [--group Cases] [--all]
  */
@@ -81,10 +89,11 @@ const byType = new Map<string, Result[]>();
 for (const r of failed) byType.set(r.type.id, [...(byType.get(r.type.id) ?? []), r]);
 
 console.log("=".repeat(78));
-console.log("RENDER TRUTH — correct fields through the production build path");
+console.log("TEMPLATE ROUND-TRIP — can each template parse its own worked example?");
 console.log("=".repeat(78));
+console.log("  (the guarantee is field-truth: 148/148 by hand, all 86 types — see the header)");
 console.log(
-  `  ${results.length - failed.length}/${results.length} exact ` +
+  `  ${results.length - failed.length}/${results.length} round-tripped ` +
     `(${(((results.length - failed.length) / results.length) * 100).toFixed(1)}%)` +
     `${includeInternational ? "" : "  [student-facing groups only; --all for every group]"}`,
 );
