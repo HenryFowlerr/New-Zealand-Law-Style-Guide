@@ -22,9 +22,9 @@ Never report a single accuracy number. It hides which layer is broken.
 | | What it asks | Where | Now |
 |---|---|---|---|
 | **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **148/148, all 86 types** |
-| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 195/216 fields, 173/216 exact |
-| **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 139/216 |
-| **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 14/14 type, 6/6 exact |
+| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 196/216 fields, 175/216 exact |
+| **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 144/216 |
+| **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 16/16 type, 6/6 exact |
 
 RENDER is the promise; the other three are convenience. It is now measured for
 every type in the Guide — it used to cover 38 of 86, so for the rest the promise
@@ -35,7 +35,7 @@ optional part disturbs nothing else).
 
 `npm run qa` runs everything. `scripts/common-law-report.ts` scores the subset a
 New Zealand essay is actually built from, which matters more than the total
-(RENDER 94/94, READ 79/84, PICK 76/84). `scripts/failure-shapes.ts` sorts whatever
+(RENDER 94/94, READ 81/84, PICK 79/84). `scripts/failure-shapes.ts` sorts whatever
 is currently failing by the SHAPE of the defect — duplicated, truncated, refused —
 which is how the largest cluster gets found instead of the loudest example.
 
@@ -175,6 +175,56 @@ src/engine/shapes.ts   what shape each kind of component must have; render.ts
 tests/fixtures/        hand-written ground truth, and the published-Guide corpus
 scripts/               every measurement; none of them ship
 ```
+
+## The Guide corrects the student, it does not only describe
+
+Several rules do not merely say what a citation looks like — they say to CHANGE
+what the source prints. Rule 3.2.1: "only cite the first plaintiff/appellant and
+the first defendant/respondent (do not use '& Anor' or '& Ors')", and "Shorten
+procedural phrases such as 'In re' and 'In the matter of' to 'Re'." Rule 2.3
+forbids "ibid" outright. Rule 4.1.1 gives a New Zealand Act no jurisdiction tag,
+so a student's "(NZ)" has to go.
+
+`VALUE_RULES` in `src/engine/rules.ts` holds the corrections, beside `GUIDE_RULES`
+which can only DROP a component. Each cites its paragraph and explains itself
+through the notes mechanism, because silently editing what someone typed is not
+acceptable even when the Guide requires the edit — and the note says "corrected"
+rather than "left out" when the field is still there.
+
+**A correction fights the reconstruction score, and this will happen again.**
+Detection rewards a type for reproducing the paste, so a rule requiring the tool
+to change the paste makes the CORRECT type look like a worse reconstruction.
+Dropping "& Anor" turned "R v Smith & Anor [2019] NZHC 1234 at [22]" from a
+correct citation into no citation at all; the "(NZ)" tag made an Act Australian
+for the same reason, from the other direction. Both comparisons — `refit` in
+detection and `auditAgainstPaste` in the interface — now run on
+`normaliseForComparison`, so the question is whether a type explains the reference
+rather than whether it echoes it. **Any new value rule must be added there too.**
+
+## What a student actually pastes
+
+A reference is almost never copied on its own, and none of this is in the corpus:
+
+- a footnote marker (`12 `, `3. `, `[4] `, superscript), an introductory signal
+  (`See also `), a reading-list heading (`Week 4: `) — all of which ended up
+  inside the case name
+- a retrieval date on the end (`(accessed 4 May 2025)`), which changed the shape
+  the detector keys on and turned a good neutral citation into a refusal
+- a whole footnote of several authorities joined by `; ` and `; and `
+- a reading list, whose entries are NOT punctuated, so the sentence-end rule that
+  governs line joining never fires
+- a bibliography, whose section headings ("Cases", "Legislation") carry no
+  punctuation either
+- ALL CAPS out of a case list; a hyphen where the Guide prints an en dash
+
+`referencePrefixLength` and `referenceSuffixLength` in `render.ts` strip the
+first two at the paste boundary, once, so detection, extraction and the audit all
+see the reference itself. `splitReferences` handles the rest.
+
+The rule for all of it: **strip only what cannot be part of a citation.** A bare
+leading number is the one ambiguous case — "16 US 610" is a volume — so it goes
+only before a Titlecase word, an opening quote, or a single-letter party. Failing
+closed there is deliberate: a stray "12" is visible, a swallowed volume is not.
 
 ## The link layer
 
