@@ -81,6 +81,29 @@ features generalise, weights tuned to 216 examples do not.
 **Inventing a rule.** If the Guide is ambiguous, leave it alone and say so. A
 rule we made up is worse than a gap we documented.
 
+**Validating against the chosen form.** Seven citations refuse because a type
+marks a component required that the FORM being used has no slot for — rule 8.5's
+neutral-citation-only Scottish case, rule 9.3.1's Charter. Requiring only what the
+chosen form uses looks obviously right, and it is not.
+
+It was implemented in full and measured: the Charter and the Inveresk case both
+started building, and the corpus went BACKWARDS — output exact 194 → 191, template
+round-trip 207 → 204, and omission safety broke for the first time in the
+project's history, 460/460 → 451/456. Five unit tests failed with it. Reverted.
+
+The reason is that it makes `chooseForm` load-bearing for correctness rather than
+just for presentation, and `chooseForm` is not good enough to carry that. Two
+things had to be added just to stop it emitting nonsense — an empty REQUIRED slot
+weighted above an empty optional one, and a heavy penalty for literal text the
+supplied fields do not corroborate, without which a bare "Crimes Act" became "…,
+pt 1 of the Constitution Act 1982, being sch B to the Canada Act 1982 (UK)". Even
+with both, a Scottish case that has a year AND a report series started losing its
+court identifier.
+
+If it is attempted again, fix `chooseForm` FIRST and prove it in isolation:
+choosing the wrong form is a wrong citation, not a cosmetic slip. The two
+examples this would rescue are not worth what it currently costs.
+
 **Changing what a fitted model sees.** The detection weights were fitted against
 the feature values as they were at the time. Feeding them better fields — the
 reconciliation pass below — moved the distribution and classification fell 136 to
@@ -264,13 +287,13 @@ partly this repo's own fixture. Re-derive the clusters from
 - **Paste→output 194/216.** By defect shape: 11 truncated, 7 refused, 3 other,
   1 duplicated. Run `scripts/failure-shapes.ts` rather than reading this list; it
   goes stale.
-- **The seven refusals are each a modelling gap, not a pattern to widen.** Rule
-  8.5's neutral-citation-only form ("Inveresk plc v Tullis Russell Papermakers Ltd
-  [2009] CSIH 56") needs neither a year nor a report series, but both are marked
-  required. Rule 9.3.1's Charter form needs only a short title. Rule 10.3.2's
-  arbitral decisions put the arbitrators' names where a body's abbreviation
-  normally goes. Each wants the required-per-form question answered first — see
-  the multi-form note below.
+- **The seven refusals are each a modelling gap.** Rule 8.5's neutral-citation-only
+  form ("Inveresk plc v Tullis Russell Papermakers Ltd [2009] CSIH 56") needs
+  neither a year nor a report series, but both are marked required. Rule 9.3.1's
+  Charter form needs only a short title. Rule 10.3.2's arbitral decisions put the
+  arbitrators' names where a body's abbreviation normally goes. **Validating
+  per-form has been tried and does not pay — see the trap below before attempting
+  it again.**
 - **The link layer covers five New Zealand sites and nothing else.** Westlaw and
   LexisNexis are paywalled and their URLs carry no citation, so they cannot be
   read this way; a student pasting one should be told to paste the reference text
