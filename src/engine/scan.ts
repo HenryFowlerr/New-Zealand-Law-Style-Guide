@@ -856,6 +856,21 @@ export function refineFields(
     }
   }
 
+  // A bracketed list with more parts than the template has slots.
+  //
+  // Rule 7.5 writes a speech as "({location}, {date})" and its own example puts
+  // three things in the location: "(Ramo Lecture 2008, New Mexico School of Law,
+  // Albuquerque, 23 October 2008)". Rule 7.3 does the same to an interview's
+  // details, "(Sean Plunket, Morning Report, National Radio, 5 July 1999)". A
+  // one-part-per-slot reading dropped whatever did not fit, so a speech lost the
+  // institution and the city and an interview lost the station — silently, and
+  // in the middle of an otherwise perfect citation.
+  //
+  // The parts at each END are anchored: the last is the date, the first is a
+  // name. So the surplus belongs to the slot just before the last, which is the
+  // free-text one in every template that has this shape.
+  absorbSurplusListParts(type, fields, text, set);
+
   // A pre-1854 Ordinance is dated by regnal year: "1841 4 Vict 5" is the
   // calendar year, then the regnal year, then the ordinance number.
   if (ids.has("regnalYear")) {
@@ -1694,4 +1709,70 @@ export function jurisdictionConflict(type: GuideType, text: string): number {
   // international type when the text is unambiguously domestic to one country.
   if (own === "international" && found.length > 1) return 0;
   return 1;
+}
+
+
+/**
+ * Give a bracketed list's surplus parts to the slot that should hold them.
+ *
+ * A template writes "({interviewer}, {interviewDetails}, {date})"; the source
+ * writes four comma-separated parts. Reading one part per slot drops the extra,
+ * and what is dropped is always in the MIDDLE, where nothing about the finished
+ * citation shows that anything is missing.
+ */
+function absorbSurplusListParts(
+  type: GuideType,
+  fields: Record<string, string>,
+  text: string,
+  set: (id: string, value: string) => void,
+): void {
+  const { form } = formOrder(type, fields);
+  // A bracketed run in the TEMPLATE holding two or more comma-separated slots.
+  for (const group of form.matchAll(/\(([^()]*\{[^()]*)\)/g)) {
+    const slots = group[1]
+      .split(/\s*,\s*/)
+      .map((part) => part.match(/^\*?\{([^}]+)\}\*?$/)?.[1])
+      .filter((id): id is string => Boolean(id));
+    if (slots.length < 2) continue;
+    // The matching run in the SOURCE: the one whose last part is the value the
+    // template's last slot already holds, so the right bracket is identified by
+    // its contents rather than by counting brackets.
+    const anchorValue = (fields[slots[slots.length - 1]] ?? "").trim();
+    if (!anchorValue) continue;
+    const source = [...text.matchAll(/\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)].find((m) =>
+      m[1].trim().endsWith(anchorValue),
+    );
+    if (!source) continue;
+    const parts = splitTopLevel(source[1]);
+    if (parts.length <= slots.length) continue;
+    const surplus = parts.length - slots.length;
+    // From the left, one part each; the slot before the last takes the extra;
+    // the last takes the final part.
+    let at = 0;
+    slots.forEach((id, index) => {
+      const take = index === slots.length - 2 ? 1 + surplus : 1;
+      const value = parts.slice(at, at + take).join(", ").trim();
+      at += take;
+      if (value) set(id, value);
+    });
+  }
+}
+
+/** Split on commas that are not inside brackets. */
+function splitTopLevel(value: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const ch of value) {
+    if (ch === "(" || ch === "[") depth++;
+    else if (ch === ")" || ch === "]") depth--;
+    else if (ch === "," && depth === 0) {
+      parts.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts.filter(Boolean);
 }

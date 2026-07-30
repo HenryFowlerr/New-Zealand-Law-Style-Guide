@@ -1196,3 +1196,39 @@ test("an EU report citation names its series (10.5.1)", () => {
     assert.equal(buildCitation("eu-case-pre-2012", prefill("eu-case-pre-2012", text)).text, text);
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A bracketed list with more parts than the template has slots
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a speech keeps everything before its date (7.5)", () => {
+  // The template is "({location}, {date})" and the Guide's own example puts three
+  // things in the location. Reading one part per slot dropped the institution and
+  // the city, silently, in the middle of an otherwise perfect citation.
+  const text =
+    "Sian Elias, Chief Justice of New Zealand “First Peoples and Human Rights, a South Seas Perspective” (Ramo Lecture 2008, New Mexico School of Law, Albuquerque, 23 October 2008).";
+  const f = prefill("speech", text);
+  assert.equal(f.location, "Ramo Lecture 2008, New Mexico School of Law, Albuquerque");
+  assert.equal(f.date, "23 October 2008");
+  assert.equal(buildCitation("speech", f).text, text);
+});
+
+test("an interview keeps the station as well as the programme (7.3)", () => {
+  const text =
+    "Interview with William Birch, Finance Minister (Sean Plunket, Morning Report, National Radio, 5 July 1999) transcript provided by Audio Monitor Services (Wellington).";
+  const f = prefill("interview", text);
+  assert.equal(f.interviewer, "Sean Plunket");
+  assert.equal(f.interviewDetails, "Morning Report, National Radio");
+  assert.equal(buildCitation("interview", f).text, text);
+});
+
+test("a list with exactly as many parts as slots is untouched", () => {
+  // The surplus rule must not disturb the ordinary case, and a place of
+  // publication that carries its own bracket must not be split on its comma.
+  for (const text of [
+    "Andrew Butler and Petra Butler The New Zealand Bill of Rights Act: A Commentary (2nd ed, LexisNexis, Wellington, 2015) at [3.2.1].",
+    "JD Heydon and MJ Leeming Jacobs’ Law of Trusts in Australia (8th ed, LexisNexis Butterworths, Chatswood (NSW), 2016) at [1206].",
+  ]) {
+    assert.equal(buildCitation("text-book", prefill("text-book", text)).text, text);
+  }
+});
