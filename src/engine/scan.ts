@@ -680,6 +680,70 @@ export function refineFields(
     }
   }
 
+  // An international decision names the parties and the stage of the proceeding
+  // in brackets after the case name: rule 10.2.1's
+  //
+  //   Military and Paramilitary Activities in and against Nicaragua
+  //     (Nicaragua v United States of America) (Merits) [1986] ICJ Rep 14 at 55.
+  //
+  // The case-name anchor swallowed both, leaving the required "parties" box empty,
+  // so nine international decisions produced no citation at all. Which bracket is
+  // which is decided by its contents: the one naming two sides has the " v ".
+  //
+  // Where the reference has no separate name — "Abaclat v Argentina (Jurisdiction
+  // and Admissibility)" — the parties ARE the name, so the run in front of the
+  // brackets becomes the parties rather than being lost.
+  if (ids.has("parties") || ids.has("phase")) {
+    const head = text.slice(0, earliestCitation).trim();
+    const trailing = head.match(/^(.*?)((?:\s*\([^()]*\))+)\s*$/);
+    if (trailing) {
+      const groups = [...trailing[2].matchAll(/\(([^()]*)\)/g)].map((m) => m[1].trim());
+      const partyGroup = groups.find((g) => /\sv\s/i.test(g));
+      const phases = groups.filter((g) => g !== partyGroup);
+      const front = trailing[1].trim();
+      if (partyGroup) {
+        set("parties", partyGroup);
+        if (front) set("caseName", front);
+      } else if (/\sv\s/i.test(front)) {
+        // No bracketed parties, but the name itself names two sides.
+        set("parties", front);
+        delete fields.caseName;
+      } else if (front) {
+        set("caseName", front);
+      }
+      if (phases.length && ids.has("phase")) set("phase", phases[phases.length - 1]);
+    }
+  }
+
+  // A European Union case is introduced by its case number, after the literal
+  // "Case": rule 10.5.1(b)'s "Case C-34/89 Smith v EC Commission [1993] ECR
+  // I-454". The number was read as part of the party names.
+  if (ids.has("caseNumber")) {
+    const numbered = text.match(/^\s*Case\s+(\S+)\s+(.+)$/i);
+    if (numbered) {
+      set("caseNumber", numbered[1]);
+      if (ids.has("caseName")) {
+        const rest = numbered[2].split(/\s*[[(]\d{4}[\])]|\s+ECLI:/i)[0].trim();
+        if (rest) set("caseName", rest);
+      }
+    }
+  }
+
+  // A Canadian statute names its volume and jurisdiction as one token with no
+  // space: rule 9.3.1's "RS" (Revised Statutes) or "S" (a sessional volume)
+  // followed immediately by the jurisdiction letter — "RSC 1985", "SC 2011".
+  // Nothing positional can find that boundary, so the short title swallowed the
+  // token and the volume box stayed empty.
+  if (ids.has("volume") && ids.has("jurisdiction") && ids.has("chapter")) {
+    const statute = text.match(/\b(RS|S)([A-Z]{1,3})\s+((?:1[6-9]|20)\d{2})\s+c\s/);
+    if (statute && statute.index != null) {
+      set("volume", statute[1]);
+      set("jurisdiction", statute[2]);
+      set("year", statute[3]);
+      if (ids.has("shortTitle")) set("shortTitle", text.slice(0, statute.index).trim());
+    }
+  }
+
   // A pre-1854 Ordinance is dated by regnal year: "1841 4 Vict 5" is the
   // calendar year, then the regnal year, then the ordinance number.
   if (ids.has("regnalYear")) {
@@ -1188,6 +1252,13 @@ function dropOverlapWithAnchoredName(
   if (nameWords.length < 2) return;
   for (const [id, raw] of Object.entries(fields)) {
     if (id === "caseName") continue;
+    // Only a POSITIONAL guess is cleaned here. A field placed by a shape rule was
+    // put there deliberately, and a repetition in one of those can be genuine:
+    // rule 10.2.1's parties really do repeat a word of the case name —
+    // "Military and Paramilitary Activities in and against Nicaragua (Nicaragua v
+    // United States of America)" — and stripping it left "v United States of
+    // America" as the parties.
+    if (anchored.has(id)) continue;
     const value = (raw ?? "").trim();
     if (!value) continue;
     const words = value.split(/\s+/);

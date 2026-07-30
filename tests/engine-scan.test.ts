@@ -945,3 +945,59 @@ test("a type must not be marked down for making the Guide's own correction", () 
   // citations stopped producing anything at all.
   assert.equal(detectTypes("R v Smith & Anor [2019] NZHC 1234 at [22].", 1)[0].typeId, "neutral-citation-case-nz");
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// International decisions name the parties in brackets after the case name
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("the parties and the phase are split out of an international case name", () => {
+  // Rule 10.2.1: "Military and Paramilitary Activities in and against Nicaragua
+  // (Nicaragua v United States of America) (Merits) …". The case-name anchor
+  // swallowed both brackets, leaving the required parties box empty — so nine
+  // international decisions produced no citation at all.
+  const f = prefill(
+    "icj-pcij-decision",
+    "Military and Paramilitary Activities in and against Nicaragua (Nicaragua v United States of America) (Merits) [1986] ICJ Rep 14 at 55.",
+  );
+  assert.equal(f.caseName, "Military and Paramilitary Activities in and against Nicaragua");
+  assert.equal(f.parties, "Nicaragua v United States of America");
+  assert.equal(f.phase, "Merits");
+});
+
+test("which bracket is which is decided by the “ v ” in it", () => {
+  const reported = prefill(
+    "international-arbitral-reported",
+    "Southern Bluefin Tuna (Australia v Japan) (Jurisdiction and Admissibility) (2000) 39 ILM 1539.",
+  );
+  assert.equal(reported.caseName, "Southern Bluefin Tuna");
+  assert.equal(reported.parties, "Australia v Japan");
+  assert.equal(reported.phase, "Jurisdiction and Admissibility");
+  // A phase with no parties alongside it is still a phase.
+  const advisory = prefill(
+    "icj-pcij-decision",
+    "Competence of General Assembly Regarding Admission to the United Nations (Advisory Opinion) [1950] ICJ Rep 4.",
+  );
+  assert.equal(advisory.phase, "Advisory Opinion");
+  assert.ok(!advisory.parties);
+});
+
+test("an EU case number is not read as part of the party names (10.5.1)", () => {
+  const f = prefill("eu-case-pre-2012", "Case C-34/89 Smith v EC Commission [1993] ECR I-454.");
+  assert.equal(f.caseNumber, "C-34/89");
+  assert.equal(f.caseName, "Smith v EC Commission");
+});
+
+test("a Canadian statute's volume and jurisdiction are one token (9.3.1)", () => {
+  // "RS" (Revised Statutes) or "S" (a sessional volume) followed immediately by
+  // the jurisdiction letter, with no space. Nothing positional can find that
+  // boundary, so the short title swallowed the token and the citation refused.
+  for (const [text, volume, jurisdiction] of [
+    ["Arctic Waters Pollution Prevention Act RSC 1985 c A-12, s 15.", "RS", "C"],
+    ["Freezing Assets of Corrupt Foreign Officials Act SC 2011 c 10, s 4.", "S", "C"],
+  ] as const) {
+    const f = prefill("canada-statute", text);
+    assert.equal(f.volume, volume);
+    assert.equal(f.jurisdiction, jurisdiction);
+    assert.equal(buildCitation("canada-statute", f).text, text);
+  }
+});
