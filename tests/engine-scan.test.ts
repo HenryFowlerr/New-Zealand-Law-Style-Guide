@@ -1282,3 +1282,29 @@ test("a Restatement keeps its city as well as its state (9.5.4)", () => {
   assert.equal(f.stateOrRegion, "Minnesota");
   assert.equal(buildCitation("us-restatement", f).text, text);
 });
+
+test("an English neutral citation fills the three boxes rule 8.4.1 gives it", () => {
+  // The rule writes it as "[{neutralYear}] {neutralCourt} {number}" rather than as
+  // one field, so a type with those slots had nowhere to put the whole string and
+  // Nationwide Building Society lost "[2009] EWHC 254 (Comm)" entirely — under
+  // 8.4.1 that is the half of the citation identifying the judgment.
+  const text =
+    "Nationwide Building Society v Dunlop Haywards (DHL) Ltd [2009] EWHC 254 (Comm), [2010] 1 WLR 258.";
+  const f = prefill("england-wales-case-modern", text);
+  assert.equal(f.neutralYear, "2009");
+  assert.equal(f.neutralCourt, "EWHC");
+  // The division belongs to the neutral citation, not to the court identifier.
+  assert.equal(f.number, "254 (Comm)");
+  assert.equal(buildCitation("england-wales-case-modern", f).text, text);
+});
+
+test("a named report series is not split as though it were a court", () => {
+  // "[1932] AC 562" has the shape of a neutral citation and is not one: AC is a
+  // law report series, so that is a year, a series and a page.
+  const text = "Donoghue v Stevenson [1932] AC 562 (HL) at 580.";
+  const top = detectTypes(text, 1)[0];
+  assert.equal(
+    buildCitation(top.typeId, prefillFromPaste(guideTypeById[top.typeId], text, [])).text,
+    text,
+  );
+});

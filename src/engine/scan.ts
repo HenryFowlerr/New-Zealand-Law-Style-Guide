@@ -52,7 +52,7 @@ const MONTHS =
 // Review 245" read as a neutral citation, which both credited every case type
 // and penalised the journal type for having nowhere to put one.
 const NEUTRAL =
-  /\[\d{4}\]\s+[A-Z]{2,}[A-Za-z]*(?:\s+[A-Z][A-Za-z]{1,11})?\s+\d+[A-Za-z]?/;
+  /\[(\d{4})\]\s+([A-Z]{2,}[A-Za-z]*(?:\s+[A-Z][A-Za-z]{1,11})?)\s+(\d+[A-Za-z]?)/;
 
 // A reporter / journal locus: (year) volume SERIES page — a DIGIT volume
 // between the year and a letters series (e.g. "[2009] 1 NZLR 1", "(2005) 121
@@ -91,6 +91,10 @@ const JOURNAL_WORD = "[A-Z][A-Za-z.'’]*|&|of|and|the|for|in|on|und|der|du|de|l
 const JOURNAL_LOCUS = new RegExp(
   `([[(]\\d{4}[\\])])\\s+(\\d+(?:\\(\\d+\\))?)\\s+((?:${JOURNAL_WORD})(?:\\s+(?:${JOURNAL_WORD}))*)\\s+(\\d+)\\b`,
 );
+
+/** Series whose abbreviation can be mistaken for a court in a neutral citation. */
+const NAMED_REPORT_SERIES =
+  /^(?:AC|QB|KB|Ch|WLR|All ER|ER|App Cas|NZLR|CLR|SLT|SC|DLR|SCR|Fam|P|ILM|ILR|EHRR|ECR|DR)$/;
 
 // The same locus without a volume number — "[1932] AC 562". Restricted to named
 // law report series so a case name can never be mistaken for a series.
@@ -216,8 +220,24 @@ export function scanAnchors(text: string): Anchor[] {
     anchors.push({ kind, parts, start: m.index, end: m.index + m[0].length });
   };
 
+  // The English courts put the division in brackets after the judgment number —
+  // "[2009] EWHC 254 (Comm)" — and it is part of the neutral citation, not a
+  // court identifier standing on its own.
   const neutral = text.match(NEUTRAL);
-  if (neutral) push("neutral", neutral, { value: neutral[0].trim() });
+  if (neutral) {
+    // The English courts put the division in brackets after the judgment number
+    // — "[2009] EWHC 254 (Comm)" — and it belongs to the neutral citation. It is
+    // read HERE rather than in the pattern above: widening that pattern let a
+    // journal locus match it and cost six correct type identifications.
+    const after = text.slice((neutral.index ?? 0) + neutral[0].length);
+    const division = after.match(/^\s+(\([A-Z][A-Za-z]{1,9}\))(?=\s*,)/);
+    push("neutral", neutral, {
+      value: (neutral[0] + (division ? ` ${division[1]}` : "")).trim(),
+      year: neutral[1],
+      court: neutral[2].trim(),
+      number: neutral[3].trim() + (division ? ` ${division[1]}` : ""),
+    });
+  }
 
   // A quoted title marks an article/essay rather than a case, and is required
   // before the volume-less journal fallback below can safely fire.
@@ -1810,4 +1830,41 @@ function splitTopLevel(value: string): string[] {
   }
   if (current.trim()) parts.push(current.trim());
   return parts.filter(Boolean);
+}
+
+
+/**
+ * Write a neutral citation into the three boxes some rules give it.
+ *
+ * Rules 8.2 and 8.4.1 write it as "[{neutralYear}] {neutralCourt} {number}"
+ * rather than as one field, so a type with those slots has nowhere to put the
+ * whole string — and Nationwide Building Society lost "[2009] EWHC 254 (Comm)"
+ * entirely, which under rule 8.4.1 is the half of the citation that identifies
+ * the judgment.
+ *
+ * Applied where the boxes are filled and NOT where the type is ranked. Adding
+ * three fields changes the feature distribution detection was fitted against:
+ * doing it inside refineFields gained one citation and cost six correct type
+ * identifications. That is the same trap the span-reconciliation pass hit, and
+ * the same answer.
+ */
+export function splitNeutralCitationParts(
+  type: GuideType,
+  fields: Record<string, string>,
+  text: string,
+): Record<string, string> {
+  const ids = idsOf(type);
+  if (!ids.has("neutralYear") || !ids.has("neutralCourt") || !ids.has("number")) return fields;
+  const anchor = scanAnchors(text).find((a) => a.kind === "neutral");
+  if (!anchor) return fields;
+  // "[1932] AC 562" has the shape of a neutral citation and is not one: AC is a
+  // named law report series, so that is a year, a series and a page. Splitting it
+  // into court and judgment number would print Donoghue v Stevenson twice over.
+  if (NAMED_REPORT_SERIES.test(anchor.parts.court ?? "")) return fields;
+  return {
+    ...fields,
+    neutralYear: anchor.parts.year,
+    neutralCourt: anchor.parts.court,
+    number: anchor.parts.number,
+  };
 }

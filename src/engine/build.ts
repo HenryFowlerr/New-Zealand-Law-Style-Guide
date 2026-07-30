@@ -27,6 +27,7 @@ import {
   jurisdictionConflict,
   refineFields,
   reconcileAgainstSource,
+  splitNeutralCitationParts,
 } from "./scan";
 import { fieldShapeViolations } from "./shapes";
 import { applyGuideRules, normaliseForComparison } from "./rules";
@@ -236,7 +237,11 @@ export function prefillFromPaste(
   // anchors (a neutral citation, a reporter locus, a pinpoint, an edition, a
   // quoted title, an "X v Y" case name) recognised anywhere in the text.
   if (italicIds.length === 0 || runs.length !== italicIds.length) {
-    return reconcileAgainstSource(type, refineFields(type, positional, text), text);
+    return reconcileAgainstSource(
+      type,
+      splitNeutralCitationParts(type, refineFields(type, positional, text), text),
+      text,
+    );
   }
   const base = { ...positional };
   // Assign each italic run, in order, to each italic component, in order.
@@ -260,7 +265,7 @@ export function prefillFromPaste(
     refined[id] = base[id];
   });
   if (priorId && before) refined[priorId] = before;
-  return reconcileAgainstSource(type, refined, text);
+  return reconcileAgainstSource(type, splitNeutralCitationParts(type, refined, text), text);
 }
 
 export type Detection = {
