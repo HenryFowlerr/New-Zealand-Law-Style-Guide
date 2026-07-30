@@ -1348,7 +1348,9 @@ export const FIELD_TRUTH: FieldTruth[] = [
   {
     typeId: "international-arbitral-unreported",
     fields: {
-      caseName: "Abaclat",
+      // Rule 10.3.2 also cites a decision with no separate name at all: the
+      // parties ARE the name, and they are NOT bracketed. Its own form, added
+      // in scripts/patch-arbitral-parties-form.mjs.
       parties: "Abaclat v Argentina",
       phase: "Jurisdiction and Admissibility",
       arbitralBody: "ICSID",
@@ -1357,8 +1359,6 @@ export const FIELD_TRUTH: FieldTruth[] = [
       pinpoint: "[293]",
     },
     want: "Abaclat v Argentina (Jurisdiction and Admissibility) ICSID ARB/07/5, 4 August 2011 at [293].",
-    knownGap:
-      "The Guide gives no separate case name here — the parties ARE the name — but the template writes both, so the name is repeated.",
   },
   {
     typeId: "un-constitutive-document",

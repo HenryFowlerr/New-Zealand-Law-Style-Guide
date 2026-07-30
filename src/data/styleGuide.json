@@ -7216,7 +7216,7 @@
       "group": "International & foreign",
       "rule": "10.3.2",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.10.3.html#10.3.2",
-      "outputTemplate": "*{caseName}* (*{parties}*) (*{phase}*) {arbitralBody} {caseNumber}, {date} at {pinpoint} | *{caseName}* (*{parties}*) (*{phase}*) {arbitralBody} {date} at {pinpoint}",
+      "outputTemplate": "*{caseName}* (*{parties}*) (*{phase}*) {arbitralBody} {caseNumber}, {date} at {pinpoint} | *{caseName}* (*{parties}*) (*{phase}*) {arbitralBody} {date} at {pinpoint} | *{parties}* (*{phase}*) {arbitralBody} {caseNumber}, {date} at {pinpoint} | *{parties}* (*{phase}*) {arbitralBody} {date} at {pinpoint}",
       "components": [
         {
           "id": "caseName",

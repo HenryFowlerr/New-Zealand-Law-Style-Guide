@@ -1156,3 +1156,43 @@ test("a translator named inside the publication bracket is not the publisher", (
   assert.equal(f.publisher, "University of Pennsylvania Press");
   assert.equal(buildCitation("historical-edited-translated-text", f).text, text);
 });
+
+test("an arbitral decision with no separate name does not bracket its parties (10.3.2)", () => {
+  // The Guide shows both shapes under one rule: "Arrest and Return of Savarkar
+  // (France v Great Britain) (Award)" names the dispute and then the parties,
+  // while "Abaclat v Argentina (Jurisdiction and Admissibility)" has no separate
+  // name — the parties ARE the name, unbracketed. One template wrote the brackets
+  // unconditionally.
+  for (const text of [
+    "Arrest and Return of Savarkar (France v Great Britain) (Award) PCA 24 February 1911.",
+    "Abaclat v Argentina (Jurisdiction and Admissibility) ICSID ARB/07/5, 4 August 2011 at [293].",
+    "Walter Bau AG (in liq) v Thailand (Award) Ian Barker, Marc Lalonde, Jayavadh Bunnag 1 July 2009 at [9.60].",
+  ]) {
+    assert.equal(
+      buildCitation("international-arbitral-unreported", prefill("international-arbitral-unreported", text)).text,
+      text,
+    );
+  }
+});
+
+test("the arbitral body can be the arbitrators themselves (10.3.2)", () => {
+  // No shape distinguishes a list of personal names from anything else, so it is
+  // taken from the gap between the brackets and the date. Without that the body
+  // came out as the single letter "v", lifted from the parties.
+  const f = prefill(
+    "international-arbitral-unreported",
+    "Walter Bau AG (in liq) v Thailand (Award) Ian Barker, Marc Lalonde, Jayavadh Bunnag 1 July 2009 at [9.60].",
+  );
+  assert.equal(f.arbitralBody, "Ian Barker, Marc Lalonde, Jayavadh Bunnag");
+  // A legal-status bracket stays with the party's name, where rule 3.2.1 puts it.
+  assert.equal(f.parties, "Walter Bau AG (in liq) v Thailand");
+});
+
+test("an EU report citation names its series (10.5.1)", () => {
+  for (const text of [
+    "Case C-34/89 Smith v EC Commission [1993] ECR I-454.",
+    "Case 19/84 Pharmon BV v Hoechst AG [1985] ECR 2281 (ECJ).",
+  ]) {
+    assert.equal(buildCitation("eu-case-pre-2012", prefill("eu-case-pre-2012", text)).text, text);
+  }
+});

@@ -764,7 +764,18 @@ export function refineFields(
   // brackets becomes the parties rather than being lost.
   if (ids.has("parties") || ids.has("phase")) {
     const head = text.slice(0, earliestCitation).trim();
-    const trailing = head.match(/^(.*?)((?:\s*\([^()]*\))+)\s*$/);
+    // The LAST run of consecutive brackets, wherever it sits. An unreported
+    // arbitral decision under rule 10.3.2 puts the arbitral body and the date
+    // after them — "… (France v Great Britain) (Award) PCA 24 February 1911" —
+    // so requiring the run to close the head found nothing at all. Taking the
+    // last run also steps over a legal-status bracket inside a party's name:
+    // "Walter Bau AG (in liq) v Thailand (Award) …" keeps "(in liq)" with the
+    // name, where rule 3.2.1 says it belongs.
+    const runs = [...head.matchAll(/(?:\s*\([^()]*\))+/g)];
+    const lastRun = runs[runs.length - 1];
+    const trailing = lastRun?.index != null
+      ? [head, head.slice(0, lastRun.index), lastRun[0]]
+      : null;
     if (trailing) {
       const groups = [...trailing[2].matchAll(/\(([^()]*)\)/g)].map((m) => m[1].trim());
       const partyGroup = groups.find((g) => /\sv\s/i.test(g));
@@ -781,6 +792,38 @@ export function refineFields(
         set("caseName", front);
       }
       if (phases.length && ids.has("phase")) set("phase", phases[phases.length - 1]);
+
+      // What sits between those brackets and the date is the body that decided
+      // it. Rule 10.3.2 allows an institution — "PCA", "ICSID ARB/07/5" — or the
+      // arbitrators themselves: "Ian Barker, Marc Lalonde, Jayavadh Bunnag". No
+      // shape distinguishes a list of names from anything else, so it is taken
+      // from the gap rather than matched, and without it the body came out as the
+      // single letter "v" lifted from the parties.
+      if (ids.has("arbitralBody") && lastRun?.index != null) {
+        const after = lastRun.index + lastRun[0].length;
+        const date = text.slice(after).match(DATE);
+        const stop = date?.index != null ? after + date.index : text.length;
+        let gap = text.slice(after, stop).replace(/[,\s]+$/, "").trim();
+        // A case number closes the gap and has its own box.
+        const numbered = gap.match(/^(.*?)\s+([A-Za-z]*[\w/.-]*\d[\w/.-]*)$/);
+        if (numbered && ids.has("caseNumber")) {
+          set("caseNumber", numbered[2]);
+          gap = numbered[1].trim();
+        }
+        if (gap) set("arbitralBody", gap);
+      }
+    }
+  }
+
+  // A European Union report citation: "[1993] ECR I-454" — the year, the series,
+  // then a volume-and-page run that is not purely numeric (rule 10.5.1(b)). The
+  // series was going unread, so the citation refused for want of it.
+  if (ids.has("reportSeries") && ids.has("volumePage")) {
+    const european = text.match(/[[(](\d{4})[\])]\s+([A-Z][A-Za-z]*)\s+([\w-]+)/);
+    if (european) {
+      if (ids.has("year")) set("year", european[1]);
+      set("reportSeries", european[2]);
+      set("volumePage", european[3]);
     }
   }
 
