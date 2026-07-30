@@ -21,15 +21,28 @@ Never report a single accuracy number. It hides which layer is broken.
 
 | | What it asks | Where | Now |
 |---|---|---|---|
-| **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **80/80** |
-| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 195/216 fields, 171/216 exact |
+| **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **148/148, all 86 types** |
+| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 195/216 fields, 173/216 exact |
 | **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 139/216 |
+| **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 14/14 type, 6/6 exact |
+
+RENDER is the promise; the other three are convenience. It is now measured for
+every type in the Guide — it used to cover 38 of 86, so for the rest the promise
+was simply untested. Two further checks back it up, both at 100%:
+`render-invariants` (621/621 — every combination of omitted optional fields still
+renders something well-formed) and `render-omission` (460/460 — dropping one
+optional part disturbs nothing else).
 
 `npm run qa` runs everything. `scripts/common-law-report.ts` scores the subset a
 New Zealand essay is actually built from, which matters more than the total
-(READ 79/84, PICK 76/84). `scripts/failure-shapes.ts` sorts whatever is currently
-failing by the SHAPE of the defect — duplicated, truncated, refused — which is
-how the largest cluster gets found instead of the loudest example.
+(RENDER 94/94, READ 79/84, PICK 76/84). `scripts/failure-shapes.ts` sorts whatever
+is currently failing by the SHAPE of the defect — duplicated, truncated, refused —
+which is how the largest cluster gets found instead of the loudest example.
+
+**`scripts/render-truth.ts` is NOT the guarantee**, despite once being titled as
+though it were. It asks whether a template can parse its own worked example, and
+almost every failure is `extractByTemplate` mis-splitting rather than a wrong
+citation. Do not change the renderer to satisfy it.
 
 ## Traps
 
@@ -163,6 +176,34 @@ tests/fixtures/        hand-written ground truth, and the published-Guide corpus
 scripts/               every measurement; none of them ship
 ```
 
+## The link layer
+
+A URL's PATH is the trusted source, not the page. On the sites a New Zealand law
+student actually links to, the path carries the citation:
+
+```
+legislation.govt.nz/act/public/2006/0069/…  → an Act of 2006
+nzlii.org/nz/cases/NZSC/2008/55.html        → [2008] NZSC 55
+courtsofnz.govt.nz/…/2019-NZSC-40.pdf       → [2019] NZSC 40
+```
+
+So the TYPE is settled by the URL and never guessed from page text. That matters
+because the generic resolvers (Crossref, Open Library, Citoid) are built for
+scholarship and read a judgment or an Act as a *web page* — rule 4.1.1 gives an
+Act no URL at all, so "internet material" is not a rough answer here, it is a
+wrong one. `recogniseNzSource` runs before all of them.
+
+**A page title has to earn being used.** A public CORS proxy routinely returns a
+challenge page instead of the document, and trusting its `<title>` produced
+`Just a moment... [2008] NZSC 55.` — every part right except the one naming the
+case. A title is accepted only where it CORROBORATES what the path established: an
+NZLII title must contain the neutral citation, a legislation.govt.nz title must
+end with the path's year. Anything else falls back to the URL alone, which is
+correct rather than merely safe.
+
+When adding a site, add its `corroborates` at the same time. Without one, the
+first interstitial that site serves becomes a citation.
+
 ## Open
 
 The clusters this section used to name were stale — the Māori Land Court and the
@@ -170,9 +211,25 @@ pre-1854 ordinances were already passing, and the Gazette problem turned out to 
 partly this repo's own fixture. Re-derive the clusters from
 `scripts/failure-shapes.ts` rather than trusting a list.
 
-- **Paste→output 171/216.** By defect shape: 22 refused (a required field the
+- **Paste→output 173/216.** By defect shape: 22 refused (a required field the
   extractor cannot find), 16 truncated, 9 other, 5 duplicated. The refusals are
   the ones worth taking next — a refusal is a citation the student does not get.
+- **The link layer covers five New Zealand sites and nothing else.** Westlaw and
+  LexisNexis are paywalled and their URLs carry no citation, so they cannot be
+  read this way; a student pasting one should be told to paste the reference text
+  instead, and currently is not. Also unhandled: the NZ Gazette
+  (gazette.govt.nz), Hansard (parliament.nz), and AustLII/BAILII paths other than
+  `/cases/`.
+- **Multi-form validation.** `validate` requires every component marked required
+  across ALL of a type's alternate forms, so rule 9.3.1's second form (the
+  Canadian Charter, which needs only a short title) can never be built. Relaxing
+  it to the chosen form is NOT the fix: `chooseForm` would then pick that form for
+  any bare short title and emit the Charter's wording for an unrelated Act.
+- **A Canadian statute asks for its volume and jurisdiction separately** — "RS"
+  and "C" — because rule 9.3.1 describes them as two elements joined without a
+  space. That is faithful but hostile: a student will type "RSC" into one box and
+  be told the jurisdiction is missing. A labelling problem, not a correctness
+  one.
 - **Journal articles with a long or punctuated name refuse to build.** `(2004)
   9(2) Australia & New Zealand Journal of Law & Education 3` and `(2007) 48 Wm &
   Mary L Rev 1605`. The reporter-locus pattern needs each word of a series to be
