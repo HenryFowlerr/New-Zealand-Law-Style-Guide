@@ -530,7 +530,7 @@ export function referencePrefixLength(raw: string): number {
     // An introductory signal (chapter 2). "Seebeck v X" is safe: \b stops it.
     /^\s*(?:see also|see|cf|compare|but see|but cf|contrast|accord|e\.?g\.?|note)\b[\s,:]+/i,
     // A reading-list or seminar heading.
-    /^\s*(?:week|topic|reading|seminar|lecture|tutorial|case|module|unit)\s*\d*\s*[:.–-]\s+/i,
+    /^\s*(?:week|topic|reading|seminar|lecture|tutorial|case|module|unit)\s*\d*\s*[:.—–-]\s+/i,
   ];
   let cut = 0;
   // Repeat, because a footnote marker and a signal can both be present:
@@ -722,28 +722,45 @@ export function splitReferences(raw: string): string[] {
   // A line that closes one: a full stop, allowing a closing quote or bracket.
   const closesCitation = /[.!?][”"')\]]?$/;
 
+  const rawLines = raw.replace(/\r\n?/g, "\n").split("\n");
+  const hadMarker = (index: number): boolean =>
+    /^\s*(?:\d{1,3}[.)]|\[\d{1,3}\]|[-•*‣—–])\s+/.test(rawLines[index] ?? "");
+  // Two or more marked lines mean the paste IS a list, and in a list every line
+  // that opens a citation is its own reference — including the ones whose marker
+  // the student forgot. Without this, an unmarked last line was joined to the
+  // entry above it and then dropped, so a reading list quietly lost a source.
+  const isList = rawLines.filter((_, index) => hadMarker(index)).length >= 2;
+
   for (const [index, line] of lines.entries()) {
     if (!line) {
       flush();
       continue;
     }
     const previous = current.length ? current[current.length - 1] : "";
+    // A stripped list marker starts a new reference ON ITS OWN. It used to be
+    // gated behind the previous line having finished a sentence, which made the
+    // clause unreachable — and a reading list does not punctuate its entries. So
+    // a whole list collapsed into one reference and the citation mixed facts from
+    // different authorities: one case's name with another's neutral citation.
+    // Where there is no marker, the sentence-end test still applies, which is
+    // what keeps a citation wrapped across lines by a PDF in one piece.
     const startsNew =
       current.length > 0 &&
-      closesCitation.test(previous) &&
       opensCitation.test(line) &&
-      // A list marker was already stripped, so a numbered list always splits.
-      (/^\s*(?:\d{1,3}[.)]|\[\d{1,3}\])\s+/.test(raw.split("\n")[index] ?? "") ||
-        closesCitation.test(previous));
+      (hadMarker(index) || isList || closesCitation.test(previous));
     if (startsNew) flush();
     current.push(line);
   }
   flush();
 
-  // Anything too short to be a reference is a stray fragment, not a citation.
+  // Anything too short to be a reference is a stray fragment, not a citation —
+  // and so is anything with no number in it at all. Every citation the Guide
+  // defines carries a year, a volume, a section or a paragraph, so a run of words
+  // with no digit is a heading off a reading list ("Duty of care"), not a source.
   return blocks
     .flatMap(splitAuthoritiesInOneFootnote)
-    .filter((block) => block.replace(/\W/g, "").length >= 8);
+    .map((block) => block.slice(referencePrefixLength(block)).trim())
+    .filter((block) => block.replace(/\W/g, "").length >= 8 && /\d/.test(block));
 }
 
 /**

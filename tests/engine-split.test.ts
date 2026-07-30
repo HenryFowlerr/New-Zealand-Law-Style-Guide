@@ -99,3 +99,63 @@ test("a semicolon that is not separating authorities leaves the footnote whole",
   assert.equal(splitReferences("Taylor v New Zealand Poultry Board [1984] 1 NZLR 394; at 398").length, 1);
   assert.equal(splitReferences("Evidence Act 2006, s 8; ss 9–10").length, 1);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A reading list pasted whole
+//
+// This was the worst output the tool produced. A reading list does not punctuate
+// its entries, and the list-marker rule was gated behind the previous line having
+// finished a sentence — so the whole list collapsed into ONE reference and the
+// citation mixed facts from different authorities:
+//
+//   Bowen v Paramount Builders (Hamilton) Ltd [2024] NZSC 5, [1977] 1 NZLR 394 at [5.2].
+//
+// One case's name, another's neutral citation, a third's pinpoint: a fabricated
+// authority that looks entirely plausible.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const READING_LIST = `Week 4 — Duty of care
+1. Bowen v Paramount Builders (Hamilton) Ltd [1977] 1 NZLR 394 (CA)
+2. Smith v Fonterra Co-operative Group Ltd [2024] NZSC 5, [2024] 1 NZLR 1
+3. Stephen Todd (ed) The Law of Torts in New Zealand (8th ed, Thomson Reuters, Wellington, 2019) at [5.2]
+Evidence Act 2006, ss 7-8`;
+
+test("an unpunctuated reading list is four references, not one", () => {
+  const parts = splitReferences(READING_LIST);
+  assert.equal(parts.length, 4);
+  assert.ok(parts[0].startsWith("Bowen v Paramount Builders"));
+  assert.ok(parts[1].startsWith("Smith v Fonterra"));
+  assert.ok(parts[2].startsWith("Stephen Todd"));
+  assert.equal(parts[3], "Evidence Act 2006, ss 7-8");
+});
+
+test("no reference in a list takes another's facts", () => {
+  const built = splitReferences(READING_LIST).map((text) => {
+    const type = guideTypeById[detectTypes(text, 1)[0].typeId];
+    return buildCitation(type.id, prefillFromPaste(type, text, [])).text ?? "";
+  });
+  // Bowen is a 1977 case and must carry no part of Smith's 2024 citation.
+  assert.match(built[0], /^Bowen v Paramount Builders \(Hamilton\) Ltd \[1977\] 1 NZLR 394 \(CA\)\.$/);
+  assert.ok(!built[0].includes("2024"), `Bowen took Smith's year: ${built[0]}`);
+  assert.ok(!built[0].includes("[5.2]"), `Bowen took Todd's pinpoint: ${built[0]}`);
+});
+
+test("a heading is not a reference", () => {
+  // "Week 4 — Duty of care" has a digit in it, so length alone would keep it.
+  assert.ok(!splitReferences(READING_LIST).some((p) => /Duty of care/.test(p)));
+});
+
+test("an entry whose marker the student forgot is still its own reference", () => {
+  // Two or more marked lines mean the paste IS a list. Without that, the last
+  // line here joined the entry above it and the Act was silently lost.
+  assert.ok(splitReferences(READING_LIST).includes("Evidence Act 2006, ss 7-8"));
+});
+
+test("a citation wrapped across lines by a PDF stays one reference", () => {
+  // The sentence-end test still governs where there are no markers, which is
+  // what keeps this in one piece.
+  assert.deepEqual(
+    splitReferences("Taylor v New Zealand Poultry\nBoard [1984] 1 NZLR 394\n(CA) at 398."),
+    ["Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398."],
+  );
+});
