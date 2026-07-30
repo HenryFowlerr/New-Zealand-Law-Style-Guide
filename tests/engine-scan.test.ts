@@ -1092,3 +1092,67 @@ test("Hansard pinpoints a debate by name, not only by column (5.1.1)", () => {
   assert.equal(named.pinpoint, "(Address in Reply, Steven Joyce)");
   assert.equal(named.volume, "725");
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A book with an editor rather than an author (6.1.2(g))
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("an edited book keeps its “(ed)”", () => {
+  // "If there is a named editor or general editor, use that name followed by
+  // '(ed)'" — rule 6.1.2(g), read off the published Guide. The name was landing in
+  // the author box as well, so the author form of the template won and the marker
+  // vanished: "Peter Blanchard Civil Remedies in New Zealand …".
+  for (const text of [
+    "Peter Blanchard (ed) Civil Remedies in New Zealand (2nd ed, Brookers, Wellington, 2011).",
+    "HG Beale (ed) Chitty on Contracts (32nd ed, Sweet & Maxwell, London, 2015) vol 2 at [38–033].",
+    "Stephen Todd (ed) The Law of Torts in New Zealand (8th ed, Thomson Reuters, Wellington, 2019) at [5.2].",
+  ]) {
+    assert.equal(buildCitation("text-book", prefill("text-book", text)).text, text);
+  }
+  const f = prefill("text-book", "Peter Blanchard (ed) Civil Remedies in New Zealand (2nd ed, Brookers, Wellington, 2011).");
+  assert.equal(f.editor, "Peter Blanchard");
+  // The editor's name takes the AUTHOR's place; it is not an extra field.
+  assert.ok(!f.author);
+});
+
+test("an essay's own author survives a collection's editor", () => {
+  // "in … (ed)" is the other shape: there the essay HAS an author of its own and
+  // deleting it would lose the person who wrote the thing being cited.
+  const text =
+    "Jessica Palmer “Constructive Trusts” in Andrew Butler (ed) Equity and Trusts in New Zealand (2nd ed, Thomson Reuters, Wellington, 2009) 335 at 339.";
+  const f = prefill("essay-in-edited-book", text);
+  assert.equal(f.author, "Jessica Palmer");
+  assert.equal(f.editor, "Andrew Butler");
+  assert.equal(buildCitation("essay-in-edited-book", f).text, text);
+});
+
+test("an ordinary authored book is unaffected", () => {
+  const text =
+    "Andrew Butler and Petra Butler The New Zealand Bill of Rights Act: A Commentary (2nd ed, LexisNexis, Wellington, 2015) at [3.2.1].";
+  const f = prefill("text-book", text);
+  assert.equal(f.author, "Andrew Butler and Petra Butler");
+  assert.equal(buildCitation("text-book", f).text, text);
+});
+
+test("a place of publication may carry its own bracket (6.1.8)", () => {
+  // "(8th ed, LexisNexis Butterworths, Chatswood (NSW), 2016)" — the publication
+  // parenthesis could not nest, so the whole of it went unread and the pinpoint
+  // landed in the year: "…, Chatswood (NSW), [1206]) at [1206]".
+  const text =
+    "JD Heydon and MJ Leeming Jacobs’ Law of Trusts in Australia (8th ed, LexisNexis Butterworths, Chatswood (NSW), 2016) at [1206].";
+  const f = prefill("text-book", text);
+  assert.equal(f.placeOfPublication, "Chatswood (NSW)");
+  assert.equal(f.year, "2016");
+  assert.equal(buildCitation("text-book", f).text, text);
+});
+
+test("a translator named inside the publication bracket is not the publisher", () => {
+  // Rule 7.7.1 puts it first in the same parenthesis, and it has its own
+  // component — reading it as the publisher cost the real one.
+  const text =
+    "Justinian Digest (Alan Watson (translator), University of Pennsylvania Press, Philadelphia, 1985) at 1.1.1.2.";
+  const f = prefill("historical-edited-translated-text", text);
+  assert.equal(f.editorOrTranslator, "Alan Watson (translator)");
+  assert.equal(f.publisher, "University of Pennsylvania Press");
+  assert.equal(buildCitation("historical-edited-translated-text", f).text, text);
+});

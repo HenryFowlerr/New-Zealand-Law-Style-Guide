@@ -615,7 +615,11 @@ export function refineFields(
       ? "place"
       : "";
   if (ids.has("publisher") || placeId) {
-    const pub = text.match(/\(([^()]*\b(?:1[6-9]|20)\d{2})\)/);
+    // One level of nesting is allowed inside the publication parenthesis, because
+    // a place of publication can carry its own bracket: rule 6.1.8's own example
+    // is "(8th ed, LexisNexis Butterworths, Chatswood (NSW), 2016)". Without it
+    // the whole parenthesis went unread and the pinpoint landed in the year.
+    const pub = text.match(/\(((?:[^()]|\([^()]*\))*\b(?:1[6-9]|20)\d{2})\)/);
     if (pub) {
       const parts = pub[1].split(/\s*,\s*/).map((part) => part.trim()).filter(Boolean);
       // A parenthesis holding nothing but a year — "(2016)" — gives the year
@@ -638,6 +642,13 @@ export function refineFields(
         const editionLike = /\bed\b|\breissue\b|\blooseleaf\b|\bonline\b/i;
         for (let first = true; rest.length && editionLike.test(rest[0]); first = false) {
           if (first && ids.has("edition")) set("edition", rest[0]);
+          rest = rest.slice(1);
+        }
+        // A translated or edited historical text names its editor FIRST inside
+        // the same parenthesis — rule 7.7.1's "(Alan Watson (translator),
+        // University of Pennsylvania Press, Philadelphia, 1985)" — and that part
+        // has its own component. Reading it as the publisher cost the real one.
+        if (rest.length > 1 && /\((?:ed|eds|trans|translator|translators)\)\s*$/i.test(rest[0])) {
           rest = rest.slice(1);
         }
         if (ids.has("year")) set("year", year);
@@ -823,11 +834,19 @@ export function refineFields(
     // the editor opens the reference and there is no "in" to key on. Without
     // the second form the split fell to the positional pass, which cut on the
     // first space: editor "Mathew", title "Downs".
-    const edited =
-      text.match(/\bin\s+(.+?)\s+\(eds?\)\s+(.+?)\s*[([]/) ??
-      text.match(/^(.+?)\s+\(eds?\)\s+(.+?)\s*\(/);
+    const inCollection = text.match(/\bin\s+(.+?)\s+\(eds?\)\s+(.+?)\s*[([]/);
+    const opensReference = inCollection ? null : text.match(/^(.+?)\s+\(eds?\)\s+(.+?)\s*\(/);
+    const edited = inCollection ?? opensReference;
     if (edited) {
       set("editor", edited[1]);
+      // Rule 6.1.2(g): "If there is a named editor or general editor, use that
+      // name followed by '(ed)'". Where the marker OPENS the reference there is
+      // no separate author — the editor is the only name — and leaving the
+      // author box filled as well let the author form of the template win, so
+      // "Peter Blanchard (ed) Civil Remedies in New Zealand" lost its "(ed)".
+      // A collection cited with "in … (ed)" is different: there the essay has an
+      // author of its own, and that must stay.
+      if (opensReference) delete fields.author;
       if (ids.has("bookTitle")) set("bookTitle", edited[2]);
       else if (ids.has("title")) set("title", edited[2]);
       // Positional extraction can mistake the "(ed)" marker itself for a

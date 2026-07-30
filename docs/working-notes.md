@@ -35,7 +35,7 @@ optional part disturbs nothing else).
 
 `npm run qa` runs everything. `scripts/common-law-report.ts` scores the subset a
 New Zealand essay is actually built from, which matters more than the total
-(RENDER 94/94, READ 81/84, PICK 79/84). `scripts/failure-shapes.ts` sorts whatever
+(RENDER 94/94, READ 84/84, PICK 80/84 — the first two at 100%). `scripts/failure-shapes.ts` sorts whatever
 is currently failing by the SHAPE of the defect — duplicated, truncated, refused —
 which is how the largest cluster gets found instead of the loudest example.
 
@@ -310,13 +310,9 @@ partly this repo's own fixture. Re-derive the clusters from
   space. That is faithful but hostile: a student will type "RSC" into one box and
   be told the jurisdiction is missing. A labelling problem, not a correctness
   one.
-- **A book with an editor rather than an author loses its "(ed)".** `Peter
-  Blanchard (ed) Civil Remedies in New Zealand (2nd ed, …)` under 6.1.2. Check the
-  published 6.1.2 for what the element list actually is before changing the type.
-- **A publication parenthesis with a nested bracket breaks.** `Chatswood (NSW),
-  2016) at [1206]` puts the pinpoint in the year, because the paren pattern
-  refuses to nest.
-- **Guide audit 147/150.**
+- **Guide audit 150/150.** Every citation read off the published Guide now
+  rebuilds exactly. That is the measure to watch: it is the only one whose
+  expected strings did not come from this repository.
 - **Classification 147/216.** Much weaker than domestic. The
   foreign *case* types matter most, since New Zealand common law reasons from
   English and Australian authority. Canada (8.3), Scotland (8.5) and the American

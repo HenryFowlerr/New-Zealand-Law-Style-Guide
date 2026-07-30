@@ -79,10 +79,38 @@ export function visibleComponents(type: GuideType): GuideComponent[] {
   return ordered;
 }
 
+/**
+ * A required component another may stand in for.
+ *
+ * Rule 6.1.2(g): "If there is a named editor or general editor, use that name
+ * followed by '(ed)' or, if there is more than one, '(eds)'." The editor's name
+ * takes the AUTHOR's place — it is not an extra field alongside it — so a book
+ * with an editor and no author is complete, and demanding an author refused
+ * "Peter Blanchard (ed) Civil Remedies in New Zealand (2nd ed, Brookers,
+ * Wellington, 2011)": the Guide's own illustration of the rule.
+ *
+ * Deliberately a short explicit list rather than a general "required per form"
+ * rule. That was implemented and measured and cost more than it gained — see the
+ * trap of the same name in docs/working-notes.md.
+ */
+const STANDS_IN_FOR: Record<string, Record<string, string[]>> = {
+  "text-book": { author: ["editor"] },
+};
+
+/** Is a required component satisfied, directly or by one that stands in for it? */
+function componentSatisfied(
+  type: GuideType,
+  fields: CitationFields,
+  id: string,
+): boolean {
+  if (fieldValue(fields, id)) return true;
+  return (STANDS_IN_FOR[type.id]?.[id] ?? []).some((alt) => fieldValue(fields, alt));
+}
+
 export function validate(type: GuideType, fields: CitationFields): Issue[] {
   const issues: Issue[] = [];
   for (const component of visibleComponents(type)) {
-    if (component.required && !fieldValue(fields, component.id)) {
+    if (component.required && !componentSatisfied(type, fields, component.id)) {
       issues.push({
         level: "error",
         field: component.id,
@@ -164,7 +192,7 @@ export function missingRequiredComponents(
   fields: CitationFields,
 ): GuideComponent[] {
   return visibleComponents(type).filter(
-    (component) => component.required && !fieldValue(fields, component.id),
+    (component) => component.required && !componentSatisfied(type, fields, component.id),
   );
 }
 
