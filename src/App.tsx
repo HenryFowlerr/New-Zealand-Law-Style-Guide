@@ -496,7 +496,7 @@ function App() {
             <p className="hero-intro">
               Paste a reference to check it, or build one from scratch. Every one
               of the Style Guide’s {guideTypes.length} source types, generated to
-              the letter — and never a confident guess when a fact is missing.
+              the letter, and never a confident guess when a fact is missing.
             </p>
           </div>
           <aside className="trust-card">
@@ -504,8 +504,10 @@ function App() {
             <div>
               <strong>Fail-closed by design</strong>
               <p>
-                Missing fact? You will see a question—not a confident-looking
-                guess. Nothing is generated until every required detail is in.
+                Missing a fact? You will see a question, not a confident-looking
+                guess. Every part the format requires is marked until you supply
+                it, and the finished citation is checked back against what you
+                pasted.
               </p>
             </div>
           </aside>

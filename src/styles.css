@@ -172,7 +172,9 @@ footer {
   max-width: 860px;
   margin-bottom: 30px;
   font-size: clamp(64px, 7.3vw, 112px);
-  line-height: 0.89;
+  /* Tight enough to read as one display block, but clear of the descender on
+     the "g" in "Legal", which collided with the line beneath it at 0.89. */
+  line-height: 0.99;
 }
 
 .hero-intro {
