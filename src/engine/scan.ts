@@ -181,7 +181,14 @@ const DOCKET =
 const escapeReg = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // A full date: "3 August 2004", "21 September 2010".
-const DATE = new RegExp(`\\b(\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4})\\b`, "i");
+// A full date: "3 August 2004", "21 September 2010" — or a span of days within
+// one month, which is how a weekly magazine dates an issue: rule 7.2's own
+// example is "(New Zealand, 24–30 September 2011)". Reading only the last day
+// silently moved the issue by six days.
+const DATE = new RegExp(
+  `\\b((?:\\d{1,2}\\s*[–—-]\\s*)?\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4})\\b`,
+  "i",
+);
 
 // Where a citation begins after a case name: a bracketed year, a court/report
 // abbreviation immediately followed by a number ("NZSC 55", "CA339"), or a

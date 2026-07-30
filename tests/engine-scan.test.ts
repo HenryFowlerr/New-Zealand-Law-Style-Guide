@@ -1046,3 +1046,30 @@ test("the year of a PCIJ decision keeps its round brackets (10.2.1)", () => {
     assert.equal(buildCitation("icj-pcij-decision", prefill("icj-pcij-decision", text)).text, text);
   }
 });
+
+test("a magazine issue dated across days keeps both of them (7.2)", () => {
+  // Rule 7.2's own example is "(New Zealand, 24–30 September 2011)". Reading only
+  // the last day silently moved the issue by six days.
+  const text =
+    "Ruth Laugesen “Charge of the emissions brigade” New Zealand Listener (New Zealand, 24–30 September 2011) at 24.";
+  const f = prefill("newspaper-magazine-article", text);
+  assert.equal(f.date, "24–30 September 2011");
+  assert.equal(buildCitation("newspaper-magazine-article", f).text, text);
+  // A single date is unaffected.
+  const single = text.replace("24–30 September", "30 September");
+  assert.equal(
+    buildCitation("newspaper-magazine-article", prefill("newspaper-magazine-article", single)).text,
+    single,
+  );
+});
+
+test("a keyboard apostrophe becomes the one the Guide prints", () => {
+  // normalizeQuotes converts "'" to "’", which is right — a student types the
+  // first and the citation must print the second. Two ingested examples carried
+  // the straight form and made that correct behaviour look like a defect.
+  const text = "McCallum v The Māori Trustee – Estate of Ngapiki Waaka Hakaraia [2017] Chief Judge's MB 144 (2017 CJ 144).";
+  assert.equal(
+    buildCitation("maori-land-court", prefill("maori-land-court", text)).text,
+    "McCallum v The Māori Trustee – Estate of Ngapiki Waaka Hakaraia [2017] Chief Judge’s MB 144 (2017 CJ 144).",
+  );
+});
