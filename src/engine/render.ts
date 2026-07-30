@@ -119,20 +119,63 @@ function cleanLiteral(text: string): string {
 export function chooseForm(
   template: string,
   values: Record<string, ComponentValue>,
+  /** Which components the type marks required, so an empty one weighs properly. */
+  required: Set<string> = new Set(),
 ): string {
   const forms = templateForms(template);
   if (forms.length === 1) return forms[0];
   const filled = new Set(
     Object.keys(values).filter((id) => valueText(values[id]).trim() !== ""),
   );
+  // Every supplied value's text, for judging what a form's literals claim.
+  const supplied = Object.values(values).map(valueText).join(" ").toLowerCase();
+
+  const slotsOf = (form: string) => [
+    ...new Set([...form.matchAll(/\{([^}]+)\}/g)].map((m) => m[1])),
+  ];
+  // A slot only ONE form has. Filling one is a deliberate choice of that form.
+  const exclusive = forms.map((form, index) => {
+    const others = new Set(forms.filter((_, i) => i !== index).flatMap(slotsOf));
+    return slotsOf(form).filter((id) => !others.has(id));
+  });
+
   let best = forms[0];
   let bestScore = -Infinity;
-  for (const form of forms) {
-    const slots = [...new Set([...form.matchAll(/\{([^}]+)\}/g)].map((m) => m[1]))];
+  for (const [index, form] of forms.entries()) {
+    const slots = slotsOf(form);
     const used = slots.filter((id) => filled.has(id)).length;
-    const empty = slots.length - used;
+    const empty = slots.filter((id) => !filled.has(id)).length;
+    // A value the user supplied that this form has NO SLOT FOR is the strongest
+    // evidence against it — they typed it because the citation needs it. Rule
+    // 10.6.2's fuller form names the BISD supplement, and a reader who filled that
+    // in must not be given the form that silently drops it.
     const unused = [...filled].filter((id) => !slots.includes(id)).length;
-    const score = used * 2 - empty - unused;
+    // A form's literal text can be a CLAIM about the source. Rule 9.3.1's second
+    // form is one slot followed by "pt 1 of the Constitution Act 1982, being sch B
+    // to the Canada Act 1982 (UK)" — narrow enough to win on arithmetic, and
+    // picking it turns a student's "Crimes Act" into the Canadian Charter.
+    //
+    // Only a NAMED thing counts, which is why the test is a capital letter rather
+    // than length: "Constitution", "Canada", "Transcript", "eBook", "Gazette" name
+    // something the source would have to be. The lowercase connective a template
+    // supplies — "paper presented to", "being", "as cited in" — asserts nothing
+    // about the source and must not be penalised, or rule 6.7.2's conference paper
+    // loses its own form.
+    // Waived where the reader has filled a slot only THIS form has. Rule 10.6.2's
+    // fuller form names "GATT BISD", which is an assertion — but someone who
+    // entered the BISD supplement or its page has chosen that form, and dropping
+    // to the shorter one silently discards what they typed.
+    const evidenced = exclusive[index].some((id) => filled.has(id));
+    const asserted = evidenced
+      ? 0
+      : (form.replace(/\*|\{[^}]+\}/g, " ").match(/[A-Za-z]{4,}/g) ?? [])
+          .filter((word) => /\p{Lu}/u.test(word))
+          .map((word) => word.toLowerCase())
+          .filter((word) => !supplied.includes(word)).length;
+    // A value with nowhere to go outweighs an assertion, because the reader put it
+    // there on purpose: rule 10.6.2's fuller form names "GATT BISD" — an assertion
+    // — but a reader who filled in the BISD supplement plainly wants that form.
+    const score = used * 2 - empty - 10 * unused - 8 * asserted;
     if (score > bestScore) {
       bestScore = score;
       best = form;

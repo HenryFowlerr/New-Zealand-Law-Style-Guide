@@ -107,3 +107,57 @@ test("italics follow the Guide: case names, books, reports, mastheads", () => {
   });
   assert.ok(!statute.html.includes("<em>"), `statute must not italicise: ${statute.html}`);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Choosing between a rule's alternate forms
+//
+// Choosing the wrong one is a WRONG CITATION, not a cosmetic slip: rule 9.3.1's
+// second form is one slot followed by "pt 1 of the Constitution Act 1982, being
+// sch B to the Canada Act 1982 (UK)".
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a narrow form does not win on arithmetic and assert what nobody typed", () => {
+  // One field filled is what a student stares at before they have typed anything.
+  const built = buildCitation("canada-statute", { shortTitle: "Crimes Act" });
+  assert.ok(
+    !/Constitution|Canada Act/.test(built.text ?? ""),
+    `"Crimes Act" became the Canadian Charter: ${built.text}`,
+  );
+});
+
+test("a form the reader has evidenced is kept, assertions and all", () => {
+  // Rule 10.6.2's fuller form names "GATT BISD" — an assertion — but someone who
+  // entered the BISD supplement has chosen that form, and dropping to the shorter
+  // one silently discards what they typed.
+  const built = buildCitation("gatt-document", {
+    title: "United States – Denial of Most-Favoured-Nation Treatment",
+    supplement: "39th Supp",
+    page: "128",
+    gattDocumentNumber: "DS18/R",
+    date: "10 June 1992",
+    description: "Report by the Panel",
+  });
+  assert.match(built.text ?? "", /39th Supp GATT BISD 128/);
+  // And with only one half of it, the other is still not thrown away.
+  const halfOnly = buildCitation("gatt-document", {
+    title: "United States – Denial of Most-Favoured-Nation Treatment",
+    page: "128",
+    gattDocumentNumber: "DS18/R",
+    date: "10 June 1992",
+    description: "Report by the Panel",
+  });
+  assert.match(halfOnly.text ?? "", /128/);
+});
+
+test("a template's lowercase connective is not treated as an assertion", () => {
+  // "paper presented to" is boilerplate the Guide supplies, not a claim about the
+  // source. Penalising it cost rule 6.7.2 its own form.
+  const built = buildCitation("conference-paper-seminar", {
+    speaker: "Tracey Epps",
+    title: "Merchants in the Temple?",
+    conference: "National Health Law Conference",
+    location: "Toronto",
+    date: "January 2004",
+  });
+  assert.match(built.text ?? "", /paper presented to National Health Law Conference, Toronto/);
+});
