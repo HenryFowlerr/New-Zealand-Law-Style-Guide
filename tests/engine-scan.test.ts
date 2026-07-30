@@ -600,3 +600,84 @@ test("a Gazette notice reads its issue, publication and page apart (5.2.4)", () 
   assert.equal(f.pinpoint, "381");
   assert.equal(buildCitation("nz-gazette", f).text, text);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pinpoints a student actually writes
+//
+// Rule 3.2.8: "ranges with en dash no spaces; multiples separated by commas with
+// final 'and'". Reading only the first atom halved a pin cite and pointed the
+// reader at the wrong paragraph, while looking entirely correct.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a pinpoint range survives, and takes the en dash the rule requires", () => {
+  const f = prefill(
+    "reported-case-nz",
+    "Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at [12]-[15]",
+  );
+  assert.equal(f.pinpoint, "[12]–[15]"); // typed with a hyphen, written with an en dash
+  const g = prefill("reported-case-nz", "Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398 - 401");
+  assert.equal(g.pinpoint, "398–401");
+});
+
+test("a list of pinpoints survives, including the final 'and'", () => {
+  const f = prefill(
+    "reported-case-nz",
+    "Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398, 401 and 405",
+  );
+  assert.equal(f.pinpoint, "398, 401 and 405");
+});
+
+test("a hyphen INSIDE a bracketed locator is left alone", () => {
+  // "[3-85]" is one paragraph number in Arlidge, Eady & Smith on Contempt, not
+  // the range 3 to 85. Rewriting its hyphen turned a correct citation wrong.
+  const text =
+    "Patricia Londono, David Eady and ATH Smith Arlidge, Eady & Smith on Contempt (5th ed, Sweet & Maxwell, London, 2017) at [3-85].";
+  assert.equal(prefill("text-book", text).pinpoint, "[3-85]");
+});
+
+test("a multi-part pinpoint is not truncated to its first two digits", () => {
+  // Was "1.1" for Justinian's Digest, and "71" for a page written "71,716".
+  assert.equal(
+    prefill(
+      "historical-edited-translated-text",
+      "Justinian Digest (Alan Watson (translator), University of Pennsylvania Press, Philadelphia, 1985) at 1.1.1.2.",
+    ).pinpoint,
+    "1.1.1.2",
+  );
+  assert.equal(
+    prefill(
+      "australia-case",
+      "Transfield Constructions Pty Ltd v GIO Australia Holdings Pty Ltd (1996) 9 ANZ Insurance Cases ¶61-336 (NSWCA) at 71,716.",
+    ).pinpoint,
+    "71,716",
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A journal whose name is written out
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a journal name with an ampersand and lowercase words is read (6.4)", () => {
+  // Both of these refused outright: the series pattern required every word
+  // capitalised and letters only, so the journal and the starting page stayed
+  // empty and no citation was produced at all.
+  const text =
+    "Ben Mathews and Kerryann Walsh “At the Cutting Edge: Issues in Mandatory Reporting of Child Sexual Abuse by Australian Teachers” (2004) 9(2) Australia & New Zealand Journal of Law & Education 3.";
+  const f = prefill("journal-article", text);
+  assert.equal(f.volume, "9(2)"); // rule 6.4 puts the issue in brackets after the volume
+  assert.equal(f.journalAbbrev, "Australia & New Zealand Journal of Law & Education");
+  assert.equal(f.startingPage, "3");
+  assert.equal(buildCitation("journal-article", f).text, text);
+
+  const short = "Kent Greenawalt “Moral and Religious Convictions as Categories for Special Treatment: The Exemption Strategy” (2007) 48 Wm & Mary L Rev 1605.";
+  assert.equal(buildCitation("journal-article", prefill("journal-article", short)).text, short);
+});
+
+test("the looser journal pattern never reaches a case", () => {
+  // It is gated on a quoted title. Without that gate an ampersand and a
+  // lowercase "of" would let a report series swallow a party name.
+  const text = "Dollars & Sense Finance Ltd v Nathan [2008] NZSC 20, [2008] 2 NZLR 557 at [4].";
+  const f = prefill("reported-case-nz", text);
+  assert.equal(f.caseName, "Dollars & Sense Finance Ltd v Nathan");
+  assert.equal(f.reportSeries, "NZLR");
+});

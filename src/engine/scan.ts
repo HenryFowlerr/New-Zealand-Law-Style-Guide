@@ -78,22 +78,63 @@ const DATED_LOCUS = new RegExp(
   "i",
 );
 
+// A journal locus: (year) volume SERIES page, where the series is the journal's
+// name written out rather than an abbreviation. Rule 6.4's own examples include
+// "Australia & New Zealand Journal of Law & Education" and "Wm & Mary L Rev", so
+// the name may carry an ampersand and the lowercase words that join a title. The
+// volume may carry an issue number in brackets: "9(2)".
+//
+// Used only where a quoted title marks the source as an article. Loosening the
+// general series pattern this far would let a case name be read as a report
+// series.
+const JOURNAL_WORD = "[A-Z][A-Za-z.'’]*|&|of|and|the|for|in|on|und|der|du|de|la|le";
+const JOURNAL_LOCUS = new RegExp(
+  `([[(]\\d{4}[\\])])\\s+(\\d+(?:\\(\\d+\\))?)\\s+((?:${JOURNAL_WORD})(?:\\s+(?:${JOURNAL_WORD}))*)\\s+(\\d+)\\b`,
+);
+
 // The same locus without a volume number — "[1932] AC 562". Restricted to named
 // law report series so a case name can never be mistaken for a series.
 const REPORT_SERIES_NO_VOLUME =
   /([[(]\d{4}[\])])\s+(AC|QB|KB|Ch|WLR|All ER|ER|App Cas|NZLR|CLR|SLT|SC|DLR|SCR|Fam|P|Lloyd's Rep)\s+(\d+)/;
 
 // A pinpoint introduced by "at". Beyond a plain page or paragraph — "at [26]",
-// "at 165", "at 9.60", "at 12–14" — the Guide's own examples attach a footnote
-// ("at 189, n 92"), a chapter ("at ch 1") and bracketed locators that are not
-// purely numeric ("at [ED1.01(2)]", "at [38–033]"). Requiring digits alone
-// silently dropped the footnote from Burrows on Restitution.
+// "at 165", "at 9.60" — the Guide's own examples attach a footnote ("at 189,
+// n 92"), a chapter ("at ch 1") and bracketed locators that are not purely
+// numeric ("at [ED1.01(2)]", "at [38–033]").
+//
+// Rule 3.2.8 also allows a RANGE and a LIST: "ranges with en dash no spaces;
+// multiples separated by commas with final 'and'". Reading only the first atom
+// silently halved a student's pin cite — "at [12]–[15]" came back as "at [12]",
+// which points at the wrong paragraph and looks entirely correct. A range typed
+// with a hyphen is read too, because that is what a keyboard offers, and written
+// back with the en dash the rule requires.
+//
 // Case-insensitive because a case list copied out of a database arrives in
-// capitals \u2014 "TAYLOR V NEW ZEALAND POULTRY BOARD [1984] 1 NZLR 394 (CA) AT 398"
-// \u2014 and a lowercase-only "at" left the pinpoint unrecognised. It was then
+// capitals — "TAYLOR V NEW ZEALAND POULTRY BOARD [1984] 1 NZLR 394 (CA) AT 398"
+// — and a lowercase-only "at" left the pinpoint unrecognised. It was then
 // dropped silently, which is the one outcome this tool must never produce.
-const PINPOINT_AT =
-  /\bat\s+(\[[\dA-Za-z.()\u2013\u2014-]+\]|ch\s+\d+|\d+(?:[-\u2013]\d+)?(?:\.\d+)?(?:,\s*n\s*\d+)?)/i;
+const PIN_ATOM = "\\[[^\\]]+\\]|ch\\s+\\d+|\\d+(?:\\.\\d+)*[a-z]?";
+const PIN_RANGE = `(?:${PIN_ATOM})(?:\\s*[-–—]\\s*(?:${PIN_ATOM}))?`;
+const PINPOINT_AT = new RegExp(
+  `\\bat\\s+(${PIN_RANGE}(?:\\s*(?:,\\s*and\\s+|,\\s*|\\s+and\\s+)${PIN_RANGE})*(?:\\s*,\\s*n\\s*\\d+)?)`,
+  "i",
+);
+
+/**
+ * Write a pinpoint range with the en dash rule 3.2.8 requires, and no spaces
+ * around it. Only a dash BETWEEN two whole pinpoint atoms is touched, so a
+ * bracketed locator carrying a hyphen of its own — "[38–033]", "[61-336]" — is
+ * left exactly as it was given.
+ */
+function normalisePinpointRange(value: string): string {
+  // Only a value that is ENTIRELY one atom, a dash, and one atom. Matching a
+  // dash anywhere would reach inside a bracketed locator: "[3-85]" is a single
+  // paragraph number in Arlidge, Eady & Smith on Contempt, not the range 3 to 85,
+  // and rewriting its hyphen changed a correct citation into a wrong one.
+  const pureRange = new RegExp(`^(${PIN_ATOM})\\s*[-–—]\\s*(${PIN_ATOM})$`, "i");
+  const match = value.trim().match(pureRange);
+  return match ? `${match[1]}–${match[2]}` : value;
+}
 
 // A legislation pinpoint: a trailing division reference — "s 8", "ss 3–5",
 // "sch 2", "pt 1", "art 5", "reg 4", "cl 2" — usually after a comma.
@@ -174,9 +215,28 @@ export function scanAnchors(text: string): Anchor[] {
       page: reporter[4],
     });
   } else if (hasQuote) {
+    // A journal spells its name out, and the strict series pattern above cannot
+    // read one: it requires every word capitalised and letters only, so
+    // "Australia & New Zealand Journal of Law & Education" and "Wm & Mary L Rev"
+    // both failed, leaving the journal and the starting page empty and the
+    // citation refused outright. Rule 6.4 also allows the issue number in round
+    // brackets after the volume where the journal is not sequentially paginated —
+    // "(2004) 9(2) …" — which is one value in the volume box.
+    //
+    // Only attempted where the paste has a quoted title, so a case can never
+    // reach it: an ampersand and a lowercase "of" in a report series would let
+    // this swallow a party name.
+    const journal = text.match(JOURNAL_LOCUS);
+    if (journal) {
+      push("reporter", journal, {
+        year: journal[1],
+        volume: journal[2],
+        series: journal[3].trim(),
+        page: journal[4],
+      });
+    }
     // A year-as-volume journal has no volume number: "(2014) NZ Law Review 547".
-    // Only attempted for a quoted-title source, so a case can never match it.
-    const noVol = text.match(
+    const noVol = journal ? null : text.match(
       /([[(]\d{4}[\])])\s+([A-Z][A-Za-z][A-Za-z.&]*(?:\s+[A-Za-z.&]+){0,3}?)\s+(\d+)\b/,
     );
     if (noVol) {
@@ -233,7 +293,7 @@ export function scanAnchors(text: string): Anchor[] {
   }
 
   const pinpoint = text.match(PINPOINT_AT);
-  if (pinpoint) push("pinpoint", pinpoint, { value: pinpoint[1] });
+  if (pinpoint) push("pinpoint", pinpoint, { value: normalisePinpointRange(pinpoint[1]) });
   else {
     const div = text.match(PINPOINT_DIV);
     if (div) push("pinpoint", div, { value: div[1].trim() });
