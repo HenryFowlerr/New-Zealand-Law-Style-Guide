@@ -6862,7 +6862,7 @@
       "group": "International & foreign",
       "rule": "10.2.1",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.10.2.html#10.2.1",
-      "outputTemplate": "*{caseName}* (*{parties}*) (*{phase}*) [{year}] {volume} {publication} {pageOrCaseNumber} at {pinpoint}",
+      "outputTemplate": "*{caseName}* (*{parties}*) (*{phase}*) {year} {volume} {publication} {pageOrCaseNumber} at {pinpoint}",
       "components": [
         {
           "id": "caseName",
@@ -6957,7 +6957,7 @@
           "separatorBefore": "",
           "includedWhen": "present in the citation template",
           "omittedWhen": "may be omitted",
-          "formatting": "",
+          "formatting": "square brackets [1986] for a year-organised report (ICJ Rep); round brackets (1928) otherwise (PCIJ) — give the brackets as the report prints them",
           "notes": "added to complete the form (template placeholder had no component)"
         },
         {

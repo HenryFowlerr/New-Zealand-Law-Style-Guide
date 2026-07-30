@@ -1278,7 +1278,8 @@ export const FIELD_TRUTH: FieldTruth[] = [
       caseName: "Military and Paramilitary Activities in and against Nicaragua",
       parties: "Nicaragua v United States of America",
       phase: "Merits",
-      year: "1986",
+      // Square brackets: ICJ Rep is organised by year (rule 10.2.1).
+      year: "[1986]",
       publication: "ICJ Rep",
       pageOrCaseNumber: "14",
       pinpoint: "55",
@@ -1291,7 +1292,7 @@ export const FIELD_TRUTH: FieldTruth[] = [
     fields: {
       caseName: "Gabčikovo-Nagymaros Project",
       parties: "Hungary v Slovakia",
-      year: "1997",
+      year: "[1997]",
       publication: "ICJ Rep",
       pageOrCaseNumber: "7",
     },
@@ -1302,7 +1303,7 @@ export const FIELD_TRUTH: FieldTruth[] = [
     fields: {
       caseName: "Competence of General Assembly Regarding Admission to the United Nations",
       phase: "Advisory Opinion",
-      year: "1950",
+      year: "[1950]",
       publication: "ICJ Rep",
       pageOrCaseNumber: "4",
     },

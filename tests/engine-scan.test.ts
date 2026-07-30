@@ -1001,3 +1001,48 @@ test("a Canadian statute's volume and jurisdiction are one token (9.3.1)", () =>
     assert.equal(buildCitation("canada-statute", f).text, text);
   }
 });
+
+test("an American locus has no year in front of it (8.6.2, 8.6.3)", () => {
+  // Every other locus pattern expects a bracketed year FIRST, so none matched an
+  // American case and the case name swallowed the entire citation, leaving the
+  // required court box empty. Four citations produced nothing at all.
+  const cases: [string, string][] = [
+    ["us-federal-case", "Dow Jones & Co v Board of Trade 546 F Supp 114 (SD NY 1982) at 117."],
+    ["us-federal-case", "Rockford Map Publishing Inc v Directory Service Co 768 F 2d 145 (7th Cir 1986) at 151."],
+    ["us-federal-case", "United States v Palmer 16 US 610 (1818) at 631."],
+    ["us-state-case", "Gregory v Carey 791 P 2d 1329 (Kan 1990) at 1336."],
+    ["us-state-case", "Elisabeth N v Riverside Group Inc 585 So 2d 376 (Fla Dist Ct App 1991) at 378–381."],
+    ["us-state-case", "Dale v Boy Scouts of America 734 A 2d 1196 (NJ 1999) at 1200."],
+  ];
+  for (const [typeId, text] of cases) {
+    assert.equal(buildCitation(typeId, prefill(typeId, text)).text, text);
+  }
+  const f = prefill("us-state-case", "Gregory v Carey 791 P 2d 1329 (Kan 1990) at 1336.");
+  assert.equal(f.caseName, "Gregory v Carey");
+  assert.equal(f.reportSeries, "P 2d");
+  assert.equal(f.stateCourtAndYear, "Kan 1990");
+});
+
+test("an ICJ decision's publication sits between the year and the page (10.2.1)", () => {
+  // The whole run landed in the page box, so the required publication was empty.
+  const f = prefill(
+    "icj-pcij-decision",
+    "Military and Paramilitary Activities in and against Nicaragua (Nicaragua v United States of America) (Merits) [1986] ICJ Rep 14 at 55.",
+  );
+  assert.equal(f.publication, "ICJ Rep");
+  assert.equal(f.pageOrCaseNumber, "14");
+  assert.equal(f.year, "[1986]");
+});
+
+test("the year of a PCIJ decision keeps its round brackets (10.2.1)", () => {
+  // The Guide prints ICJ with square brackets and PCIJ with round, both under the
+  // same rule, and the template hard-coded square — so the PCIJ example came out
+  // "[(1928)]". The bracket style IS the information, so it lives in the value,
+  // as it already does under rules 8.5 and 10.5.3.
+  for (const text of [
+    "Factory at Chorzów (Germany v Poland) (Merits) (1928) PCIJ (series A) No 13 at 47.",
+    "Gabčikovo-Nagymaros Project (Hungary v Slovakia) [1997] ICJ Rep 7.",
+  ]) {
+    assert.equal(buildCitation("icj-pcij-decision", prefill("icj-pcij-decision", text)).text, text);
+  }
+});

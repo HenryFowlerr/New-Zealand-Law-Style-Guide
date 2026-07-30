@@ -165,6 +165,14 @@ const EDITION =
 const YEAR_FIRST =
   /\b((?:1[6-9]|20)\d{2})\s+([A-Z]{2,}[A-Za-z]*(?:\s+[A-Z][A-Za-z]{1,11})?)\s+(\d+)\b/;
 
+// An American law report locus: volume, series, page, then the court and year in
+// brackets — "546 F Supp 114 (SD NY 1982)", "791 P 2d 1329 (Kan 1990)", "16 US
+// 610 (1818)". The series may carry an edition ("F 2d", "So 2d") or a word
+// ("Supp", "App"), and unlike every other locus in the Guide there is no year in
+// front of it.
+const US_LOCUS =
+  /\b(\d{1,4})\s+([A-Z][A-Za-z.]*(?:\s+(?:\d+[a-z]|Supp|App|Ct|Rptr|Cas))*)\s+(\d{1,5})\s+\(([^()]*\b(?:1[6-9]|20)\d{2})\)/;
+
 // A court file / docket number: "CA339/03", "CRI-2007-020-2820",
 // "CIV-2007-409-2659", "CIV 7/2004", "AA506/10".
 const DOCKET =
@@ -184,6 +192,8 @@ const CITE_START = new RegExp(
     "\\[\\d{4}\\]|\\(\\d{4}\\)|" + // a bracketed year
     "(?:1[6-9]|20)\\d{2}\\s+[A-Z]{2,}|" + // an unbracketed year leading a citation
     "[A-Z]{2,}\\d|[A-Z]{2,}\\s+\\d|" + // a court/report abbreviation + number
+    "\\d{1,4}\\s+[A-Z][A-Za-z.]*(?:\\s+(?:\\d+[a-z]|Supp|App|Ct))*\\s+\\d{1,5}\\s+\\(|" + // an American locus
+
     "(?:HC|CA|SC|DC|FC|ERA|EmpC|CoA|PC)\\b|" + // an unreported-case court token
     "Transcript\\b|" + // a Supreme Court transcript designator
     "[A-Z]{2,4}[\\s-]?\\d+(?:[-/]\\d+)+|" + // a docket / file number
@@ -677,6 +687,41 @@ export function refineFields(
     if (book) {
       set("minuteBookReference", book[1]);
       if (ids.has("citation")) set("citation", book[2]);
+    }
+  }
+
+  // An American case gives its locus with no year in front — "546 F Supp 114 (SD
+  // NY 1982)", "791 P 2d 1329 (Kan 1990)" — and the court and year together in
+  // the brackets that follow (rules 8.6.2 and 8.6.3). Every other locus pattern
+  // here expects a bracketed year FIRST, so nothing matched and the case name
+  // swallowed the entire citation, leaving the required court box empty.
+  if (ids.has("courtAndYear") || ids.has("stateCourtAndYear")) {
+    const locus = text.match(US_LOCUS);
+    if (locus && locus.index != null) {
+      set("volume", locus[1]);
+      set("reportSeries", locus[2].trim());
+      set("startingPage", locus[3]);
+      if (ids.has("courtAndYear")) set("courtAndYear", locus[4].trim());
+      else set("stateCourtAndYear", locus[4].trim());
+      if (ids.has("caseName")) {
+        const name = text.slice(0, locus.index).trim();
+        if (name) set("caseName", name);
+      }
+    }
+  }
+
+  // A decision of the ICJ or the PCIJ names the publication between the year and
+  // the page: "[1986] ICJ Rep 14", "(1928) PCIJ (series A) No 13" (rule 10.2.1).
+  // The whole run was landing in the page box, so the required publication was
+  // empty and the citation refused.
+  if (ids.has("publication") && ids.has("pageOrCaseNumber")) {
+    const report = text.match(
+      /([[(]\d{4}[\])])\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*(?:\s+\([^()]+\))?)\s+((?:No\s+)?\d+)\b/,
+    );
+    if (report) {
+      if (ids.has("year")) set("year", report[1]);
+      set("publication", report[2].trim());
+      set("pageOrCaseNumber", report[3].trim());
     }
   }
 
