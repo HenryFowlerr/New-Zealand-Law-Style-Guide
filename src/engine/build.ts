@@ -29,7 +29,7 @@ import {
   reconcileAgainstSource,
 } from "./scan";
 import { fieldShapeViolations } from "./shapes";
-import { applyGuideRules } from "./rules";
+import { applyGuideRules, normaliseForComparison } from "./rules";
 
 export type CitationFields = Record<string, string>;
 
@@ -367,7 +367,8 @@ export function detectionCandidates(
     let refit = 0;
     const built = buildCitation(type.id, fields);
     if (built.status === "ready") {
-      const stripPin = (s: string) => normalise(s).replace(/\s+at\s+\S+$/, "");
+      const stripPin = (s: string) =>
+        normaliseForComparison(normalise(s)).replace(/\s+at\s+\S+$/, "");
       const b = stripPin(built.text);
       const t = stripPin(trimmed);
       if (b === t) refit = 1;

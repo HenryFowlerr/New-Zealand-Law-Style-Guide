@@ -881,3 +881,67 @@ test("a hyphen that is not a range is left exactly as given", () => {
     /Adams on Criminal Law - Evidence/,
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rule 3.2.1 corrects the case name, it does not just describe it
+//
+// "only cite the first plaintiff/appellant and the first defendant/respondent
+// (do not use '& Anor' or '& Ors' or other similar phrases)" and "Shorten
+// procedural phrases such as 'In re' and 'In the matter of' to 'Re'." — read off
+// the published rule. A student copies the name as printed, which is what the
+// same rule tells them to do for everything else.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("extra parties are dropped from a case name (3.2.1)", () => {
+  const cases: [string, string][] = [
+    ["R v Smith & Anor [2019] NZHC 1234 at [22].", "R v Smith [2019] NZHC 1234 at [22]."],
+    ["Smith v Jones and Others [2019] NZHC 1234.", "Smith v Jones [2019] NZHC 1234."],
+    [
+      "Body Corporate 202254 v Taylor & Ors [2008] NZCA 317, [2009] 2 NZLR 17 at [76(c)].",
+      "Body Corporate 202254 v Taylor [2008] NZCA 317, [2009] 2 NZLR 17 at [76(c)].",
+    ],
+  ];
+  for (const [input, want] of cases) {
+    const top = detectTypes(input, 1)[0];
+    assert.equal(
+      buildCitation(top.typeId, prefillFromPaste(guideTypeById[top.typeId], input, [])).text,
+      want,
+    );
+  }
+});
+
+test("a procedural phrase is shortened to “Re” (3.2.1)", () => {
+  for (const input of ["In re Pettit [1988] 2 NZLR 513 (HC).", "In the matter of Pettit [1988] 2 NZLR 513 (HC)."]) {
+    const top = detectTypes(input, 1)[0];
+    assert.equal(
+      buildCitation(top.typeId, prefillFromPaste(guideTypeById[top.typeId], input, [])).text,
+      "Re Pettit [1988] 2 NZLR 513 (HC).",
+    );
+  }
+  // A name that is already correct is untouched, "ex parte" included — the same
+  // rule says not to abbreviate that one.
+  const already = "Re Paterson, ex parte Kingston [1997] 1 NZLR 371 (HC).";
+  const top = detectTypes(already, 1)[0];
+  assert.equal(buildCitation(top.typeId, prefillFromPaste(guideTypeById[top.typeId], already, [])).text, already);
+});
+
+test("a correction the Guide requires is explained, not made silently", () => {
+  const built = buildCitation("reported-case-nz", {
+    caseName: "Body Corporate 202254 v Taylor & Ors",
+    year: "[2009]",
+    volume: "2",
+    reportSeries: "NZLR",
+    startingPage: "17",
+  });
+  assert.ok(
+    built.issues.some((i) => i.field === "caseName" && /3\.2\.1/.test(i.message)),
+    `no note explaining the change: ${JSON.stringify(built.issues)}`,
+  );
+});
+
+test("a type must not be marked down for making the Guide's own correction", () => {
+  // Detection scores partly on reproducing the paste, so dropping "& Anor" made
+  // the CORRECT type look like a worse reconstruction — and two ordinary neutral
+  // citations stopped producing anything at all.
+  assert.equal(detectTypes("R v Smith & Anor [2019] NZHC 1234 at [22].", 1)[0].typeId, "neutral-citation-case-nz");
+});
