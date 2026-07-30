@@ -1406,7 +1406,12 @@ const JURISDICTION_MARKERS: { jurisdiction: string; pattern: RegExp }[] = [
   {
     jurisdiction: "nz",
     pattern:
-      /\bNZ(LR|SC|CA|HC|DC|FC|ERA|EnvC|AR|FLR|BLC|RMA|CC|PD|LC|Gaz)\b|\bNew Zealand\b|\bAotearoa\b|\bWaitangi\b|\bNZPD\b/,
+      // A bracketed "(NZ)" is a jurisdiction tag a student carries over from
+      // Australian or English style. Rule 4.1.1 gives a New Zealand Act no tag at
+      // all, so it is not a form the Guide uses — but it does say plainly which
+      // country the reference belongs to, and without reading it "Evidence Act
+      // 2006 (NZ), s 8" was offered as an AUSTRALIAN statute.
+      /\bNZ(LR|SC|CA|HC|DC|FC|ERA|EnvC|AR|FLR|BLC|RMA|CC|PD|LC|Gaz)\b|\bNew Zealand\b|\bAotearoa\b|\bWaitangi\b|\bNZPD\b|\(NZ\)/,
   },
   {
     jurisdiction: "uk",

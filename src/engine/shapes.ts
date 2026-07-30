@@ -119,6 +119,19 @@ export function fieldShapeViolations(
       violations++;
     }
     if (
+      id === "jurisdiction" &&
+      /^(australia|canada|uk|us)-/.test(type.id) &&
+      /^\(?NZ\)?$/i.test(value)
+    ) {
+      // A foreign statute names ITS OWN jurisdiction in brackets — "(NSW)",
+      // "(UK)", "(Cth)". "NZ" is one thing it can never be, and a student who
+      // writes "Evidence Act 2006 (NZ), s 8" (a habit carried over from
+      // Australian style; rule 4.1.1 gives a New Zealand Act no tag at all) had
+      // their Act offered as an AUSTRALIAN statute — because that format
+      // reproduces the tag exactly and the correct one has to drop it.
+      violations++;
+    }
+    if (
       id === "caseName" &&
       PARTY_STYLE_CASE_TYPES.has(type.id) &&
       !PARTY_STYLE.test(value)

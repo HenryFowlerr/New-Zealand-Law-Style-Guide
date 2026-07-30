@@ -780,3 +780,59 @@ test("a type whose form asserts nothing is not penalised for it", () => {
     "canada-statute fell out of the visible list",
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Noise a reference picks up on its way into the box
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a retrieval date is not part of a citation under this Guide", () => {
+  // Not one of the Guide's 216 worked examples contains one. It did more than
+  // add an unwanted phrase: the trailing bracket changed the shape the detector
+  // keys on, so a perfectly good neutral citation was read as a REPORTED case and
+  // then refused for want of a report series. The student got nothing.
+  const want = "Attorney-General v X [2007] NZCA 388 at [70].";
+  for (const tail of [
+    " (accessed 4 May 2025)",
+    " [Retrieved 4 May 2025]",
+    " (last visited 4 May 2025).",
+    " (last accessed 4 May 2025)",
+  ]) {
+    const text = "Attorney-General v X [2007] NZCA 388 at [70]" + tail;
+    const top = detectTypes(text, 1)[0];
+    assert.equal(top.typeId, "neutral-citation-case-nz", `tail ${JSON.stringify(tail)}`);
+    assert.equal(
+      buildCitation(top.typeId, prefillFromPaste(guideTypeById[top.typeId], text, [])).text,
+      want,
+    );
+  }
+});
+
+test("a parenthesis a citation legitimately ends with is left alone", () => {
+  for (const text of [
+    "Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398.",
+    "Supplementary Order Paper 2006 (79) Evidence Bill 2005 (256-1) (explanatory note) at 3.",
+    "Halsbury’s Laws of England (5th ed, 2012, online ed) vol 22 Contract at [231].",
+  ]) {
+    const top = detectTypes(text, 1)[0];
+    assert.equal(
+      buildCitation(top.typeId, prefillFromPaste(guideTypeById[top.typeId], text, [])).text,
+      text,
+    );
+  }
+});
+
+test("a New Zealand Act tagged “(NZ)” is not offered as an Australian one", () => {
+  // Rule 4.1.1 gives a New Zealand Act no jurisdiction tag, so the correct format
+  // has to DROP what the student typed — and the Australian format, which
+  // reproduces it exactly, scored better for doing so. A foreign statute's
+  // jurisdiction can never be "NZ".
+  const text = "Evidence Act 2006 (NZ), s 8";
+  assert.equal(detectTypes(text, 1)[0].typeId, "nz-statute");
+  assert.equal(
+    buildCitation("nz-statute", prefillFromPaste(guideTypeById["nz-statute"], text, [])).text,
+    "Evidence Act 2006, s 8.",
+  );
+  // Real foreign tags still resolve to their own types.
+  assert.equal(detectTypes("Chaffey Dam Act 1974 (NSW).", 1)[0].typeId, "australia-statute");
+  assert.equal(detectTypes("Pensions Act 1995 (UK).", 1)[0].typeId, "uk-modern-statute");
+});

@@ -546,6 +546,33 @@ export function referencePrefixLength(raw: string): number {
   return raw.slice(cut).replace(/[^\p{L}\p{N}]/gu, "").length >= 6 ? cut : 0;
 }
 
+/**
+ * How much of the END of a paste is not part of the reference.
+ *
+ * A retrieval date is an APA and Bluebook habit that students carry over, and it
+ * also comes attached when a reference is copied out of a database's "cite this"
+ * box: "… at [70] (accessed 4 May 2025)". Not one of the Guide's 216 worked
+ * examples contains one, so under this style guide it is never part of a
+ * citation — checked, not assumed.
+ *
+ * It did more damage than an unwanted phrase: the trailing bracket changed the
+ * shape the detector keys on, so the case above was read as a REPORTED case,
+ * which then refused to build for want of a report series. A student pasting a
+ * perfectly good neutral citation got nothing at all.
+ *
+ * Keyed on the retrieval words alone, so the many parentheses a citation
+ * legitimately ends with — "(CA)", "(explanatory note)", "(online ed)",
+ * "(forthcoming)", "(Report of the Appellate body)" — are untouched.
+ */
+export function referenceSuffixLength(raw: string): number {
+  const match = raw.match(
+    /\s*[([]\s*(?:last\s+)?(?:accessed|retrieved|visited|viewed|downloaded)\b[^)\]]*[)\]]\s*\.?\s*$/i,
+  ) ?? raw.match(/\s*[,;]?\s*retrieved\s+from\b.*$/i);
+  if (!match) return 0;
+  const rest = raw.slice(0, raw.length - match[0].length);
+  return rest.replace(/[^\p{L}\p{N}]/gu, "").length >= 6 ? match[0].length : 0;
+}
+
 /** A canonicalised paste, plus the offset map back to the text it came from. */
 export type NormalizedPaste = {
   text: string;
@@ -574,8 +601,9 @@ export function normalizePaste(raw: string): NormalizedPaste {
   // part of the reference. Dropping it here, once, keeps every later pass —
   // detection, extraction, the audit — looking at the reference itself.
   const prefix = referencePrefixLength(raw);
+  const end = raw.length - referenceSuffixLength(raw);
   for (let i = 0; i < prefix; i++) fromRaw[i] = 0;
-  for (let i = prefix; i < raw.length; i++) {
+  for (let i = prefix; i < end; i++) {
     fromRaw[i] = out.length;
     const ch = raw[i];
     if (/\s/.test(ch)) {
