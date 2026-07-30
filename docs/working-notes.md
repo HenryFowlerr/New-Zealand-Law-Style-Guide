@@ -22,7 +22,7 @@ Never report a single accuracy number. It hides which layer is broken.
 | | What it asks | Where | Now |
 |---|---|---|---|
 | **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **149/149, all 86 types, none skipped** |
-| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 214/216 fields, 199/216 exact |
+| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 214/216 fields, 206/216 exact |
 | **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 148/216 |
 | **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 16/16 type, 6/6 exact |
 
@@ -284,7 +284,7 @@ pre-1854 ordinances were already passing, and the Gazette problem turned out to 
 partly this repo's own fixture. Re-derive the clusters from
 `scripts/failure-shapes.ts` rather than trusting a list.
 
-- **Paste→output 199/216.** By defect shape: 11 truncated, 3 other, 2 refused,
+- **Paste→output 206/216.** By defect shape: 4 truncated, 3 other, 2 refused,
   1 duplicated. Run `scripts/failure-shapes.ts` rather than reading this list; it
   goes stale.
 - **The two remaining refusals are the same modelling gap.** Rule 8.5's
@@ -310,7 +310,7 @@ partly this repo's own fixture. Re-derive the clusters from
   space. That is faithful but hostile: a student will type "RSC" into one box and
   be told the jurisdiction is missing. A labelling problem, not a correctness
   one.
-- **Guide audit 150/150.** Every citation read off the published Guide now
+- **Guide audit 154/154.** Every citation read off the published Guide rebuilds
   rebuilds exactly. That is the measure to watch: it is the only one whose
   expected strings did not come from this repository.
 - **Classification 147/216.** Much weaker than domestic. The

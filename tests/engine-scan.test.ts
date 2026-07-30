@@ -1232,3 +1232,53 @@ test("a list with exactly as many parts as slots is untouched", () => {
     assert.equal(buildCitation("text-book", prefill("text-book", text)).text, text);
   }
 });
+
+test("a tribunal chamber takes a comma only when its name has a number (10.2.2(d))", () => {
+  // "If the name of the chamber … includes a number, put a comma after the
+  // chamber name to separate it from the case number." The Guide's own examples
+  // show both, and one template could only write one of them — so whichever it
+  // chose was wrong half the time.
+  for (const text of [
+    "Prosecutor v Aleksovski (Judgment) ICTY Appeals Chamber IT-95-14/1-A, 24 March 2000 at [63].",
+    "Prosecutor v Krnojelac (Judgment) ICTY Trial Chamber II, IT-97-25-T, 15 March 2002 at [187].",
+    "Prosecutor v Bralo (Sentencing) ICTY Trial Chamber IT-95-17-S, 7 December 2006.",
+    "Prosecutor v Dyilo (Confirmation of Charges) ICC Pre-Trial Chamber I, ICC-01-04-01/06, 29 January 2007 at [348].",
+  ]) {
+    assert.equal(
+      buildCitation("international-criminal-tribunal", prefill("international-criminal-tribunal", text)).text,
+      text,
+    );
+  }
+  // Hand-typed, the rule still applies and explains itself.
+  const built = buildCitation("international-criminal-tribunal", {
+    parties: "Prosecutor v Krnojelac",
+    phase: "Judgment",
+    courtTribunal: "ICTY",
+    chamber: "Trial Chamber II",
+    caseNumber: "IT-97-25-T",
+    date: "15 March 2002",
+  });
+  assert.match(built.text ?? "", /Trial Chamber II, IT-97-25-T/);
+  assert.ok(built.issues.some((i) => /10\.2\.2/.test(i.message)));
+});
+
+test("a letter's recipient keeps the office named after them (7.6)", () => {
+  const text =
+    "Letter from CI Patterson (Chairman of the Securities Commission) to Geoffrey Palmer (Minister of Justice) regarding the Corporations (Investigation and Management) Bill 1988 (8 February 1989).";
+  const f = prefill("letter-email", text);
+  assert.equal(f.recipient, "Geoffrey Palmer (Minister of Justice)");
+  assert.equal(f.subject, "regarding the Corporations (Investigation and Management) Bill 1988");
+  assert.equal(buildCitation("letter-email", f).text, text);
+});
+
+test("a Restatement keeps its city as well as its state (9.5.4)", () => {
+  // "(2nd ed, St Paul, Minnesota, 1971)" — one part per slot, but the generic
+  // publisher-and-place reading counts backwards from the year and knows nothing
+  // of a "stateOrRegion", so "St Paul" was dropped.
+  const text =
+    "American Law Institute Restatement of the Law of Conflict of Laws (2nd ed, St Paul, Minnesota, 1971) § 220.";
+  const f = prefill("us-restatement", text);
+  assert.equal(f.place, "St Paul");
+  assert.equal(f.stateOrRegion, "Minnesota");
+  assert.equal(buildCitation("us-restatement", f).text, text);
+});

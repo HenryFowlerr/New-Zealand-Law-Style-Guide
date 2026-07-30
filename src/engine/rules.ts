@@ -136,6 +136,18 @@ const PARTY_CASE_TYPES = new Set([
 
 export const VALUE_RULES: ValueRule[] = [
   {
+    // Rule 10.2.2(d): "If the name of the chamber … includes a number, put a
+    // comma after the chamber name to separate it from the case number." The
+    // Guide's own examples show both — "ICTY Appeals Chamber IT-95-14/1-A" with
+    // no comma, "ICTY Trial Chamber II, IT-97-25-T" with one — and the template
+    // can only write one of them, so whichever it chose was wrong half the time.
+    field: "chamber",
+    typeIds: new Set(["international-criminal-tribunal"]),
+    apply: (value) => (/\d|\b[IVX]+\b/.test(value) ? `${value.replace(/,\s*$/, "")},` : value),
+    rule: "10.2.2(d)",
+    why: "Rule 10.2.2(d) puts a comma after the chamber's name when that name includes a number, to separate it from the case number.",
+  },
+  {
     field: "caseName",
     typeIds: PARTY_CASE_TYPES,
     apply: (value) =>

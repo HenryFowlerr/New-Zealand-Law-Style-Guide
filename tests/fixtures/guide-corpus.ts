@@ -208,4 +208,12 @@ export const GUIDE_CORPUS: GuideCitation[] = [
   { typeId: "subsequent-references", rule: "2.3", text: "R v Wang, above n 49, at 533." },
   { typeId: "subsequent-references", rule: "2.3", text: "Smith “Rethinking the Defence of Mistake”, above n 25, at 431." },
   { typeId: "subsequent-references", rule: "2.3", text: "Baigent’s case, above n 4, at 668." },
+
+  // ── 10.2.2, read off chapter-pt.10.2.2.html. Six worked examples; our data had
+  // three. The comma between the chamber and the case number is not arbitrary:
+  // rule 10.2.2(d) puts one there when the chamber's name includes a number.
+  { typeId: "international-criminal-tribunal", rule: "10.2.2", text: "Prosecutor v Aleksovski (Judgment) ICTY Appeals Chamber IT-95-14/1-A, 24 March 2000 at [63]." },
+  { typeId: "international-criminal-tribunal", rule: "10.2.2", text: "Prosecutor v Krnojelac (Judgment) ICTY Trial Chamber II, IT-97-25-T, 15 March 2002 at [187]." },
+  { typeId: "international-criminal-tribunal", rule: "10.2.2", text: "Prosecutor v Bralo (Sentencing) ICTY Trial Chamber IT-95-17-S, 7 December 2006." },
+  { typeId: "international-criminal-tribunal", rule: "10.2.2", text: "Prosecutor v Seromba (Judgment) ICTR Appeals Chamber ICTR-2001-66-A, 12 March 2008 at [218]." },
 ];

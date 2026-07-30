@@ -856,6 +856,37 @@ export function refineFields(
     }
   }
 
+  // An international criminal tribunal names its chamber and then the case
+  // number, and rule 10.2.2's own two examples disagree about the comma between
+  // them: "ICTY Appeals Chamber IT-95-14/1-A" against "ICTY Trial Chamber II,
+  // IT-97-25-T". Counting words split "Trial Chamber II" in half. The number has
+  // a shape — letters, digits and separators — and the chamber is whatever is
+  // left in front of it.
+  if (ids.has("chamber") && ids.has("caseNumber")) {
+    const numbered = text.match(
+      /\b((?:ICTY|ICTR|ICC|SCSL|ECCC|STL)\b[^,]*?)\s*,?\s*\b([A-Z]{2,}[-\d][\w/.-]*)\s*,/,
+    );
+    if (numbered) {
+      const words = numbered[1].trim().split(/\s+/);
+      if (ids.has("courtTribunal")) set("courtTribunal", words[0]);
+      const chamber = words.slice(1).join(" ");
+      if (chamber) set("chamber", chamber);
+      set("caseNumber", numbered[2]);
+    }
+  }
+
+  // A letter names its recipient, then what it is about. Rule 7.6's example gives
+  // the recipient an office in brackets — "to Geoffrey Palmer (Minister of
+  // Justice) regarding the Corporations … Bill 1988" — and cutting on the first
+  // space made the recipient "Geoffrey" and the subject "Palmer".
+  if (ids.has("recipient") && ids.has("subject")) {
+    const addressed = text.match(/\bto\s+(.+?\([^()]*\))\s+(.+?)\s*\([^()]*\)\s*\.?\s*$/);
+    if (addressed) {
+      set("recipient", addressed[1].trim());
+      set("subject", addressed[2].trim());
+    }
+  }
+
   // A bracketed list with more parts than the template has slots.
   //
   // Rule 7.5 writes a speech as "({location}, {date})" and its own example puts
@@ -1744,7 +1775,11 @@ function absorbSurplusListParts(
     );
     if (!source) continue;
     const parts = splitTopLevel(source[1]);
-    if (parts.length <= slots.length) continue;
+    // Equal counts too, not only a surplus: rule 9.5.4's "(2nd ed, St Paul,
+    // Minnesota, 1971)" has exactly one part per slot, and the generic
+    // publisher-and-place reading — which counts backwards from the year and
+    // knows nothing of a "stateOrRegion" — dropped "St Paul" anyway.
+    if (parts.length < slots.length) continue;
     const surplus = parts.length - slots.length;
     // From the left, one part each; the slot before the last takes the extra;
     // the last takes the final part.
