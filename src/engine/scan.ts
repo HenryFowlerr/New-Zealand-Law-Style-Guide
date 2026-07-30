@@ -765,10 +765,22 @@ export function anchorSupport(type: GuideType, text: string): number {
   // The title does: an Act is an Act, and Regulations, Rules, an Order, a Code
   // or a Notice are secondary legislation. Without this every regulation a
   // student cited was offered as an Act.
+  // A Bill announces itself, and carries its number as "(216-1)" or "(90)".
+  if (/\bBill\b\s+(?:\(No \d+\)\s+)?\d{4}\b/.test(text) && ids.has("billNumber")) {
+    support += 6;
+  }
   const legislationKind = /\b(Act|Regulations?|Rules|Order|Code|Notice)\b\s+(?:\(No \d+\)\s+)?\d{4}\b/.exec(text);
   if (legislationKind) {
     const isAct = /^Act$/i.test(legislationKind[1]);
-    const statuteLike = type.id === "nz-statute" || type.id === "nz-provincial-legislation";
+    // Any statute type, not only the New Zealand ones. Awarding this to the
+    // domestic types alone meant the boost swamped the jurisdiction conflict,
+    // and "Pensions Act 1995 (UK)" was offered as New Zealand provincial
+    // legislation. Every statute type gets it; jurisdiction decides between
+    // them.
+    const statuteLike =
+      type.id === "nz-statute" ||
+      type.id === "nz-provincial-legislation" ||
+      /^(uk-|australia-statute|canada-statute|us-code|us-session-law)/.test(type.id);
     const instrumentLike =
       type.id === "legislative-instrument" ||
       type.id === "court-rules" ||
@@ -822,6 +834,22 @@ export function anchorMismatch(type: GuideType, text: string): number {
   if (EDITION.test(text) && !holds("edition", "ed", "reissue", "publication")) {
     mismatch += 1;
   }
+  // A web address is the plainest signal there is that a source is online, and
+  // a type with nowhere to put one cannot be the right answer. Without this,
+  // every webpage a student cited — the URL sitting there in angle brackets —
+  // was offered first as a Cabinet document.
+  if (/<[a-z]+[^>]*>|\bhttps?:\/\/|\bwww\./i.test(text) && !holds("url", "handle")) {
+    mismatch += 2;
+  }
+  // A select committee report on a Bill, or an explanatory note, says which it
+  // is. Its template is two free-text slots that will otherwise swallow any
+  // Bill at all.
+  if (
+    /^(bill-select-committee|supplementary-order)/.test(type.id) &&
+    !/\b(explanatory note|select committee report)\b/i.test(text)
+  ) {
+    mismatch += 2;
+  }
   return mismatch;
 }
 
@@ -837,11 +865,21 @@ const JURISDICTION_MARKERS: { jurisdiction: string; pattern: RegExp }[] = [
     pattern:
       /\bNZ(LR|SC|CA|HC|DC|FC|ERA|EnvC|AR|FLR|BLC|RMA|CC|PD|LC|Gaz)\b|\bNew Zealand\b|\bAotearoa\b|\bWaitangi\b|\bNZPD\b/,
   },
-  { jurisdiction: "uk", pattern: /\bEW(CA|HC)\b|\bUK(SC|HL|PC)\b|\b(AC|WLR|QB|KB|Ch)\b|\bEngland\b/ },
+  {
+    jurisdiction: "uk",
+    // A statute of another country carries its jurisdiction in brackets under
+    // rule 4.1.1(b) — "Pensions Act 1995 (UK)" — and without reading that tag
+    // every United Kingdom Act was offered as New Zealand provincial
+    // legislation, whose form is also "{title} {year} ({place})".
+    pattern: /\bEW(CA|HC)\b|\bUK(SC|HL|PC)\b|\b(AC|WLR|QB|KB|Ch)\b|\bEngland\b|\((?:UK|Scotland|Northern Ireland|Wales)\)/,
+  },
   { jurisdiction: "scotland", pattern: /\bCSIH\b|\bCSOH\b|\bSLT\b|\bSC \(HL\)\b/ },
-  { jurisdiction: "australia", pattern: /\bHCA\b|\bFCA\b|\bCLR\b|\bALR\b|\bNSWLR\b|\bVR\b/ },
+  {
+    jurisdiction: "australia",
+    pattern: /\bHCA\b|\bFCA\b|\bCLR\b|\bALR\b|\bNSWLR\b|\bVR\b|\((?:Cth|NSW|Vic|Qld|SA|WA|Tas|ACT|NT)\)/,
+  },
   { jurisdiction: "canada", pattern: /\bSCC\b|\bSCR\b|\bDLR\b|\bRSC\b|\bONCA\b/ },
-  { jurisdiction: "us", pattern: /\bUSC\b|\bF (2d|3d)\b|\bS Ct\b|\bUS\b|\bStat\b/ },
+  { jurisdiction: "us", pattern: /\bUSC\b|\bF (2d|3d|Supp)\b|\bS Ct\b|\bUS\b|\bStat\b|\b(?:SD|ED|ND|WD) NY\b|\b\d+th Cir\b/ },
   { jurisdiction: "eu", pattern: /\bECLI\b|\bECR\b|\bCJEU\b|\bECJ\b/ },
   { jurisdiction: "echr", pattern: /\bECHR\b|\bEHRR\b/ },
 ];
@@ -883,7 +921,16 @@ export function jurisdictionConflict(type: GuideType, text: string): number {
   const found = JURISDICTION_MARKERS.filter((m) => m.pattern.test(text)).map(
     (m) => m.jurisdiction,
   );
-  if (!found.length) return 0;
+  if (!found.length) {
+    // Nothing in the reference names a jurisdiction at all. This is a New
+    // Zealand style guide, used to cite New Zealand material: Parts 3 to 7 are
+    // domestic and Parts 8 to 10 are headed "foreign and international". So an
+    // unmarked reference is domestic by default, and a foreign type claiming it
+    // is a weaker answer than a New Zealand one. Held at half weight, because
+    // this is a prior rather than a conflict — a foreign source genuinely may
+    // carry no marker we recognise.
+    return own === "nz" ? 0 : 0.5;
+  }
   if (found.includes(own)) return 0;
   // A treaty or UN document need not carry a national marker; only penalise an
   // international type when the text is unambiguously domestic to one country.
@@ -986,6 +1033,19 @@ export function fieldShapeViolations(
     if (PAGE_FIELDS.has(id) && !/\d|^[ivxlcdm]+$/i.test(value)) violations++;
     if (NUMERIC_FIELDS.has(id) && !/\d/.test(value)) violations++;
     if (id === "url" && !/:\/\/|^www\./i.test(value)) violations++;
+    if (
+      id === "province" &&
+      !/^(Auckland|Canterbury|Hawke'?s Bay|Marlborough|Nelson|New Plymouth|Otago|Southland|Taranaki|Wellington|Westland)$/i.test(value)
+    ) {
+      // The provinces of New Zealand, 1852-1876, are a closed list. Without
+      // this "(UK)" and "(Bermuda)" read as provinces.
+      violations++;
+    }
+    if (id === "shortTitle" && type.id === "nz-statute" && !/\bAct\b/i.test(value)) {
+      // Rule 4.1.1 is about Acts. Without this the statute type claimed the
+      // Treaty of Waitangi, the Declaration of Independence and every ordinance.
+      violations++;
+    }
     if (
       id === "caseName" &&
       PARTY_STYLE_CASE_TYPES.has(type.id) &&

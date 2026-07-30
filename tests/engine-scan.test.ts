@@ -359,3 +359,55 @@ test("a rule pinpoint is recognised, so the title is not cut to one word", () =>
   assert.equal(fields.pinpoint, "r 14.3");
   assert.equal(buildCitation(type.id, fields).text, "High Court Rules 2016, r 14.3.");
 });
+
+test("a foreign statute is not read as New Zealand legislation", () => {
+  // Rule 4.1.1(b) puts the jurisdiction in brackets, and New Zealand provincial
+  // legislation has the same shape — "{title} {year} ({place})" — so "(UK)" was
+  // read as a province and every United Kingdom Act came back as an ordinance
+  // of Otago or Canterbury.
+  for (const [text, typeId] of [
+    ["Pensions Act 1995 (UK).", "uk-modern-statute"],
+    ["Freedom of Information Act 2000 (UK).", "uk-modern-statute"],
+    ["Judiciary and Courts (Scotland) Act 2008.", "uk-modern-statute"],
+    ["Manawatu Racecourse Act 1869 (Wellington).", "nz-provincial-legislation"],
+  ] as const) {
+    assert.equal(detectTypes(text, 1)[0].typeId, typeId, text);
+  }
+});
+
+test("a regulation is not offered as an Act", () => {
+  // The two are written identically; only the title word tells them apart.
+  for (const [text, typeId] of [
+    ["Costs in Criminal Cases Regulations 1987, reg 3.", "legislative-instrument"],
+    ["Personal Property Securities Regulations 2001, reg 18.", "legislative-instrument"],
+    ["Evidence Act 2006, s 44.", "nz-statute"],
+    ["Judicial Matters Bill 2008 (216-1), cl 3.", "bill"],
+  ] as const) {
+    assert.equal(detectTypes(text, 1)[0].typeId, typeId, text);
+  }
+});
+
+test("a web address keeps a source online", () => {
+  // A URL in angle brackets is the plainest signal a source is online; every
+  // webpage was being offered first as a Cabinet document.
+  assert.equal(
+    detectTypes(
+      "Dean Knight “Parliament and the Bill of Rights – a blasé attitude?” (6 April 2009) LAWS179 Elephants and the Law <www.laws179.co.nz>.",
+      1,
+    )[0].typeId,
+    "internet-material",
+  );
+});
+
+test("a journal locus is not mistaken for a neutral citation", () => {
+  // "[1994] NZ Recent Law Review 245" matched the neutral-citation pattern,
+  // which credited every case type and penalised the journal.
+  assert.equal(
+    detectTypes("J K Maxton “Equity” [1994] NZ Recent Law Review 245.", 1)[0].typeId,
+    "journal-article",
+  );
+  assert.equal(
+    detectTypes("Attorney-General v X [2007] NZCA 388 at [70].", 1)[0].typeId,
+    "neutral-citation-case-nz",
+  );
+});
