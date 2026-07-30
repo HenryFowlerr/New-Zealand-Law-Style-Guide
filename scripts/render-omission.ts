@@ -61,6 +61,13 @@ for (const truth of [...FIELD_TRUTH, ...SYNTHETIC]) {
   const optional = visibleComponents(type)
     .filter((c) => !c.required && (truth.fields[c.id] ?? "").trim())
     .map((c) => c.id);
+  // Only values the template actually writes can go missing from the output.
+  // Several types carry a SUMMARY component beside its parts — a case has
+  // "reportCitation" as well as year, volume, series and page — and the template
+  // uses the parts. Demanding that the summary string survive too reported 13
+  // breaks that were not breaks: dropping the volume of course stops "(1982) 26
+  // SASR 41" appearing, because nothing was ever going to print that box.
+  const rendered = new Set(visibleComponents(type).map((c) => c.id));
   const full = buildCitation(truth.typeId, truth.fields);
   if (full.status !== "ready") continue;
 
@@ -75,6 +82,7 @@ for (const truth of [...FIELD_TRUTH, ...SYNTHETIC]) {
       const v = value.trim();
       if (!v) continue;
       if (id === drop) continue;
+      if (!rendered.has(id)) continue;
       if (!reduced.text.includes(v)) {
         breaks.push({
           typeId: truth.typeId,

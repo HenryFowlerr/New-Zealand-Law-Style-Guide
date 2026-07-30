@@ -1421,7 +1421,7 @@
       "group": "Legislation",
       "rule": "4.2.3",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.4.2.html#4.2.3",
-      "outputTemplate": "Supplementary Order Paper {year} ({sopNumber}) {billCitation} {pinpoint}",
+      "outputTemplate": "Supplementary Order Paper {year} ({sopNumber}) {billCitation} at {pinpoint}",
       "components": [
         {
           "id": "sopAndYear",
@@ -1465,7 +1465,7 @@
           "required": false,
           "italic": false,
           "order": 4,
-          "separatorBefore": "space (locator) then ' at '",
+          "separatorBefore": "' at '",
           "includedWhen": "when pinpointing",
           "omittedWhen": "if none",
           "formatting": "after the Bill citation; may include '(explanatory note)'",
