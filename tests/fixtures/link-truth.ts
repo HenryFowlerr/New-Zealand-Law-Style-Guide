@@ -25,6 +25,12 @@ export type LinkTruth = {
   want?: string;
   /** Components the reader must still supply, where the source cannot give them. */
   stillNeeded?: string[];
+  /**
+   * Set where the site is recognised in order to DECLINE: a subscription database
+   * whose URL is a session id behind a login. Producing anything would put a
+   * database address into a citation, which no rule of the Guide permits.
+   */
+  declined?: true;
   note?: string;
 };
 
@@ -144,5 +150,48 @@ export const LINK_TRUTH: LinkTruth[] = [
     typeId: "nz-statute",
     stillNeeded: ["shortTitle"],
     note: "A redirect to search: the title does not end with the path's year.",
+  },
+
+  // ─────────────────────────────── subscription databases: recognised, declined
+  //
+  // A student doing an assignment lives in these and will paste one of their
+  // links. The URL is a session-scoped document id and the page needs a login, so
+  // there is nothing to read from either — and every one of them used to come back
+  // as "internet material", putting a Westlaw session address into a case
+  // citation. Naming the database and asking for the reference text is strictly
+  // more useful than a citation the student would have to throw away.
+  {
+    url: "https://www.westlaw.co.nz/maf/wlnz/app/document?docguid=Ie1b2c3d4",
+    typeId: "",
+    declined: true,
+  },
+  {
+    url: "https://advance.lexis.com/api/document?collection=cases&id=urn:contentItem:XYZ",
+    typeId: "",
+    declined: true,
+  },
+  {
+    url: "https://iknow.cch.co.nz/document/atagUio1234",
+    typeId: "",
+    declined: true,
+  },
+
+  // ──────────────────────────────────── gazette.govt.nz — rule 5.2.4, Oct 2017 on
+  //
+  // The path's id IS the notice number the rule requires. The publication date is
+  // in neither the path nor the title — the date printed in the page body is the
+  // date of the thing declared, not the date the Gazette published it — so it is
+  // asked for rather than quietly got wrong.
+  {
+    url: "https://gazette.govt.nz/notice/id/2018-go941",
+    pageTitle: "Declaration of State of Local Emergency - 2018-go941 | New Zealand Gazette",
+    typeId: "nz-gazette",
+    stillNeeded: ["date"],
+  },
+  {
+    url: "https://gazette.govt.nz/notice/id/2018-go941",
+    typeId: "nz-gazette",
+    stillNeeded: ["title", "date"],
+    note: "Unreadable page: the notice number still comes from the path.",
   },
 ];

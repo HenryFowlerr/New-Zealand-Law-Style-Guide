@@ -248,6 +248,11 @@ for (const truth of LINK_TRUTH) {
   const label = `${truth.url.replace(/^https?:\/\/(www\.)?/, "")}${truth.pageTitle ? "" : " (page unreadable)"}`;
   test(`[link] ${label}`, () => {
     const match = recogniseNzSource(truth.url);
+    if (truth.declined) {
+      assert.ok(match?.unresolvable, "a subscription database must be declined, not resolved");
+      assert.equal(match.typeId, "", "a declined source must not claim a citation type");
+      return;
+    }
     if (truth.typeId === "internet-material") {
       // Not a legal source: the generic resolvers must keep it.
       assert.equal(match, null);
@@ -323,4 +328,34 @@ test("an amending instrument takes the year that closes its title", () => {
   );
   assert.equal(applied.fields.year, "2008");
   assert.equal(applied.fields.title, "District Courts (Lawyers and Conveyancers Act 2006) Amendment Rules");
+});
+
+test("a subscription database link produces no citation at all", () => {
+  // The URL is a session id and the page needs a login, so anything produced here
+  // would be invented. Every one of these used to come back as "internet
+  // material" with the database's session address inside the citation.
+  for (const url of [
+    "https://www.westlaw.co.nz/maf/wlnz/app/document?docguid=Ie1b2c3d4",
+    "https://advance.lexis.com/api/document?collection=cases&id=urn:contentItem:XYZ",
+    "https://iknow.cch.co.nz/document/atagUio1234",
+    "https://checkpointnz.thomsonreuters.com/document/12345",
+  ]) {
+    const match = recogniseNzSource(url);
+    assert.ok(match?.unresolvable, `${url} should be declined`);
+    assert.deepEqual(match.fields, {});
+  }
+});
+
+test("a Gazette notice takes its notice number from the path (5.2.4)", () => {
+  const match = recogniseNzSource("https://gazette.govt.nz/notice/id/2018-go941")!;
+  const applied = applyPageTitle(
+    match,
+    "Declaration of State of Local Emergency - 2018-go941 | New Zealand Gazette",
+  );
+  assert.equal(applied.typeId, "nz-gazette");
+  assert.equal(applied.fields.noticeNumber, "No 2018-go941");
+  assert.equal(applied.fields.title, "Declaration of State of Local Emergency");
+  // The publication date is in neither the path nor the title. The date in the
+  // page body is the date of the thing declared, so it is asked for, not guessed.
+  assert.deepEqual(applied.stillNeeded, ["date"]);
 });

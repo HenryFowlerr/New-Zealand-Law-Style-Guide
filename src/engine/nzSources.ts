@@ -46,7 +46,37 @@ export type NzSourceMatch = {
   corroborates?: (title: string) => boolean;
   /** Components the reader must still supply, named for the interface. */
   stillNeeded?: string[];
+  /**
+   * Set where the site is recognised but a link to it can never yield a citation:
+   * a subscription database whose URL is a session token and whose page cannot be
+   * read. The right answer is to say so, not to produce something.
+   */
+  unresolvable?: string;
 };
+
+/**
+ * Subscription databases. A student doing an assignment lives in these, and will
+ * paste one of their links.
+ *
+ * Their URLs carry no citation — westlaw.co.nz/maf/wlnz/app/document?docguid=…
+ * is a session-scoped document id — and the page is behind a login, so nothing
+ * can be read from either. Every one of them therefore came out as "internet
+ * material": a case or an article cited as a web page, with a database URL in it,
+ * which no rule of the Guide permits.
+ *
+ * There is nothing to extract, so the honest answer is to name the database and
+ * ask for the reference text, which is sitting on the student's screen. That is
+ * strictly more useful than a citation they would have to throw away.
+ */
+const SUBSCRIPTION_DATABASES: { pattern: RegExp; name: string }[] = [
+  { pattern: /(^|\.)westlaw\.(co\.nz|com)$/i, name: "Westlaw" },
+  { pattern: /(^|\.)(lexisnexis|lexis)\.(co\.nz|com)$/i, name: "LexisNexis" },
+  { pattern: /(^|\.)advance\.lexis\.com$/i, name: "Lexis Advance" },
+  { pattern: /(^|\.)cch\.co\.nz$/i, name: "CCH" },
+  { pattern: /(^|\.)checkpoint(nz)?\.thomsonreuters\.com$/i, name: "Checkpoint" },
+  { pattern: /(^|\.)brookersonline\.co\.nz$/i, name: "Brookers Online" },
+  { pattern: /(^|\.)thomsonreuters\.co\.nz$/i, name: "Thomson Reuters" },
+];
 
 /**
  * A title that belongs to a challenge, error or consent page rather than to the
@@ -92,7 +122,7 @@ const NZ_COURT_CODES = new Set([
  */
 function pageTitleOnly(title: string): string {
   return title
-    .replace(/\s*[|–—]\s*(New Zealand Legislation|NZLII|Courts of New Zealand)\s*$/i, "")
+    .replace(/\s*[|–—]\s*(New Zealand Legislation|New Zealand Gazette|NZLII|Courts of New Zealand)\s*$/i, "")
     .replace(/\s*[|–—]\s*[^|–—]{0,40}$/, (match, offset: number) =>
       // Only drop a trailing segment that looks like a site name, never part of
       // a case name or an Act's title.
@@ -162,6 +192,39 @@ function legislationGovtNz(pathname: string): NzSourceMatch | null {
     },
   };
 }
+
+/**
+ * Read a New Zealand Gazette notice: gazette.govt.nz/notice/id/2018-go941
+ *
+ * The path's id IS the notice number rule 5.2.4 requires from October 2017
+ * onwards, and the page title carries the notice's own title in front of it:
+ *
+ *   Declaration of State of Local Emergency - 2018-go941 | New Zealand Gazette
+ *
+ * The publication DATE is not in either. The date printed in the page body is the
+ * date of the thing declared, not the date the Gazette published it, so it is
+ * asked for rather than taken from the body and quietly got wrong.
+ */
+function gazetteGovtNz(pathname: string): NzSourceMatch | null {
+  const match = pathname.match(/\/notice\/id\/([\w-]+)/i);
+  if (!match) return null;
+  const id = match[1];
+  return {
+    typeId: "nz-gazette",
+    fields: { noticeNumber: `No ${id}` },
+    source: "New Zealand Gazette",
+    stillNeeded: ["title", "date"],
+    corroborates: (title) => title.toLowerCase().includes(id.toLowerCase()),
+    fromTitle: (title): Record<string, string> => {
+      const name = pageTitleOnly(title)
+        .replace(new RegExp(`\\s*[-–—]\\s*${escapeForRegExp(id)}\\s*$`, "i"), "")
+        .trim();
+      return name ? { title: name } : {};
+    },
+  };
+}
+
+const escapeForRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * Read the citation out of an NZLII page title.
@@ -315,7 +378,18 @@ export function recogniseNzSource(rawUrl: string): NzSourceMatch | null {
     return null;
   }
 
+  for (const database of SUBSCRIPTION_DATABASES) {
+    if (database.pattern.test(host)) {
+      return {
+        typeId: "",
+        fields: {},
+        source: database.name,
+        unresolvable: `${database.name} needs a login, and its web address is a session id rather than a citation — there is nothing in the link to read.`,
+      };
+    }
+  }
   if (host === "legislation.govt.nz") return legislationGovtNz(pathname);
+  if (host === "gazette.govt.nz") return gazetteGovtNz(pathname);
   if (host.endsWith("nzlii.org") || host.endsWith("austlii.edu.au") || host.endsWith("bailii.org")) {
     return nzlii(pathname);
   }

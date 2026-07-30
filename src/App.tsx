@@ -378,6 +378,14 @@ function App() {
         setLinkStatus("No citation details were found at that link — paste the reference text above instead.");
         return;
       }
+      if (resolved.source === "subscription-database") {
+        // Recognised in order to decline. Producing anything here would put a
+        // database session address into a case citation.
+        setLinkStatus(
+          `That is a ${resolved.sourceName} link. ${resolved.declined} Copy the reference itself off the page — the case name and citation, or the article's author and title — and paste that above instead.`,
+        );
+        return;
+      }
       setSelectedType(resolved.typeId);
       setFields(resolved.fields);
       setReviewRequired(true);

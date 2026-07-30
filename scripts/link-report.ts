@@ -25,6 +25,13 @@
  *             the right kind, carrying whatever the URL alone establishes, and NAME
  *             what it could not determine.
  *
+ * And one where the right answer is to produce NOTHING:
+ *
+ *   DATABASE — a subscription database's URL is a session id behind a login, so
+ *              there is nothing to read from either the path or the page. Naming
+ *              the database and asking for the reference text beats a citation with
+ *              a Westlaw session address in it.
+ *
  *   npx tsx scripts/link-report.ts
  */
 import { buildCitation, missingRequiredComponents } from "../src/engine/build.ts";
@@ -47,8 +54,19 @@ type Row = {
 
 const rows: Row[] = [];
 
+let declinedOk = 0;
+let declinedTotal = 0;
+
 for (const truth of LINK_TRUTH) {
   const match = recogniseNzSource(truth.url);
+  if (truth.declined) {
+    declinedTotal++;
+    if (match?.unresolvable) declinedOk++;
+    else {
+      console.log(`  ! ${truth.url}\n      should be declined, but was resolved`);
+    }
+    continue;
+  }
   let typeId: string;
   let fields: Record<string, string>;
   let stillNeeded: string[];
@@ -95,6 +113,7 @@ console.log("=".repeat(78));
 console.log(`  TYPE recognised    : ${typeOk.length}/${rows.length}`);
 console.log(`  CITE exact         : ${citeOk.length}/${withWant.length}`);
 console.log(`  BLOCKED page safe  : ${blockedOk.length}/${blocked.length}`);
+console.log(`  DATABASE declined  : ${declinedOk}/${declinedTotal}`);
 
 const failures = rows.filter(
   (r) =>

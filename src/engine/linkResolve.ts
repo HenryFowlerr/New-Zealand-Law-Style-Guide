@@ -124,7 +124,9 @@ export type ResolvedLink = {
     /** A New Zealand legal source, read from its URL and its page title. */
     | "nz-legal-source"
     /** The same, where the page could not be read: the URL alone. */
-    | "nz-legal-url";
+    | "nz-legal-url"
+    /** A subscription database: recognised, and deliberately not resolved. */
+    | "subscription-database";
   metadata: CitationMetadata;
   typeId: string;
   fields: Record<string, string>;
@@ -132,6 +134,8 @@ export type ResolvedLink = {
   stillNeeded?: string[];
   /** The site recognised, for the message shown to the reader. */
   sourceName?: string;
+  /** Why no citation was produced, where the site is known but unreadable. */
+  declined?: string;
 };
 
 /** ISO ("2019-05-03") → "3 May 2019"; other date strings pass through. */
@@ -307,6 +311,19 @@ export async function resolveLink(
   // adds the parties or the short title where it can be read, and where it cannot
   // the reader is told exactly which box is still empty.
   const nz = recogniseNzSource(trimmed);
+  // A subscription database is recognised only so the tool can decline. Its URL is
+  // a session id and its page needs a login, so guessing would put a database
+  // address into a case citation, which no rule permits.
+  if (nz?.unresolvable) {
+    return {
+      source: "subscription-database",
+      metadata: { authors: [] },
+      typeId: "",
+      fields: {},
+      sourceName: nz.source,
+      declined: nz.unresolvable,
+    };
+  }
   if (nz) {
     let pageTitle = "";
     try {
