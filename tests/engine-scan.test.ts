@@ -1073,3 +1073,22 @@ test("a keyboard apostrophe becomes the one the Guide prints", () => {
     "McCallum v The Māori Trustee – Estate of Ngapiki Waaka Hakaraia [2017] Chief Judge’s MB 144 (2017 CJ 144).",
   );
 });
+
+test("Hansard pinpoints a debate by name, not only by column (5.1.1)", () => {
+  // The pinpoint shape check required a digit, so the name of the debate was
+  // deleted and the tool refused to cite any debate reported that way —
+  // including both of the Guide's own examples of it.
+  for (const text of [
+    "(16 August 2017) 724 NZPD (Maritime Transport Amendment Bill – Second Reading, Julie Anne Genter).",
+    "(9 November 2017) 725 NZPD (Address in Reply, Steven Joyce).",
+    "(6 April 2005) 624 NZPD 19676.",
+  ]) {
+    assert.equal(buildCitation("hansard", prefill("hansard", text)).text, text);
+  }
+  const named = prefill(
+    "hansard",
+    "(9 November 2017) 725 NZPD (Address in Reply, Steven Joyce).",
+  );
+  assert.equal(named.pinpoint, "(Address in Reply, Steven Joyce)");
+  assert.equal(named.volume, "725");
+});

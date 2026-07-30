@@ -408,7 +408,13 @@ function positionalValueLooksValid(id: string, value: string): boolean {
     case "startingPage":
       return /^\d+[A-Za-z]?$/.test(v);
     case "pinpoint":
-      return /\d/.test(v); // "[26]", "398", "s 8", "14104", "9.60" — all have a digit
+      // "[26]", "398", "s 8", "14104", "9.60" — all have a digit. But rule 5.1.1
+      // pinpoints a debate by NAME rather than by column: "(16 August 2017) 724
+      // NZPD (Maritime Transport Amendment Bill – Second Reading, Julie Anne
+      // Genter)". Requiring a digit deleted that, and the tool refused to cite
+      // any debate reported that way — including both of the Guide's own
+      // examples of it. A fully bracketed run is the shape that rule uses.
+      return /\d/.test(v) || /^\([^()]+\)$/.test(v);
     default:
       // neutralCitation, reportSeries, journalAbbrev, edition: anchor-only.
       return false;
