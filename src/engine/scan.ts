@@ -29,6 +29,7 @@ export type Anchor = {
     | "pinpoint"
     | "edition"
     | "year"
+    | "yearFirst"
     | "date"
     | "caseName"
     | "quotedTitle";
@@ -52,8 +53,14 @@ const NEUTRAL =
 // A reporter / journal locus: (year) volume SERIES page — a DIGIT volume
 // between the year and a letters series (e.g. "[2009] 1 NZLR 1", "(2005) 121
 // LQR 163"). The bracket style of the year is preserved for the caller.
-const REPORTER =
-  /([[(]\d{4}[\])])\s+(\d+)\s+([A-Z][A-Za-z]*(?:\s[A-Z][A-Za-z]*)*)\s+(\d+)/;
+//
+// A series can carry a numbered edition, and the Guide writes it two ways: in
+// brackets for the Dominion Law Reports, "(1959) 19 DLR (2d) 262 (ONCA)" under
+// rule 8.3, and bare for the American reporters, "546 F Supp 114" and "791 P 2d
+// 1329" under rule 8.6. Without either, this pattern failed on the whole locus
+// and Burke v Cory rebuilt as "Burke v Cory (1959) (2d) 262 (ONCA)".
+const SERIES = "[A-Z][A-Za-z]*(?:\\s[A-Z][A-Za-z]*)*(?:\\s+\\(\\d+[a-z]{1,2}\\)|\\s+\\d+[a-z]{1,2}\\b)?";
+const REPORTER = new RegExp(`([[(]\\d{4}[\\])])\\s+(\\d+)\\s+(${SERIES})\\s+(\\d+)`);
 
 // The same locus without a volume number — "[1932] AC 562". Restricted to named
 // law report series so a case name can never be mistaken for a series.
@@ -84,6 +91,19 @@ const PINPOINT_DIV =
 const EDITION =
   /\b(\d{1,2}(?:st|nd|rd|th)\s+ed|rev\s+ed|looseleaf\s+ed|online\s+ed|eBook\s+ed)\b/i;
 
+// A citation that leads with an UNBRACKETED year — "2010 ONSC 6568",
+// "2004 FC 1", "2004 SLT 623". Canada puts the year first in a neutral citation
+// (rule 8.3) and Scotland does the same where the report series is organised by
+// year rather than volume (rule 8.5). Every other anchor here expects the year in
+// brackets, so both forms were invisible: a Canadian case rebuilt as "Bruni v
+// Bruni 2010", losing the court and the judgment number outright.
+//
+// The court/series code must be capitalised and the number bare, which is what
+// keeps this off "SC 2011 c 10, s 4" (lowercase "c"), "Cabinet Manual 2008 at
+// [2.91]" (lowercase "at") and "Constitution Act 1982, being sch B" (a comma).
+const YEAR_FIRST =
+  /\b((?:1[6-9]|20)\d{2})\s+([A-Z]{2,}[A-Za-z]*(?:\s+[A-Z][A-Za-z]{1,11})?)\s+(\d+)\b/;
+
 // A court file / docket number: "CA339/03", "CRI-2007-020-2820",
 // "CIV-2007-409-2659", "CIV 7/2004", "AA506/10".
 const DOCKET =
@@ -104,6 +124,7 @@ const DATE = new RegExp(`\\b(\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4})\\b`);
 const CITE_START = new RegExp(
   "\\s+(?:" +
     "\\[\\d{4}\\]|\\(\\d{4}\\)|" + // a bracketed year
+    "(?:1[6-9]|20)\\d{2}\\s+[A-Z]{2,}|" + // an unbracketed year leading a citation
     "[A-Z]{2,}\\d|[A-Z]{2,}\\s+\\d|" + // a court/report abbreviation + number
     "(?:HC|CA|SC|DC|FC|ERA|EmpC|CoA|PC)\\b|" + // an unreported-case court token
     "Transcript\\b|" + // a Supreme Court transcript designator
@@ -162,6 +183,20 @@ export function scanAnchors(text: string): Anchor[] {
         volume: "",
         series: namedSeries[2].trim(),
         page: namedSeries[3],
+      });
+    }
+  }
+
+  // Only where no bracketed locus already accounts for the citation, so
+  // "(1905) 13 SLT 467" keeps its richer reading.
+  if (!neutral && !reporter) {
+    const yearFirst = text.match(YEAR_FIRST);
+    if (yearFirst) {
+      push("yearFirst", yearFirst, {
+        value: yearFirst[0].trim(),
+        year: yearFirst[1],
+        code: yearFirst[2].trim(),
+        number: yearFirst[3],
       });
     }
   }
@@ -255,7 +290,9 @@ function positionalValueLooksValid(id: string, value: string): boolean {
     case "volume":
       // The AJHR numbers its volumes in Roman — "[1984–1985] I AJHR A6" — and
       // requiring digits dropped the volume from every citation of it.
-      return /^\d+[A-Za-z]?$/.test(v) || /^[IVXLC]{1,6}$/.test(v);
+      // Halsbury's subdivides a volume in brackets — rule 6.5's own example is
+      // "vol 9(1) Contract" — and that shape was being discarded as garbage.
+      return /^\d+(?:\([\dA-Za-z]+\))?[A-Za-z]?$/.test(v) || /^[IVXLC]{1,6}$/.test(v);
     case "startingPage":
       return /^\d+[A-Za-z]?$/.test(v);
     case "pinpoint":
@@ -303,6 +340,24 @@ export function refineFields(
         if (ids.has("reportSeries")) set("reportSeries", anchor.parts.series);
         else set("journalAbbrev", anchor.parts.series);
         set("startingPage", anchor.parts.page);
+        earliestCitation = Math.min(earliestCitation, anchor.start);
+        break;
+      }
+      case "yearFirst": {
+        // Canada writes its neutral citation without brackets and keeps the
+        // whole thing together — "Bruni v Bruni 2010 ONSC 6568" (rule 8.3).
+        // Scotland splits the same shape into year, series and page, because for
+        // a year-organised series the year IS part of the report reference —
+        // "Musaj v Secretary of State for the Home Department 2004 SLT 623"
+        // (rule 8.5). Which reading applies is settled by the components the
+        // type has, not by anything in the text.
+        if (ids.has("neutralCitationNoBrackets")) {
+          set("neutralCitationNoBrackets", anchor.parts.value);
+        } else if (ids.has("reportSeries") && ids.has("startingPage")) {
+          set("year", anchor.parts.year);
+          set("reportSeries", anchor.parts.code);
+          set("startingPage", anchor.parts.number);
+        }
         earliestCitation = Math.min(earliestCitation, anchor.start);
         break;
       }
@@ -396,6 +451,26 @@ export function refineFields(
     set("title", head);
   }
 
+  // An encyclopaedia is cited by the work's name and then the topic inside it.
+  // Rule 6.6's elements are "Author (if appropriate), Title, Topic name,
+  // Pinpoint reference", and its own examples show the title is the
+  // publication's own name: "Charles Rickett Laws of New Zealand Equity at
+  // [98]." Nothing in the punctuation marks that boundary, so the positional
+  // pass put the whole of "Laws of New Zealand Equity" in BOTH boxes and the
+  // citation named the work twice over. The name to look for is the type's own —
+  // a rule that cites one named work is named after it.
+  if (ids.has("title") && ids.has("topic") && type.name.length >= 10) {
+    const at = text.indexOf(type.name);
+    if (at >= 0) {
+      set("title", type.name);
+      const topic = text
+        .slice(at + type.name.length, Math.max(at + type.name.length, earliestCitation))
+        .replace(/\s*[([].*$/, "")
+        .trim();
+      if (topic) set("topic", topic);
+    }
+  }
+
   // The publication parenthesis — "(2nd ed, Thomson Reuters, Wellington, 2009)"
   // — is a comma-separated list read from the right: the year closes it, then
   // the place, then the publisher, with an edition in front if one is given.
@@ -423,8 +498,14 @@ export function refineFields(
       if (parts.length >= 2) {
         const year = parts[parts.length - 1];
         let rest = parts.slice(0, -1);
-        if (rest.length && /\bed\b|\breissue\b|\blooseleaf\b|\bonline\b/i.test(rest[0])) {
-          if (ids.has("edition")) set("edition", rest[0]);
+        // A publication parenthesis can open with SEVERAL edition-like parts:
+        // rule 6.1.9's own example is "(2nd ed, eBook ed, eBooks by Barb, 2011)",
+        // where "eBook ed" is a fixed literal the template writes itself. Taking
+        // only the first meant "eBook ed" was read as the publisher, and the
+        // citation named the format twice and the publisher not at all.
+        const editionLike = /\bed\b|\breissue\b|\blooseleaf\b|\bonline\b/i;
+        for (let first = true; rest.length && editionLike.test(rest[0]); first = false) {
+          if (first && ids.has("edition")) set("edition", rest[0]);
           rest = rest.slice(1);
         }
         if (ids.has("year")) set("year", year);
@@ -537,8 +618,16 @@ export function refineFields(
   if (ids.has("newspaperTitle")) {
     const masthead = text.match(/[”"]\s*(.+?)\s*\(/);
     if (masthead) set("newspaperTitle", masthead[1].trim());
-    const onlineEd = text.match(/\(\s*(online ed)\b/i);
-    if (onlineEd && ids.has("onlineEd")) set("onlineEd", onlineEd[1]);
+  }
+
+  // "online ed" marks the online edition of a work — rule 6.5.2 for a legal
+  // encyclopaedia, 6.6.2 for Laws of New Zealand, 7.2 for a newspaper. The
+  // edition anchor takes the FIRST edition-shaped run in the text, which for
+  // "(5th ed, 2012, online ed)" is the "5th ed", so the online marker was never
+  // read and the citation came back as though it were the hardcopy.
+  if (ids.has("onlineEd")) {
+    const online = text.match(/\b(online ed)\b/i);
+    if (online) set("onlineEd", online[1]);
   }
 
   // Unreported case: a court file number ("CA339/03", "CRI-2007-020-2820",
@@ -643,18 +732,52 @@ export function refineFields(
 /** Words of a value, for building prefixes and suffixes of it. */
 const words = (value: string): string[] => value.trim().split(/\s+/).filter(Boolean);
 
-/** Trim separators and unmatched brackets a word-boundary cut leaves behind. */
+/**
+ * Trim separators and unmatched brackets a word-boundary cut leaves behind.
+ *
+ * A cut inside a bracketed run leaves half a pair, and half a pair is never
+ * right: the template supplies its own brackets, so a stray one shows up in the
+ * citation as "(9 ANZ Insurance Cases ¶61-336 (NSWCA)". A leading closer is
+ * dropped; an opener with no closer after it takes the rest of the value with
+ * it, because that tail belongs inside a bracket this fragment no longer has.
+ */
 function tidyFragment(value: string): string {
   let text = value.trim().replace(/^[,;:–—-]+\s*/, "").replace(/\s*[,;:–—-]+$/, "");
-  // A cut inside a bracketed run leaves one half of the pair; drop it, since
-  // the template supplies its own brackets and an unmatched one is never right.
   for (const [open, close] of [["(", ")"], ["[", "]"]] as const) {
-    while (text.startsWith(close)) text = text.slice(1).trim();
-    while (text.endsWith(open)) text = text.slice(0, -1).trim();
-    const opens = text.split(open).length - 1;
-    const closes = text.split(close).length - 1;
-    if (closes > opens && text.endsWith(close)) text = text.slice(0, -1).trim();
-    if (opens > closes && text.startsWith(open)) text = text.slice(1).trim();
+    // Drop closers with no opener before them, working left to right.
+    let depth = 0;
+    let out = "";
+    for (const ch of text) {
+      if (ch === open) depth++;
+      else if (ch === close) {
+        if (depth === 0) continue;
+        depth--;
+      }
+      out += ch;
+    }
+    text = out;
+    // An opener left unclosed. If the fragment BEGINS with it, the bracket is
+    // the template's to supply and only the bracket goes — that is how "(248"
+    // becomes the Bill number "248". Anywhere else, the run it opened has been
+    // cut off mid-bracket, so it takes the rest of the fragment with it.
+    while (depth > 0) {
+      let at = -1;
+      let closers = 0;
+      for (let i = text.length - 1; i >= 0; i--) {
+        if (text[i] === close) closers++;
+        else if (text[i] === open) {
+          if (closers === 0) {
+            at = i;
+            break;
+          }
+          closers--;
+        }
+      }
+      if (at < 0) break;
+      text = at === 0 ? text.slice(1) : text.slice(0, at);
+      depth--;
+    }
+    text = text.trim().replace(/\s*[,;:–—-]+$/, "").trim();
   }
   return text.trim();
 }
@@ -836,15 +959,25 @@ export function reconcileAgainstSource(
     tokensToText(renderFromTemplate(form, values));
   const keeps = (values: Record<string, string>) =>
     required.every((id) => !(fields[id] ?? "").trim() || (values[id] ?? "").trim());
+  // A required field still empty is what makes the tool refuse to build at all,
+  // so it outranks the word count. Cutting a swallowed year out of a Scottish
+  // case name renders the same string either way — "Musaj v Secretary of State
+  // for the Home Department 2004 SLT 623 (OH)" — but only one of the two
+  // readings has a year in the year box, and without it nothing is generated.
+  const gaps = (values: Record<string, string>) =>
+    required.filter((id) => !(values[id] ?? "").trim()).length;
 
   let best = fields;
+  let bestGaps = gaps(fields);
   let bestPenalty = wordImbalance(render(fields), text);
   for (const policy of ["trimLater", "shrinkEarlier"] as const) {
     const candidate = reconcilePass(type, fields, text, policy);
     if (!keeps(candidate)) continue;
+    const candidateGaps = gaps(candidate);
     const penalty = wordImbalance(render(candidate), text);
-    if (penalty < bestPenalty) {
+    if (candidateGaps < bestGaps || (candidateGaps === bestGaps && penalty < bestPenalty)) {
       best = candidate;
+      bestGaps = candidateGaps;
       bestPenalty = penalty;
     }
   }
@@ -1148,123 +1281,4 @@ export function jurisdictionConflict(type: GuideType, text: string): number {
   // international type when the text is unambiguously domestic to one country.
   if (own === "international" && found.length > 1) return 0;
   return 1;
-}
-
-const MONTH =
-  /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i;
-const FOUR_DIGIT_YEAR = /\b\d{4}\b/;
-
-/** Components whose value is only ever a date. */
-const DATE_FIELDS = new Set([
-  "date",
-  "dateOfJudgment",
-  "dateOfDebate",
-  "hearingDate",
-  "dateOpened",
-  "dateInForce",
-  "newspaperDate",
-  "interviewDetails",
-]);
-
-/** Components whose value is only ever (or contains) a four-digit year. */
-const YEAR_FIELDS = new Set(["year", "neutralYear", "yearOfJournal", "regnalYear"]);
-
-/** Components whose value is a page or page range. */
-const PAGE_FIELDS = new Set(["startingPage", "page", "pageOrNoticeNumber"]);
-
-/** Components whose value must contain a digit somewhere. */
-const NUMERIC_FIELDS = new Set([
-  "volume",
-  "issueNumber",
-  "number",
-  "judgmentNumber",
-  "caseNumber",
-  "billNumber",
-  "barNumber",
-  "fileNumber",
-  "waiNumber",
-  "resolutionNumber",
-  "sessionNumber",
-  "documentNumber",
-  "ordinanceNumber",
-  "noticeNumber",
-  "orderNumber",
-  "sopNumber",
-  // An official citation is a numbered series designation — "NZLC R91",
-  // "Occasional Paper 11/01". Without this, a book's place of publication landed
-  // there and every text with a plain "(publisher, place, year)" was offered as
-  // a government paper: "Lord Denning The Discipline of Law (Butterworths,
-  // London, 1979)" read London as its official citation.
-  "officialCitation",
-]);
-
-/** Types whose case name really is an "X v Y" (or "Re X") party string. */
-const PARTY_STYLE_CASE_TYPES = new Set([
-  "reported-case-nz",
-  "neutral-citation-case-nz",
-  "unreported-case-file-number-nz",
-  "australia-case",
-  "canada-case",
-  "england-wales-case-modern",
-  "england-wales-nominate-report",
-  "scotland-case",
-  "us-federal-case",
-  "us-state-case",
-]);
-
-const PARTY_STYLE =
-  /(\sv\s|\sv\.\s)|^(re|in re|ex parte|application|the queen|police)\b/i;
-
-/**
- * How badly a set of extracted values contradicts the shape each component is
- * defined to have.
- *
- * Detection matches every one of the 86 templates positionally, so a permissive
- * template — "{caseName} {courtAbbreviation} {registry} {fileNumber},
- * {dateOfJudgment}" — will happily "read" a statute, landing "Crimes" in the
- * case name and "s 167(a)" in the date of judgment. The positional match cannot
- * see anything wrong with that, and because the loose type has MORE required
- * fields it then outscores the statute type that actually models the source.
- *
- * This is the check that notices. A date field holding "s 167(a)", a page field
- * holding "!!!", or a case name with no parties in it are all evidence that the
- * type has mis-read the reference rather than explained it.
- */
-export function fieldShapeViolations(
-  type: GuideType,
-  fields: Record<string, string>,
-): number {
-  let violations = 0;
-  for (const [id, raw] of Object.entries(fields)) {
-    const value = (raw ?? "").trim();
-    if (!value) continue;
-    if (DATE_FIELDS.has(id) && !MONTH.test(value) && !FOUR_DIGIT_YEAR.test(value)) {
-      violations++;
-    }
-    if (YEAR_FIELDS.has(id) && !FOUR_DIGIT_YEAR.test(value)) violations++;
-    if (PAGE_FIELDS.has(id) && !/\d|^[ivxlcdm]+$/i.test(value)) violations++;
-    if (NUMERIC_FIELDS.has(id) && !/\d/.test(value)) violations++;
-    if (id === "url" && !/:\/\/|^www\./i.test(value)) violations++;
-    if (
-      id === "province" &&
-      !/^(Auckland|Canterbury|Hawke'?s Bay|Marlborough|Nelson|New Plymouth|Otago|Southland|Taranaki|Wellington|Westland)$/i.test(value)
-    ) {
-      // The provinces of New Zealand, 1852-1876, are a closed list. Without
-      // this "(UK)" and "(Bermuda)" read as provinces.
-      violations++;
-    }
-    if (id === "shortTitle" && type.id === "nz-statute" && !/\bAct\b/i.test(value)) {
-      // Rule 4.1.1 is about Acts. Without this the statute type claimed the
-      // Treaty of Waitangi, the Declaration of Independence and every ordinance.
-      violations++;
-    }
-    if (
-      id === "caseName" &&
-      PARTY_STYLE_CASE_TYPES.has(type.id) &&
-      !PARTY_STYLE.test(value)
-    ) {
-      violations++;
-    }
-  }
-  return violations;
 }

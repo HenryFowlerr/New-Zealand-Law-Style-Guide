@@ -12,6 +12,7 @@
  * back, and the result must equal the example exactly.
  */
 import type { GuideType } from "../data/styleGuide";
+import { fieldShapeViolations } from "./shapes";
 
 export type Token = { text: string; italic?: boolean };
 
@@ -526,7 +527,10 @@ export function extractByTemplate(
   // Prefer a form whose values render back to the input (the correct structure);
   // otherwise the one that fills the most fields.
   let best: Record<string, string> | null = null;
-  let bestScore = -1;
+  // Not -1: the shape penalty below can take a genuine match's score negative,
+  // and a sentinel that a real score can fall under drops the type out of
+  // detection altogether rather than merely ranking it low.
+  let bestScore = -Infinity;
   for (const form of templateForms(type.outputTemplate)) {
     const built = buildExtractionRegex(type, form);
     if (!built) continue;
@@ -541,7 +545,17 @@ export function extractByTemplate(
     });
     const roundTrips =
       norm(tokensToText(renderFromTemplate(form, values))) === norm(stripped);
-    const score = (roundTrips ? 1000 : 0) + Object.keys(values).length;
+    // Two forms of the same rule can both round-trip and fill the same number of
+    // boxes while disagreeing about which box holds what. Rule 6.5's hardcopy
+    // form reads "(5th ed, 2012, online ed)" as edition/reissue/year — putting
+    // "online ed" in the year — and its online form reads it as
+    // edition/year/online ed, correctly; both rebuild the string exactly, so
+    // field count alone picked whichever came first. A value that contradicts
+    // the shape its component is defined to have settles it.
+    const score =
+      (roundTrips ? 1000 : 0) +
+      Object.keys(values).length -
+      10 * fieldShapeViolations(type, values);
     if (score > bestScore) {
       bestScore = score;
       best = values;

@@ -24,11 +24,11 @@ import {
 import {
   anchorMismatch,
   anchorSupport,
-  fieldShapeViolations,
   jurisdictionConflict,
   refineFields,
   reconcileAgainstSource,
 } from "./scan";
+import { fieldShapeViolations } from "./shapes";
 import { applyGuideRules } from "./rules";
 
 export type CitationFields = Record<string, string>;

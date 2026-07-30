@@ -411,3 +411,121 @@ test("a journal locus is not mistaken for a neutral citation", () => {
     "neutral-citation-case-nz",
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// No run of the paste is written twice
+//
+// Two extraction passes claim spans of the paste independently, and where they
+// overlapped the renderer wrote the same words into two boxes. Each of these is
+// a citation the tool used to produce with a word, a number or a whole clause
+// duplicated.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a Bill's number is not written along with its short title", () => {
+  // Was: "Arms Amendment Bill (No 3) 2005 (No 3) 2005 (248-1)."
+  const text = "Arms Amendment Bill (No 3) 2005 (248-1).";
+  const built = buildCitation("bill", prefill("bill", text));
+  assert.equal(built.text, text);
+});
+
+test("a report locus is not written twice over", () => {
+  // Was: "Morissens v Belgium (1988) 56 DR (1988) 56 DR 127."
+  const text = "Morissens v Belgium (1988) 56 DR 127.";
+  const built = buildCitation(
+    "european-commission-hr-case",
+    prefill("european-commission-hr-case", text),
+  );
+  assert.equal(built.text, text);
+});
+
+test("an official citation is not repeated as the publisher", () => {
+  // Was: "… (Cmd 8932, Cmd 8932, 1953)."
+  const text =
+    "Home Office Report of the Royal Commission on Capital Punishment 1949–1953 (Cmd 8932, 1953).";
+  const built = buildCitation("paper-or-report", prefill("paper-or-report", text));
+  assert.equal(built.text, text);
+});
+
+test("an encyclopaedia names the work it cites once", () => {
+  // Rule 6.6's elements are author, title, topic name, pinpoint — the title
+  // being the work's own name. Both boxes held the whole of "Laws of New
+  // Zealand Equity", so the citation named it twice.
+  const f = prefill("laws-of-new-zealand", "Charles Rickett Laws of New Zealand Equity at [98].");
+  assert.equal(f.title, "Laws of New Zealand");
+  assert.equal(f.topic, "Equity");
+  assert.equal(
+    buildCitation("laws-of-new-zealand", f).text,
+    "Charles Rickett Laws of New Zealand Equity at [98].",
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Foreign citations that put the year first, or number their report series
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a Canadian neutral citation puts its year first (8.3)", () => {
+  const f = prefill("canada-case", "Bruni v Bruni 2010 ONSC 6568.");
+  assert.equal(f.caseName, "Bruni v Bruni");
+  assert.equal(f.neutralCitationNoBrackets, "2010 ONSC 6568");
+  assert.equal(buildCitation("canada-case", f).text, "Bruni v Bruni 2010 ONSC 6568.");
+});
+
+test("a year-organised Scottish report keeps its year (8.5)", () => {
+  const f = prefill(
+    "scotland-case",
+    "Musaj v Secretary of State for the Home Department 2004 SLT 623 (OH).",
+  );
+  assert.equal(f.caseName, "Musaj v Secretary of State for the Home Department");
+  assert.equal(f.year, "2004");
+  assert.equal(f.reportSeries, "SLT");
+  assert.equal(f.startingPage, "623");
+});
+
+test("a volume-organised Scottish report keeps its volume (8.5)", () => {
+  // The ingestion dropped rule 8.5's volume element, so the "13" of the
+  // Scottish Law Times had nowhere to go: "Glenday v Johnston (1905) SLT 467".
+  const text = "Glenday v Johnston (1905) 13 SLT 467 (IH).";
+  const f = prefill("scotland-case", text);
+  assert.equal(f.volume, "13");
+  assert.equal(buildCitation("scotland-case", f).text, text);
+});
+
+test("a numbered report series keeps its edition (8.3)", () => {
+  // Was: "Burke v Cory (1959) (2d) 262 (ONCA)."
+  const text = "Burke v Cory (1959) 19 DLR (2d) 262 (ONCA).";
+  const f = prefill("canada-case", text);
+  assert.equal(f.volume, "19");
+  assert.equal(f.reportSeries, "DLR (2d)");
+  assert.equal(buildCitation("canada-case", f).text, text);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rules 6.5.1 and 6.5.2 are two forms, not one
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("an online encyclopaedia edition reads year then 'online ed' (6.5.2)", () => {
+  const text = "Halsbury’s Laws of England (5th ed, 2012, online ed) vol 22 Contract at [231].";
+  const f = prefill("legal-encyclopaedia", text);
+  assert.equal(f.edition, "5th ed");
+  assert.equal(f.year, "2012");
+  assert.equal(f.onlineEd, "online ed");
+  assert.equal(buildCitation("legal-encyclopaedia", f).text, text);
+});
+
+test("a hardcopy encyclopaedia keeps its reissue and subdivided volume (6.5.1)", () => {
+  const text = "Halsbury’s Laws of England (4th ed, reissue, 1998) vol 9(1) Contract at [859].";
+  const f = prefill("legal-encyclopaedia", text);
+  assert.equal(f.reissue, "reissue");
+  assert.equal(f.volume, "9(1)");
+  assert.equal(buildCitation("legal-encyclopaedia", f).text, text);
+});
+
+test("a type whose fields fail their shapes still reaches detection", () => {
+  // The form-choice shape penalty can take a genuine match's score negative. A
+  // sentinel a real score could fall under dropped the type from the ranking
+  // altogether, and Mabo was offered as a Canadian case.
+  assert.equal(
+    detectTypes("Mabo v Queensland (No 2) (1992) 175 CLR 1 (HCA) at 42.", 1)[0].typeId,
+    "australia-case",
+  );
+});

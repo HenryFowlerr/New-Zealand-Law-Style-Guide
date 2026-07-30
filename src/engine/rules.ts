@@ -71,6 +71,23 @@ export const GUIDE_RULES: GuideRule[] = [
     rule: "8.2",
     why: "The jurisdiction and court are omitted where a neutral citation makes the court evident.",
   },
+  {
+    // "However, for the fifth edition onwards of Halsbury's Laws of England it
+    // is unnecessary to provide any reissue information due to the way the
+    // publication is organised." — rule 6.5, read off the published Guide. The
+    // ingested data records it as omittedWhen "unnecessary for Halsbury 5th ed
+    // onwards" and nothing acted on it, so a 5th-edition citation carried a
+    // reissue the extractor had filled with the year, printing it twice:
+    // "Halsbury's Laws of England (5th ed, 2012, 2012)".
+    typeId: "legal-encyclopaedia",
+    omit: "reissue",
+    whenAllMatch: [
+      { field: "title", shape: /Halsbury/i },
+      { field: "edition", shape: /^(?:[5-9]|[1-9]\d+)(?:st|nd|rd|th)\s+ed$/i },
+    ],
+    rule: "6.5",
+    why: "From the fifth edition of Halsbury’s Laws of England onwards the Guide says no reissue information is needed, because of the way the publication is organised.",
+  },
 ];
 
 export type AppliedRule = { field: string; rule: string; why: string };

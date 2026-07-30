@@ -3503,7 +3503,7 @@
       "group": "Secondary sources",
       "rule": "6.5",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.6.5.html#6.5.1",
-      "outputTemplate": "{title} ({edition}, {reissue}, {year}, {onlineEd}) vol {volume} {topic} at {pinpoint}",
+      "outputTemplate": "{title} ({edition}, {reissue}, {year}) vol {volume} {topic} at {pinpoint} | {title} ({edition}, {year}, {onlineEd}) vol {volume} {topic} at {pinpoint}",
       "components": [
         {
           "id": "title",
@@ -3537,7 +3537,7 @@
           "order": 3,
           "separatorBefore": "', '",
           "includedWhen": "included where a reissue is being cited (reissues reorder volumes)",
-          "omittedWhen": "unnecessary for Halsbury 5th ed onwards",
+          "omittedWhen": "unnecessary for Halsbury 5th ed onwards; no reissue element in the online form (rule 6.5.2)",
           "formatting": "'reissue'",
           "notes": "6.5.1"
         },
@@ -3595,9 +3595,9 @@
           "required": false,
           "italic": false,
           "order": 99,
-          "separatorBefore": "",
-          "includedWhen": "when present",
-          "omittedWhen": "if absent",
+          "separatorBefore": "', ' (after the year)",
+          "includedWhen": "included for the online edition, after the year (rule 6.5.2)",
+          "omittedWhen": "omitted for hardcopy",
           "formatting": "",
           "notes": "template correction"
         }
@@ -5559,7 +5559,7 @@
       "group": "International & foreign",
       "rule": "8.5",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.8.5.html#8.5",
-      "outputTemplate": "*{caseName}* {neutralCitation} {year} {reportSeries} {startingPage} ({court})",
+      "outputTemplate": "*{caseName}* {neutralCitation} {year} {volume} {reportSeries} {startingPage} ({court})",
       "components": [
         {
           "id": "caseName",
@@ -5596,6 +5596,15 @@
           "omittedWhen": "never fully omitted (NZ practice keeps the year even where Scottish practice would drop it)",
           "formatting": "square brackets NEVER used for Scottish law reports",
           "notes": "8.5.1(a)"
+        },
+        {
+          "id": "volume",
+          "label": "Volume",
+          "required": false,
+          "italic": false,
+          "separatorBefore": "space",
+          "includedWhen": "included where the report series is volume-organised (rule 8.5)",
+          "omittedWhen": "omitted for a year-organised series"
         },
         {
           "id": "reportSeries",
