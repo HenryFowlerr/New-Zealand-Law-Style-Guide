@@ -713,5 +713,35 @@ export function splitReferences(raw: string): string[] {
   flush();
 
   // Anything too short to be a reference is a stray fragment, not a citation.
-  return blocks.filter((block) => block.replace(/\W/g, "").length >= 8);
+  return blocks
+    .flatMap(splitAuthoritiesInOneFootnote)
+    .filter((block) => block.replace(/\W/g, "").length >= 8);
+}
+
+/**
+ * Split one footnote into the authorities it cites.
+ *
+ * Rule 2.2.4 joins several authorities in a single footnote with semicolons and
+ * an "and" before the last — which is exactly what composeFootnote writes. Being
+ * unable to read one back was a strange gap: a student pasting a footnote out of
+ * their own draft, or out of a judgment, got all three authorities mashed into one
+ * citation.
+ *
+ * The semicolon is a safe boundary here in a way a comma never could be: not one
+ * of the Guide's 216 worked examples contains a semicolon inside a single
+ * citation, so within a paste it can only be separating them.
+ */
+function splitAuthoritiesInOneFootnote(block: string): string[] {
+  if (!block.includes(";")) return [block];
+  const parts = block
+    .split(/\s*;\s*(?:and\s+)?/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return [block];
+  // Every part must look like the start of a reference. If one does not, the
+  // semicolon was doing something else and the footnote is left whole.
+  const opensCitation = /^(?:[“"(\[]|\p{Lu}|\d)/u;
+  return parts.every((part) => opensCitation.test(part) && part.replace(/\W/g, "").length >= 8)
+    ? parts
+    : [block];
 }

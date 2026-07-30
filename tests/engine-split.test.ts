@@ -8,7 +8,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { splitReferences } from "../src/engine/render.ts";
-import { detectTypes } from "../src/engine/build.ts";
+import { buildCitation, composeFootnote, detectTypes, prefillFromPaste } from "../src/engine/build.ts";
+import { guideTypeById } from "../src/data/styleGuide.ts";
 
 test("separate lines are separate references", () => {
   const parts = splitReferences(
@@ -60,4 +61,41 @@ test("a lone reference and an empty paste behave", () => {
   assert.deepEqual(splitReferences("Evidence Act 2006, s 8."), ["Evidence Act 2006, s 8."]);
   assert.deepEqual(splitReferences("   "), []);
   assert.deepEqual(splitReferences(""), []);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// One footnote, several authorities
+//
+// Rule 2.2.4 joins authorities in a single footnote with semicolons and an "and"
+// before the last — which is what composeFootnote writes. Being unable to read one
+// back meant a student pasting a footnote out of their own draft got all of its
+// authorities mashed into a single citation.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a footnote citing three authorities splits into three", () => {
+  const footnote =
+    "Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398; Evidence Act 2006, s 8; and Peter Watts “Birks’ Unjust Enrichment” (2005) 121 LQR 163 at 165.";
+  const parts = splitReferences(footnote);
+  assert.equal(parts.length, 3);
+  assert.equal(parts[0], "Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398");
+  assert.equal(parts[1], "Evidence Act 2006, s 8");
+  assert.ok(parts[2].startsWith("Peter Watts"));
+});
+
+test("a footnote read apart and recomposed is the footnote again", () => {
+  const footnote =
+    "Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398; Evidence Act 2006, s 8; and Peter Watts “Birks’ Unjust Enrichment” (2005) 121 LQR 163 at 165.";
+  const built = splitReferences(footnote).map((text) => {
+    const type = guideTypeById[detectTypes(text, 1)[0].typeId];
+    return buildCitation(type.id, prefillFromPaste(type, text, []));
+  });
+  assert.equal(composeFootnote(built).text, footnote);
+});
+
+test("a semicolon that is not separating authorities leaves the footnote whole", () => {
+  // Every part has to look like the start of a reference. None of the Guide's 216
+  // worked examples contains a semicolon inside one citation, but a stray one in
+  // a pasted sentence must not shatter the reference.
+  assert.equal(splitReferences("Taylor v New Zealand Poultry Board [1984] 1 NZLR 394; at 398").length, 1);
+  assert.equal(splitReferences("Evidence Act 2006, s 8; ss 9–10").length, 1);
 });
