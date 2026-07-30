@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildCitation, detectTypes, prefillFromPaste } from "../src/engine/build.ts";
 import { guideTypeById } from "../src/data/styleGuide.ts";
-import { pasteIsAllCaps } from "../src/engine/render.ts";
+import { pasteIsAllCaps, referencePrefixLength } from "../src/engine/render.ts";
 
 const prefill = (id: string, text: string) =>
   prefillFromPaste(guideTypeById[id], text, []);
@@ -680,4 +680,66 @@ test("the looser journal pattern never reaches a case", () => {
   const f = prefill("reported-case-nz", text);
   assert.equal(f.caseName, "Dollars & Sense Finance Ltd v Nathan");
   assert.equal(f.reportSeries, "NZLR");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A reference is almost never copied on its own
+//
+// It comes out of a footnote with its marker attached, out of a sentence with the
+// signal that introduced it, or off a reading list under a heading. Every one of
+// those used to end up INSIDE the case name, so the citation named a party that
+// does not exist and read as though it were correct.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a footnote marker copied with the reference is not part of the case name", () => {
+  const want = "Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398.";
+  for (const prefix of ["12 ", "3. ", "7) ", "[4] "]) {
+    const f = prefill("reported-case-nz", prefix + want);
+    assert.equal(f.caseName, "Taylor v New Zealand Poultry Board", `prefix ${JSON.stringify(prefix)}`);
+    assert.equal(buildCitation("reported-case-nz", f).text, want);
+  }
+});
+
+test("an introductory signal is not part of the case name", () => {
+  const want = "Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398.";
+  for (const signal of ["See ", "See also ", "Cf ", "But see ", "Compare ", "12 See also "]) {
+    assert.equal(
+      buildCitation("reported-case-nz", prefill("reported-case-nz", signal + want)).text,
+      want,
+      `signal ${JSON.stringify(signal)}`,
+    );
+  }
+});
+
+test("a reading-list heading is not part of the case name", () => {
+  const want = "Z v Dental Complaints Assessment Committee [2008] NZSC 55, [2009] 1 NZLR 1 at [26].";
+  for (const heading of ["Week 4: ", "Topic 3: ", "Reading 2. ", "Seminar 1 – "]) {
+    assert.equal(
+      buildCitation("reported-case-nz", prefill("reported-case-nz", heading + want)).text,
+      want,
+      `heading ${JSON.stringify(heading)}`,
+    );
+  }
+});
+
+test("a citation that legitimately begins with a number keeps it", () => {
+  // The bare leading number is the only ambiguous case: "16 US 610" is a volume,
+  // not a footnote marker, and "2269th Meeting" is a document title. Neither is
+  // followed by something a report series cannot be, so neither is touched.
+  assert.equal(referencePrefixLength("16 US 610 (1818) at 631."), 0);
+  assert.equal(
+    referencePrefixLength(
+      "2269th Meeting – International liability for injurious consequences [1992] vol 1 YILC 97 at [42].",
+    ),
+    0,
+  );
+  // And "Seebeck" is not the signal "See".
+  assert.equal(referencePrefixLength("Seebeck v Attorney-General [2000] 1 NZLR 1."), 0);
+});
+
+test("stripping a prefix never eats the whole paste", () => {
+  // If nothing recognisable is left, it was not a prefix.
+  assert.equal(referencePrefixLength("See"), 0);
+  assert.equal(referencePrefixLength("12"), 0);
+  assert.equal(referencePrefixLength("Week 4:"), 0);
 });

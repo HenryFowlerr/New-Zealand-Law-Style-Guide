@@ -495,6 +495,57 @@ export function pasteIsAllCaps(raw: string): boolean {
   return runs.length >= 2 && runs.some((run) => run.length >= 5);
 }
 
+/**
+ * How much of the front of a paste is NOT part of the reference.
+ *
+ * A reference is almost never copied on its own. It comes out of a footnote with
+ * its marker still attached, out of a sentence with the signal that introduced
+ * it, or off a reading list under a heading:
+ *
+ *   12 Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398.
+ *   See Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398.
+ *   Week 4: Z v Dental Complaints Assessment Committee [2008] NZSC 55
+ *
+ * Every one of those ended up INSIDE the case name, so the citation named a party
+ * that does not exist — "12 Taylor v New Zealand Poultry Board" — and read as
+ * though it were correct.
+ *
+ * A bare leading number is the only ambiguous case, because a citation can begin
+ * with one: "16 US 610 (1818)" is a volume, not a footnote marker. It is stripped
+ * only when the word after it is Titlecase, which a report series abbreviation
+ * never is. Everything else here — a number with punctuation, a superscript, an
+ * introductory signal, a reading-list heading — cannot begin a citation at all.
+ */
+export function referencePrefixLength(raw: string): number {
+  const patterns: RegExp[] = [
+    // A footnote marker: superscript digits, or digits closed by punctuation.
+    /^\s*[¹²³⁰-₟]+\s*/,
+    /^\s*\d{1,3}\s*[.):\]]\s+/,
+    /^\s*\[\d{1,3}\]\s+/,
+    // A bare footnote number. Ambiguous — a citation can begin with one, and
+    // "16 US 610 (1818)" is a volume — so it goes only before something that
+    // cannot be a report series: a Titlecase word, an opening quotation mark, or
+    // a single-letter party ("12 R v Smith"). "US 610" matches none of those.
+    /^\s*\d{1,3}\s+(?=\p{Lu}\p{Ll}|[“"‘']|\p{Lu}\s+v\s)/u,
+    // An introductory signal (chapter 2). "Seebeck v X" is safe: \b stops it.
+    /^\s*(?:see also|see|cf|compare|but see|but cf|contrast|accord|e\.?g\.?|note)\b[\s,:]+/i,
+    // A reading-list or seminar heading.
+    /^\s*(?:week|topic|reading|seminar|lecture|tutorial|case|module|unit)\s*\d*\s*[:.–-]\s+/i,
+  ];
+  let cut = 0;
+  // Repeat, because a footnote marker and a signal can both be present:
+  // "12 See also Taylor v …".
+  for (let pass = 0; pass < 4; pass++) {
+    const rest = raw.slice(cut);
+    const match = patterns.map((p) => rest.match(p)).find((m) => m && m[0].length > 0);
+    if (!match) break;
+    cut += match[0].length;
+  }
+  // Never eat the whole paste: if nothing recognisable is left, this was not a
+  // prefix at all.
+  return raw.slice(cut).replace(/[^\p{L}\p{N}]/gu, "").length >= 6 ? cut : 0;
+}
+
 /** A canonicalised paste, plus the offset map back to the text it came from. */
 export type NormalizedPaste = {
   text: string;
@@ -519,7 +570,12 @@ export function normalizePaste(raw: string): NormalizedPaste {
   const fromRaw: number[] = new Array(raw.length + 1);
   let out = "";
   let pendingSpace = false;
-  for (let i = 0; i < raw.length; i++) {
+  // A footnote marker, an introductory signal or a reading-list heading is not
+  // part of the reference. Dropping it here, once, keeps every later pass —
+  // detection, extraction, the audit — looking at the reference itself.
+  const prefix = referencePrefixLength(raw);
+  for (let i = 0; i < prefix; i++) fromRaw[i] = 0;
+  for (let i = prefix; i < raw.length; i++) {
     fromRaw[i] = out.length;
     const ch = raw[i];
     if (/\s/.test(ch)) {

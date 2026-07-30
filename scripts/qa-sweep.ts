@@ -152,6 +152,13 @@ const PERTURBATIONS: {
     apply: (s) => s.toUpperCase(),
     compare: (s) => s.toLowerCase(),
   },
+  // A reference is almost never copied on its own. These three are how it
+  // actually arrives, and none of them is part of the citation — so the output
+  // must be the same as if they were not there.
+  { name: "footnote marker still attached", apply: (s) => `12 ${s}` },
+  { name: "footnote marker with a full stop", apply: (s) => `3. ${s}` },
+  { name: "introduced by a signal", apply: (s) => `See also ${s}` },
+  { name: "under a reading-list heading", apply: (s) => `Week 4: ${s}` },
   { name: "no trailing full stop", apply: (s) => s.replace(/\.\s*$/, "") },
   { name: "trailing full stop added", apply: (s) => (/\.\s*$/.test(s) ? s : s + ".") },
   { name: "leading/trailing whitespace", apply: (s) => `   ${s}   ` },
