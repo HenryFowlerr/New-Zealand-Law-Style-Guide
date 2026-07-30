@@ -117,10 +117,14 @@ export function buildCitation(
   const fieldsToRender = ruled.fields;
   const issues = validate(type, fieldsToRender);
   for (const applied of ruled.applied) {
+    // A rule either drops a component or corrects its value, and the reader is
+    // owed the right sentence for which: "left out" reads as a fault when the
+    // field is still there with a shorter, correct value in it.
+    const stillPresent = Boolean((fieldsToRender[applied.field] ?? "").trim());
     issues.push({
       level: "note",
       field: applied.field,
-      message: `Left out under rule ${applied.rule}. ${applied.why}`,
+      message: `${stillPresent ? "Corrected" : "Left out"} under rule ${applied.rule}. ${applied.why}`,
     });
   }
   const hasError = issues.some((issue) => issue.level === "error");
@@ -511,7 +515,11 @@ export function auditAgainstPaste(
   // Compare case-insensitively, but report the words as the user wrote them:
   // showing "maxton" back to someone who typed "Maxton" reads like a fault in
   // the tool rather than a question about their citation.
-  const source = normalizePaste(paste).text;
+  // Compare against the paste AS THE GUIDE REQUIRES IT TO BE WRITTEN. Rule 3.2.1
+  // removes "& Anor" from a case name, so reporting it as a detail the citation
+  // had lost would be the tool apologising for obeying the rule — and it already
+  // explains that change in its own note.
+  const source = normaliseForComparison(normalizePaste(paste).text);
   const output = normalizePaste(citation).text.toLowerCase().replace(/[“”‘’"']/g, "");
   const lost: CitationWarning[] = [];
   const seen = new Set<string>();
