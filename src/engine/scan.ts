@@ -20,7 +20,7 @@
  */
 import type { GuideType } from "../data/styleGuide.ts";
 import { splitAuthor } from "./names.ts";
-import { chooseForm, renderFromTemplate, tokensToText } from "./render.ts";
+import { chooseForm, parseTemplate, renderFromTemplate, tokensToText } from "./render.ts";
 
 export type Anchor = {
   kind:
@@ -30,6 +30,7 @@ export type Anchor = {
     | "edition"
     | "year"
     | "yearFirst"
+    | "datedLocus"
     | "date"
     | "caseName"
     | "quotedTitle";
@@ -39,6 +40,9 @@ export type Anchor = {
   start: number;
   end: number;
 };
+
+const MONTHS =
+  "January|February|March|April|May|June|July|August|September|October|November|December";
 
 // A neutral citation: [year] COURT [division] number — letters immediately
 // after the year, then a number (e.g. "[2008] NZSC 55", "[2019] EWCA Civ 20").
@@ -59,8 +63,20 @@ const NEUTRAL =
 // rule 8.3, and bare for the American reporters, "546 F Supp 114" and "791 P 2d
 // 1329" under rule 8.6. Without either, this pattern failed on the whole locus
 // and Burke v Cory rebuilt as "Burke v Cory (1959) (2d) 262 (ONCA)".
-const SERIES = "[A-Z][A-Za-z]*(?:\\s[A-Z][A-Za-z]*)*(?:\\s+\\(\\d+[a-z]{1,2}\\)|\\s+\\d+[a-z]{1,2}\\b)?";
+const SERIES = "[A-Z][A-Za-z]*(?:\\s[A-Z][A-Za-z]*)*(?:\\s+\\(\\d+[A-Za-z]{1,2}\\)|\\s+\\d+[A-Za-z]{1,2}\\b)?";
 const REPORTER = new RegExp(`([[(]\\d{4}[\\])])\\s+(\\d+)\\s+(${SERIES})\\s+(\\d+)`);
+
+// The same locus, but opening with a bracketed DATE instead of a bracketed year.
+// The New Zealand Gazette is cited "(19 February 2004) 18 New Zealand Gazette
+// 379" under rule 5.2.4, and Hansard and the AJHR are cited the same way. With
+// only the year form above, "18 New Zealand Gazette 379" was swallowed whole into
+// the issue-number box while the template wrote its own "New Zealand Gazette"
+// literal, so the publication was named twice: "18 New Zealand Gazette 379 New
+// Zealand Gazette at 381".
+const DATED_LOCUS = new RegExp(
+  `\\((\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4})\\)\\s+(\\d+)\\s+(${SERIES})\\s+(\\d+)`,
+  "i",
+);
 
 // The same locus without a volume number — "[1932] AC 562". Restricted to named
 // law report series so a case name can never be mistaken for a series.
@@ -72,8 +88,12 @@ const REPORT_SERIES_NO_VOLUME =
 // ("at 189, n 92"), a chapter ("at ch 1") and bracketed locators that are not
 // purely numeric ("at [ED1.01(2)]", "at [38–033]"). Requiring digits alone
 // silently dropped the footnote from Burrows on Restitution.
+// Case-insensitive because a case list copied out of a database arrives in
+// capitals \u2014 "TAYLOR V NEW ZEALAND POULTRY BOARD [1984] 1 NZLR 394 (CA) AT 398"
+// \u2014 and a lowercase-only "at" left the pinpoint unrecognised. It was then
+// dropped silently, which is the one outcome this tool must never produce.
 const PINPOINT_AT =
-  /\bat\s+(\[[\dA-Za-z.()\u2013\u2014-]+\]|ch\s+\d+|\d+(?:[-\u2013]\d+)?(?:\.\d+)?(?:,\s*n\s*\d+)?)/;
+  /\bat\s+(\[[\dA-Za-z.()\u2013\u2014-]+\]|ch\s+\d+|\d+(?:[-\u2013]\d+)?(?:\.\d+)?(?:,\s*n\s*\d+)?)/i;
 
 // A legislation pinpoint: a trailing division reference — "s 8", "ss 3–5",
 // "sch 2", "pt 1", "art 5", "reg 4", "cl 2" — usually after a comma.
@@ -111,11 +131,8 @@ const DOCKET =
 
 const escapeReg = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const MONTHS =
-  "January|February|March|April|May|June|July|August|September|October|November|December";
-
 // A full date: "3 August 2004", "21 September 2010".
-const DATE = new RegExp(`\\b(\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4})\\b`);
+const DATE = new RegExp(`\\b(\\d{1,2}\\s+(?:${MONTHS})\\s+\\d{4})\\b`, "i");
 
 // Where a citation begins after a case name: a bracketed year, a court/report
 // abbreviation immediately followed by a number ("NZSC 55", "CA339"), or a
@@ -201,6 +218,20 @@ export function scanAnchors(text: string): Anchor[] {
     }
   }
 
+  // A locus dated rather than year-numbered, once no bracketed-year locus has
+  // already accounted for the citation.
+  if (!reporter) {
+    const dated = text.match(DATED_LOCUS);
+    if (dated) {
+      push("datedLocus", dated, {
+        date: dated[1],
+        issue: dated[2],
+        series: dated[3].trim(),
+        page: dated[4],
+      });
+    }
+  }
+
   const pinpoint = text.match(PINPOINT_AT);
   if (pinpoint) push("pinpoint", pinpoint, { value: pinpoint[1] });
   else {
@@ -243,13 +274,17 @@ export function scanAnchors(text: string): Anchor[] {
   // A case name: "X v Y" from the start up to the first citation token. If a
   // citation boundary is present, cut there (so "R v Reekie CA339/03, 3 August
   // 2004" yields "R v Reekie"); otherwise take the whole "X v Y" string.
-  if (/\sv\s/.test(text)) {
+  //
+  // The " v " test is case-insensitive: a case list copied out of a judgment
+  // database comes in capitals, and requiring a lowercase "v" meant no case name
+  // was recognised at all in "SMITH V JONES [2019] NZCA 123".
+  if (/\sv\s/i.test(text)) {
     const boundary = text.match(CITE_START);
     const value = (boundary && boundary.index != null
       ? text.slice(0, boundary.index)
       : text
     ).trim();
-    if (value.includes(" v ")) {
+    if (/\sv\s/i.test(value)) {
       anchors.push({ kind: "caseName", parts: { value }, start: 0, end: value.length });
     }
   }
@@ -358,6 +393,20 @@ export function refineFields(
           set("reportSeries", anchor.parts.code);
           set("startingPage", anchor.parts.number);
         }
+        earliestCitation = Math.min(earliestCitation, anchor.start);
+        break;
+      }
+      case "datedLocus": {
+        // "(19 February 2004) 18 New Zealand Gazette 379" — the date, then the
+        // issue number, then the publication, then the starting page. Which box
+        // the issue goes in depends on the type: the Gazette numbers issues,
+        // Hansard and the AJHR number volumes.
+        if (ids.has("date")) set("date", anchor.parts.date);
+        else if (ids.has("dateOfDebate")) set("dateOfDebate", anchor.parts.date);
+        if (ids.has("issueNumber")) set("issueNumber", anchor.parts.issue);
+        else if (ids.has("volume")) set("volume", anchor.parts.issue);
+        if (ids.has("startingPage")) set("startingPage", anchor.parts.page);
+        else if (ids.has("pageOrNoticeNumber")) set("pageOrNoticeNumber", anchor.parts.page);
         earliestCitation = Math.min(earliestCitation, anchor.start);
         break;
       }
@@ -842,6 +891,16 @@ function formOrder(type: GuideType, fields: Record<string, string>): { form: str
  *
  * A value of fewer than two letters or digits is left alone throughout: "3" or
  * "1" occurs all over a citation and locating it proves nothing.
+ *
+ * The template's own LITERALS take part in the walk, because the renderer writes
+ * them whether or not the paste already contains them. "Transcript" under rule
+ * 3.8 and "New Zealand Gazette" under 5.2.4 are both printed by the template, and
+ * a field that swallowed the paste's copy of one had it written out twice:
+ * "Couch v Attorney-General TRANSCRIPT Transcript SC49/2006". A literal cannot be
+ * trimmed, so on a conflict it is always the neighbouring field that yields.
+ *
+ * Matching throughout ignores case. A citation copied out of a judgment database
+ * is in capitals, and "TRANSCRIPT" is the same run of the paste as "Transcript".
  */
 function reconcilePass(
   type: GuideType,
@@ -849,11 +908,15 @@ function reconcilePass(
   text: string,
   policy: "trimLater" | "shrinkEarlier",
 ): Record<string, string> {
-  const { order } = formOrder(type, fields);
+  const { form, order } = formOrder(type, fields);
   const required = new Set(type.components.filter((c) => c.required).map((c) => c.id));
   const result = { ...fields };
   const claims: { id: string; start: number; end: number }[] = [];
   let cursor = 0;
+
+  // Case-insensitive search, on a lowered copy so offsets still line up.
+  const haystack = text.toLowerCase();
+  const find = (needle: string, from = 0) => haystack.indexOf(needle.toLowerCase(), from);
 
   /** The longest tail of `value` that occurs at or after `from`. */
   const placeTail = (value: string, from: number): { text: string; at: number } | null => {
@@ -861,7 +924,7 @@ function reconcilePass(
     for (let skip = 1; skip < parts.length; skip++) {
       const tail = tidyFragment(parts.slice(skip).join(" "));
       if (!tail || !locatable(tail)) continue;
-      const at = text.indexOf(tail, from);
+      const at = find(tail, from);
       if (at >= 0) return { text: tail, at };
     }
     return null;
@@ -874,21 +937,61 @@ function reconcilePass(
       const head = parts.slice(0, take).join(" ");
       if (start + head.length > before) continue;
       const tidy = tidyFragment(head);
-      if (tidy && locatable(tidy) && text.indexOf(tidy, start) === start) return tidy;
+      if (tidy && locatable(tidy) && find(tidy, start) === start) return tidy;
     }
     return null;
   };
 
-  for (const id of order) {
+  // Interleave the form's literals with its placeholders, in written order. A
+  // literal only joins the walk when it is distinctive enough to locate: a run of
+  // at least four letters that appears exactly once in the paste. "at", "vol" and
+  // "no" are far too common to prove anything about where they sit.
+  const steps: { literal?: string; id?: string }[] = [];
+  for (const token of parseTemplate(form)) {
+    if (token.kind === "ph") {
+      if (!steps.some((s) => s.id === token.id)) steps.push({ id: token.id });
+      continue;
+    }
+    for (const run of token.text.match(/\p{L}[\p{L} ]{3,}/gu) ?? []) {
+      const literal = run.trim();
+      if (literal.replace(/\s/g, "").length < 4) continue;
+      const lowered = literal.toLowerCase();
+      if (haystack.indexOf(lowered) !== haystack.lastIndexOf(lowered)) continue;
+      steps.push({ literal });
+    }
+  }
+
+  for (const step of steps) {
+    if (step.literal) {
+      const at = find(step.literal, cursor);
+      if (at >= 0) {
+        cursor = at + step.literal.length;
+        continue;
+      }
+      // The literal sits behind the cursor, so a field has taken the words the
+      // template is about to write itself. Only the field can give ground.
+      const behind = find(step.literal);
+      const previous = claims[claims.length - 1];
+      if (behind >= 0 && previous && behind >= previous.start && behind < previous.end) {
+        const head = shrinkHead(result[previous.id] ?? "", previous.start, behind);
+        if (head) {
+          result[previous.id] = head;
+          previous.end = previous.start + head.length;
+          cursor = behind + step.literal.length;
+        }
+      }
+      continue;
+    }
+    const id = step.id!;
     const value = (result[id] ?? "").trim();
     if (!value || !locatable(value)) continue;
-    const ahead = text.indexOf(value, cursor);
+    const ahead = find(value, cursor);
     if (ahead >= 0) {
       claims.push({ id, start: ahead, end: ahead + value.length });
       cursor = ahead + value.length;
       continue;
     }
-    const behind = text.indexOf(value);
+    const behind = find(value);
     const previous = claims[claims.length - 1];
     // Cut the earlier field back to where this one starts. Always attempted when
     // the policy asks for it, and as a last resort under the other policy when a

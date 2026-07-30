@@ -17,7 +17,7 @@ import {
   type CitationFields,
   type ItalicRun,
 } from "./engine/build";
-import { splitReferences } from "./engine/render";
+import { pasteIsAllCaps, splitReferences } from "./engine/render";
 import { resolveLink, looksLikeLink } from "./engine/linkResolve";
 import { browserFetchers } from "./engine/browserFetch";
 
@@ -272,6 +272,18 @@ function App() {
     const source = splitReferences(pasteText)[activeReference] ?? pasteText;
     return auditAgainstPaste(source, result.text);
   }, [reviewRequired, result, pasteText, activeReference]);
+
+  // A paste in full capitals came out of a case list or a judgment database, and
+  // rule 3.2's "exactly as on the first page of the report" is something only the
+  // reader can supply — so the tool keeps the capitals and says so, rather than
+  // guessing whether "ANZ" is an initialism or a name.
+  const shoutedPaste = useMemo(
+    () =>
+      reviewRequired &&
+      result?.status === "ready" &&
+      pasteIsAllCaps(splitReferences(pasteText)[activeReference] ?? pasteText),
+    [reviewRequired, result, pasteText, activeReference],
+  );
 
   const footnoteResults = useMemo(
     () => footnoteEntries.map((entry) => buildCitation(entry.typeId, entry.fields)),
@@ -808,6 +820,20 @@ function App() {
                         <p>{issue.message}</p>
                       </div>
                     ))}
+                    {shoutedPaste && (
+                      <div className="issue issue-check">
+                        <span aria-hidden="true">?</span>
+                        <p>
+                          You pasted this in capitals, so the citation is in
+                          capitals too. Rule 3.2 wants the parties’ names{" "}
+                          <strong>exactly as printed on the first page of the
+                          report</strong> — and a paste in capitals can’t say what
+                          that is, so nothing here has been re-capitalised for
+                          you. Please fix the names by hand. The abbreviations
+                          (NZLR, NZCA, CA, Ltd) are already right.
+                        </p>
+                      </div>
+                    )}
                     {citationWarnings.length > 0 && (
                       <div className="issue issue-check">
                         <span aria-hidden="true">?</span>
@@ -822,7 +848,7 @@ function App() {
                         </p>
                       </div>
                     )}
-                    {copyReady && !result.issues.length && !citationWarnings.length && (
+                    {copyReady && !result.issues.length && !citationWarnings.length && !shoutedPaste && (
                       <div className="issue issue-success">
                         <span aria-hidden="true">✓</span>
                         <p>All required fields for this format are complete.</p>

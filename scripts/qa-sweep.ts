@@ -133,7 +133,25 @@ console.log("\n" + "=".repeat(78));
 console.log("D. ROBUSTNESS — perturbations that must not change the answer");
 console.log("=".repeat(78));
 
-const PERTURBATIONS: { name: string; apply: (s: string) => string }[] = [
+/**
+ * A perturbation may legitimately change the citation's letters, so each one
+ * says how its result should be compared. Only the ALL-CAPS case does: a paste
+ * out of a judgment database shouts, and rule 3.2 says the party names are to be
+ * given "exactly as on the first page of the report" — which an all-capitals
+ * paste does not tell us, so the tool keeps what it was given and asks the reader
+ * to check. What it must NOT do is lose anything, and comparing case-insensitively
+ * is exactly the test that nothing was lost and nothing invented.
+ */
+const PERTURBATIONS: {
+  name: string;
+  apply: (s: string) => string;
+  compare?: (s: string) => string;
+}[] = [
+  {
+    name: "ALL CAPS (pasted from a case list)",
+    apply: (s) => s.toUpperCase(),
+    compare: (s) => s.toLowerCase(),
+  },
   { name: "no trailing full stop", apply: (s) => s.replace(/\.\s*$/, "") },
   { name: "trailing full stop added", apply: (s) => (/\.\s*$/.test(s) ? s : s + ".") },
   { name: "leading/trailing whitespace", apply: (s) => `   ${s}   ` },
@@ -173,7 +191,8 @@ for (const r of rows) {
     }
     const fields = prefillFromPaste(type, input, []);
     const built = buildCitation(type.id, fields);
-    if (norm(built.text ?? "") !== norm(r.example)) {
+    const same = p.compare ?? ((x: string) => x);
+    if (same(norm(built.text ?? "")) !== same(norm(r.example))) {
       pertFails.push({
         pert: p.name,
         typeName: r.typeName,
@@ -197,11 +216,12 @@ for (const [name, fs] of [...byPert.entries()].sort((a, b) => b[1].length - a[1]
 }
 console.log(`\n  Samples:`);
 for (const [name, fs] of byPert.entries()) {
-  const f = fs[0];
-  console.log(`\n    "${name}" — ${f.kind} — ${f.typeName} [${f.rule}]`);
-  console.log(`        in  : ${JSON.stringify(f.input.slice(0, 100))}`);
-  console.log(`        want: ${f.want.slice(0, 100)}`);
-  console.log(`        got : ${f.got.slice(0, 100)}`);
+  for (const f of fs.slice(0, 20)) {
+    console.log(`\n    "${name}" — ${f.kind} — ${f.typeName} [${f.rule}]`);
+    console.log(`        in  : ${JSON.stringify(f.input.slice(0, 100))}`);
+    console.log(`        want: ${f.want.slice(0, 100)}`);
+    console.log(`        got : ${f.got.slice(0, 100)}`);
+  }
 }
 
 // ---------------------------------------------------------------- E. FIXPOINT

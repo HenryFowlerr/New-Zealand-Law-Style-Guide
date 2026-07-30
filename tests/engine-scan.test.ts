@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildCitation, detectTypes, prefillFromPaste } from "../src/engine/build.ts";
 import { guideTypeById } from "../src/data/styleGuide.ts";
+import { pasteIsAllCaps } from "../src/engine/render.ts";
 
 const prefill = (id: string, text: string) =>
   prefillFromPaste(guideTypeById[id], text, []);
@@ -528,4 +529,74 @@ test("a type whose fields fail their shapes still reaches detection", () => {
     detectTypes("Mabo v Queensland (No 2) (1992) 175 CLR 1 (HCA) at 42.", 1)[0].typeId,
     "australia-case",
   );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A reference pasted in capitals
+//
+// Case lists and judgment databases render everything in capitals. Every pattern
+// that keyed on a lowercase word — the pinpoint's "at", the parties' " v ", each
+// literal in a template — failed on such a paste, and what those patterns would
+// have placed was dropped without a word. That is the failure this tool exists
+// to prevent, so it is tested directly rather than left to the corpus, which
+// contains no capitalised example at all.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a case pasted in capitals loses nothing", () => {
+  const f = prefill(
+    "reported-case-nz",
+    "TAYLOR V NEW ZEALAND POULTRY BOARD [1984] 1 NZLR 394 (CA) AT 398",
+  );
+  // Was: the (CA) and the "AT 398" both vanished.
+  assert.equal(f.courtIdentifier, "CA");
+  assert.equal(f.pinpoint, "398");
+  assert.equal(
+    buildCitation("reported-case-nz", f).text,
+    "TAYLOR v NEW ZEALAND POULTRY BOARD [1984] 1 NZLR 394 (CA) at 398.",
+  );
+});
+
+test("the 'v' between parties is lowercased, the names are not touched", () => {
+  // Rule 3.2 italicises the "v" with the case name and prints it lowercase, so
+  // that much is determinable. The names are to be given "exactly as on the
+  // first page of the report", which a capitalised paste does not say — "ANZ"
+  // and "Anz" are the same string in capitals — so nothing else is re-cased.
+  const f = prefill("neutral-citation-case-nz", "SMITH V JONES [2019] NZCA 123 AT [14]");
+  assert.equal(f.caseName, "SMITH v JONES");
+  assert.equal(
+    buildCitation("neutral-citation-case-nz", f).text,
+    "SMITH v JONES [2019] NZCA 123 at [14].",
+  );
+});
+
+test("a capitalised paste is flagged as such", () => {
+  assert.equal(pasteIsAllCaps("TAYLOR V NEW ZEALAND POULTRY BOARD [1984] 1 NZLR 394"), true);
+  assert.equal(pasteIsAllCaps("Taylor v New Zealand Poultry Board [1984] 1 NZLR 394"), false);
+  // A citation that merely contains abbreviations is not a shouted paste.
+  assert.equal(pasteIsAllCaps("Erwood v Ministry of Social Development [2010] NZCA 619"), false);
+  assert.equal(pasteIsAllCaps("[2010] NZCA 619"), false);
+});
+
+test("a template literal the paste already contains is not written twice", () => {
+  // Was: "COUCH v ATTORNEY-GENERAL TRANSCRIPT Transcript SC49/2006, …" — the
+  // template writes "Transcript" itself, and the case name had swallowed the
+  // paste's own copy of it.
+  const f = prefill("supreme-court-transcript", "COUCH V ATTORNEY-GENERAL TRANSCRIPT SC49/2006, 17 APRIL 2007.");
+  assert.equal(f.caseName, "COUCH v ATTORNEY-GENERAL");
+  assert.equal(
+    buildCitation("supreme-court-transcript", f).text?.toLowerCase(),
+    "couch v attorney-general transcript sc49/2006, 17 april 2007.",
+  );
+});
+
+test("a Gazette notice reads its issue, publication and page apart (5.2.4)", () => {
+  // Was: "… 18 New Zealand Gazette 379 New Zealand Gazette at 381." — the whole
+  // locus went into the issue-number box and the template named the Gazette again.
+  const text =
+    "“Commission of Inquiry into Police Conduct” (19 February 2004) 18 New Zealand Gazette 379 at 381.";
+  const f = prefill("nz-gazette", text);
+  assert.equal(f.issueNumber, "18");
+  assert.equal(f.startingPage, "379");
+  assert.equal(f.pinpoint, "381");
+  assert.equal(buildCitation("nz-gazette", f).text, text);
 });

@@ -98,10 +98,24 @@ export const GUIDE_CORPUS: GuideCitation[] = [
   { typeId: "other-instrument-dinli", rule: "4.3.4", text: "Telecommunications Information Privacy Code 2003, r 3." },
   { typeId: "letters-patent", rule: "4.3.5", text: "Letters Patent Constituting the Office of the Governor-General of New Zealand 1983, cl 12." },
   { typeId: "letters-patent", rule: "4.3.5", text: "Letters Patent Constituting the Office of Governor-General and Commander-in-Chief of the Dominion of New Zealand 1917, cl 2." },
-  { typeId: "proclamation", rule: "4.3.6", text: "Proclamation Dissolving the Parliament of New Zealand (12 August 2005) 124 NZ Gazette 3031." },
-  { typeId: "nz-gazette", rule: "4.3.2", text: "“Royal Commission on the Pike River Coal Mine Tragedy” (16 December 2010) 173 NZ Gazette 4261 at 4262." },
-  { typeId: "nz-gazette", rule: "4.3.2", text: "“Reference to the Court of Appeal of the Question of the Convictions of David Cullen Bain for Murder” (6 March 2003) 22 NZ Gazette 689 at cl 5." },
-  { typeId: "nz-gazette", rule: "4.3.2", text: "“Commission of Inquiry into Police Conduct” (19 February 2004) 18 NZ Gazette 379 at 381." },
+  // These four were transcribed with the Gazette abbreviated to "NZ Gazette",
+  // and the proclamation's title without its quotation marks. Re-read off
+  // chapter-pt.4.3.2, 4.3.6 and 5.2.4: the Guide writes "New Zealand Gazette"
+  // in full in every one of its examples and never abbreviates it, and 4.3.6's
+  // example quotes the title. Four of the audit's failures were this fixture,
+  // not the engine — which is exactly the mistake this file exists to catch,
+  // pointing the other way.
+  //
+  // Rules 4.3.2 and 4.3.6 both say to cite "in accordance with rule 5.2.4", so
+  // these citations are printed under 4.3.x and governed by 5.2.4. The rule
+  // recorded here is where the Guide prints them.
+  { typeId: "proclamation", rule: "4.3.6", text: "“Proclamation Dissolving the Parliament of New Zealand” (12 August 2005) 124 New Zealand Gazette 3031." },
+  { typeId: "nz-gazette", rule: "4.3.2", text: "“Royal Commission on the Pike River Coal Mine Tragedy” (16 December 2010) 173 New Zealand Gazette 4261 at 4262." },
+  { typeId: "nz-gazette", rule: "4.3.2", text: "“Reference to the Court of Appeal of the Question of the Convictions of David Cullen Bain for Murder” (6 March 2003) 22 New Zealand Gazette 689 at cl 5." },
+  { typeId: "nz-gazette", rule: "4.3.2", text: "“Commission of Inquiry into Police Conduct” (19 February 2004) 18 New Zealand Gazette 379 at 381." },
+  { typeId: "nz-gazette", rule: "5.2.4", text: "“Declaration of State of Local Emergency” (23 March 2018) New Zealand Gazette No 2018-go941." },
+  { typeId: "nz-gazette", rule: "5.2.4", text: "“Register of Pharmacies” (24 August 2001) 100 New Zealand Gazette 2597 at 2601." },
+  { typeId: "nz-gazette", rule: "5.2.4", text: "“Australia New Zealand Food Standards Code – Amendment No 171” (13 July 2017) 73 New Zealand Gazette 127 at 128." },
 
   // ══════════════════════════ 5 — Parliamentary and official (chapter-5)
   { typeId: "hansard", rule: "5.1.1", text: "(6 April 2005) 624 NZPD 19676." },

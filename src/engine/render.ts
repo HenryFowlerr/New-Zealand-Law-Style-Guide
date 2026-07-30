@@ -437,7 +437,13 @@ export function buildExtractionRegex(
   pattern += "$";
 
   try {
-    return { regex: new RegExp(pattern), ids };
+    // Case-insensitive. Every literal in a template is a fixed word the Guide
+    // supplies — " at ", " reported in ", "(ed)", "NZPD" — and a case list copied
+    // out of a judgment database arrives in capitals, so a case-sensitive " at "
+    // meant the whole template failed to match and every field it would have
+    // placed was lost. Whether a reference can be read at all must not turn on
+    // how the source it was copied from chose to shout.
+    return { regex: new RegExp(pattern, "i"), ids };
   } catch {
     return null;
   }
@@ -469,6 +475,24 @@ export function normalizeQuotes(text: string): string {
     .replace(/"/g, "”") // closing double ”
     .replace(/(^|[\s([{])'/g, "$1‘") // opening single ‘
     .replace(/'/g, "’"); // closing single / apostrophe ’
+}
+
+/**
+ * Was this pasted out of something that shouts?
+ *
+ * Case lists and judgment databases render party names in full capitals, and
+ * nothing in the text says so except the absence of a single lowercase letter.
+ *
+ * But plenty of correct citation is capitals already: "[1984] 1 NZLR 394" has no
+ * lowercase in it either, and there is nothing there to warn anybody about. What
+ * distinguishes a shouted paste is capitalised WORDS — so at least two runs of
+ * three letters, one of them five or longer, which no law report abbreviation
+ * reaches on its own.
+ */
+export function pasteIsAllCaps(raw: string): boolean {
+  if (/\p{Ll}/u.test(raw)) return false;
+  const runs = raw.match(/\p{Lu}{3,}/gu) ?? [];
+  return runs.length >= 2 && runs.some((run) => run.length >= 5);
 }
 
 /** A canonicalised paste, plus the offset map back to the text it came from. */
@@ -512,7 +536,18 @@ export function normalizePaste(raw: string): NormalizedPaste {
     out += ch;
   }
   fromRaw[raw.length] = out.length;
-  return { text: normalizeQuotes(out), fromRaw };
+  // Rule 3.2 requires the "v" between parties to be lowercase (it is italicised
+  // with the rest of the case name), and a paste out of a judgment database
+  // capitalises it along with everything else. One character, same length, so
+  // the offset map above still holds.
+  //
+  // The party names themselves are deliberately left exactly as pasted. The same
+  // rule says to give them "exactly as on the first page of the report", and an
+  // all-capitals paste does not say what that is: "ANZ" and "Anz" are the same
+  // string in capitals, and guessing would produce a wrong citation that looks
+  // right. The interface asks the reader to check them instead.
+  const text = pasteIsAllCaps(raw) ? out.replace(/(\s)V(\s)/g, "$1v$2") : out;
+  return { text: normalizeQuotes(text), fromRaw };
 }
 
 export function extractByTemplate(
