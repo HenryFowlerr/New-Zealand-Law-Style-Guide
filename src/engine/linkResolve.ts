@@ -19,6 +19,7 @@ import {
   parseCitationMetadata,
   type CitationMetadata,
 } from "./metadata";
+import { applyPageTitle, recogniseNzSource } from "./nzSources";
 
 const firstYear = (s?: string): string | undefined => s?.match(/\b(\d{4})\b/)?.[1];
 
@@ -114,10 +115,23 @@ export function openLibraryToMetadata(record: any): CitationMetadata {
 }
 
 export type ResolvedLink = {
-  source: "citoid" | "crossref" | "openlibrary" | "page-metadata" | "url-only";
+  source:
+    | "citoid"
+    | "crossref"
+    | "openlibrary"
+    | "page-metadata"
+    | "url-only"
+    /** A New Zealand legal source, read from its URL and its page title. */
+    | "nz-legal-source"
+    /** The same, where the page could not be read: the URL alone. */
+    | "nz-legal-url";
   metadata: CitationMetadata;
   typeId: string;
   fields: Record<string, string>;
+  /** Components the source cannot supply, so the interface can name them. */
+  stillNeeded?: string[];
+  /** The site recognised, for the message shown to the reader. */
+  sourceName?: string;
 };
 
 /** ISO ("2019-05-03") → "3 May 2019"; other date strings pass through. */
@@ -281,6 +295,39 @@ export async function resolveLink(
   fetchers: Fetchers,
 ): Promise<ResolvedLink | null> {
   const trimmed = input.trim();
+
+  // A New Zealand legal source is recognised from its URL BEFORE anything else.
+  // Crossref, Open Library and Citoid are built for scholarship and read a
+  // judgment or an Act as a web page, so the official text of the Evidence Act
+  // came back as “DLM393463” legislation.govt.nz <…> — a correctly formatted
+  // citation of the wrong kind, which rule 4.1.1 does not permit at all.
+  //
+  // These paths carry the citation, so the type never depends on reading the
+  // page: nzlii.org/nz/cases/NZSC/2008/55.html IS [2008] NZSC 55. The page title
+  // adds the parties or the short title where it can be read, and where it cannot
+  // the reader is told exactly which box is still empty.
+  const nz = recogniseNzSource(trimmed);
+  if (nz) {
+    let pageTitle = "";
+    try {
+      const html = await fetchers.fetchText(
+        /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
+      );
+      pageTitle = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ?? "";
+      pageTitle = pageTitle.replace(/&amp;/g, "&").replace(/\s+/g, " ");
+    } catch {
+      // Blocked, offline, or a PDF. The URL alone still gives the right type.
+    }
+    const applied = applyPageTitle(nz, pageTitle);
+    return {
+      source: pageTitle ? "nz-legal-source" : "nz-legal-url",
+      metadata: { authors: [] },
+      typeId: applied.typeId,
+      fields: applied.fields,
+      stillNeeded: applied.stillNeeded,
+      sourceName: nz.source,
+    };
+  }
 
   const doi = extractDoi(trimmed);
   if (doi) {

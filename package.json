@@ -14,11 +14,12 @@
     "test": "tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",
     "verify": "npm run check && npm test && npm run build",
-    "qa": "npm run qa:render && npm run qa:guide && npm run qa:paste",
+    "qa": "npm run qa:render && npm run qa:guide && npm run qa:paste && npm run qa:link",
     "qa:render": "tsx scripts/render-truth.ts --all && tsx scripts/render-invariants.ts && tsx scripts/render-omission.ts",
     "qa:guide": "tsx scripts/guide-audit.ts",
     "qa:paste": "tsx scripts/qa-sweep.ts && tsx scripts/common-law-report.ts",
-    "fit:detection": "tsx scripts/fit-detection.ts"
+    "fit:detection": "tsx scripts/fit-detection.ts",
+    "qa:link": "tsx scripts/link-report.ts"
   },
   "dependencies": {
     "react": "19.2.6",

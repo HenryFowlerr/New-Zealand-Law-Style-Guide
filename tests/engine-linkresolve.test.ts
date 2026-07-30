@@ -230,3 +230,97 @@ test("returns null for a non-link that matches nothing", async () => {
   );
   assert.equal(resolved, null);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// New Zealand legal sources
+//
+// The generic resolvers read a judgment or an Act as a web page, so the official
+// text of the Evidence Act came back as “DLM393463” legislation.govt.nz <…> — a
+// correctly formatted citation of a kind rule 4.1.1 does not permit at all. The
+// URL settles the type; the page title fills in the rest, and where it cannot be
+// read the citation is still of the right kind.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { LINK_TRUTH } from "./fixtures/link-truth.ts";
+import { applyPageTitle, recogniseNzSource } from "../src/engine/nzSources.ts";
+
+for (const truth of LINK_TRUTH) {
+  const label = `${truth.url.replace(/^https?:\/\/(www\.)?/, "")}${truth.pageTitle ? "" : " (page unreadable)"}`;
+  test(`[link] ${label}`, () => {
+    const match = recogniseNzSource(truth.url);
+    if (truth.typeId === "internet-material") {
+      // Not a legal source: the generic resolvers must keep it.
+      assert.equal(match, null);
+      return;
+    }
+    assert.ok(match, "a New Zealand legal source was not recognised");
+    const applied = applyPageTitle(match, truth.pageTitle ?? "");
+    assert.equal(applied.typeId, truth.typeId);
+    if (truth.want) {
+      assert.equal(buildCitation(applied.typeId, applied.fields).text, truth.want);
+    }
+    for (const id of truth.stillNeeded ?? []) {
+      assert.ok(
+        applied.stillNeeded.includes(id),
+        `should have asked the reader for "${id}", asked for: ${applied.stillNeeded.join(", ") || "(nothing)"}`,
+      );
+    }
+  });
+}
+
+test("an Act is an Act whether or not the page can be read", () => {
+  // The whole point of reading the URL first: a blocked page must not downgrade a
+  // statute to a webpage citation. Rule 4.1.1 gives an Act no URL at all, so
+  // "internet material" is not a lesser answer here — it is a wrong one.
+  const match = recogniseNzSource(
+    "https://www.legislation.govt.nz/act/public/2006/0069/latest/DLM393463.html",
+  )!;
+  const blind = applyPageTitle(match, "");
+  const read = applyPageTitle(match, "Evidence Act 2006 | New Zealand Legislation");
+  assert.equal(blind.typeId, "nz-statute");
+  assert.equal(read.typeId, "nz-statute");
+  // The year is in the path, so it survives the page being unreadable; only the
+  // short title is asked for.
+  assert.equal(blind.fields.year, "2006");
+  assert.deepEqual(blind.stillNeeded, ["shortTitle"]);
+  assert.deepEqual(read.stillNeeded, []);
+});
+
+test("a judgment's court, year and number come from the path alone", () => {
+  const match = recogniseNzSource("http://www.nzlii.org/nz/cases/NZCA/2010/619.html")!;
+  const blind = applyPageTitle(match, "");
+  assert.equal(blind.typeId, "neutral-citation-case-nz");
+  assert.equal(blind.fields.year, "2010");
+  assert.equal(blind.fields.courtIdentifier, "NZCA");
+  assert.equal(blind.fields.judgmentNumber, "619");
+  assert.deepEqual(blind.stillNeeded, ["caseName"]);
+});
+
+test("a reported case takes the parallel citation NZLII carries", () => {
+  // Rule 3.2 prefers the reported citation with the neutral one in front of it,
+  // and NZLII's title gives both. Reading only the neutral citation would cite
+  // the case as unreported when it is not.
+  const match = recogniseNzSource("http://www.nzlii.org/nz/cases/NZSC/2008/55.html")!;
+  const applied = applyPageTitle(
+    match,
+    "Z v Dental Complaints Assessment Committee [2008] NZSC 55; [2009] 1 NZLR 1 (25 July 2008)",
+  );
+  assert.equal(applied.typeId, "reported-case-nz");
+  assert.equal(applied.fields.neutralCitation, "[2008] NZSC 55");
+  assert.equal(applied.fields.reportSeries, "NZLR");
+  assert.equal(applied.fields.caseName, "Z v Dental Complaints Assessment Committee");
+});
+
+test("an amending instrument takes the year that closes its title", () => {
+  // "District Courts (Lawyers and Conveyancers Act 2006) Amendment Rules 2008"
+  // is a 2008 instrument. Taking the first year in the title made it 2006.
+  const match = recogniseNzSource(
+    "https://www.legislation.govt.nz/regulation/public/2008/0197/latest/DLM1382100.html",
+  )!;
+  const applied = applyPageTitle(
+    match,
+    "District Courts (Lawyers and Conveyancers Act 2006) Amendment Rules 2008 | New Zealand Legislation",
+  );
+  assert.equal(applied.fields.year, "2008");
+  assert.equal(applied.fields.title, "District Courts (Lawyers and Conveyancers Act 2006) Amendment Rules");
+});

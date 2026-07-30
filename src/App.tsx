@@ -241,6 +241,11 @@ function App() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [fields, setFields] = useState<CitationFields>({});
   const [reviewRequired, setReviewRequired] = useState(false);
+  // Whether the fields came from a resolved LINK rather than a pasted reference.
+  // The paste audit compares the citation word by word against what was pasted,
+  // which is exactly wrong for a link: rule 4.1.1 gives an Act no URL at all, so
+  // every part of the web address was reported as a detail the citation had lost.
+  const [filledFromLink, setFilledFromLink] = useState(false);
   const [query, setQuery] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
   const [linkStatus, setLinkStatus] = useState("");
@@ -268,10 +273,10 @@ function App() {
   // quietly: a detail is dropped, or written twice, and the citation still
   // reads perfectly well. This is the one moment that is catchable.
   const citationWarnings = useMemo(() => {
-    if (!reviewRequired || result?.status !== "ready") return [];
+    if (!reviewRequired || filledFromLink || result?.status !== "ready") return [];
     const source = splitReferences(pasteText)[activeReference] ?? pasteText;
     return auditAgainstPaste(source, result.text);
-  }, [reviewRequired, result, pasteText, activeReference]);
+  }, [reviewRequired, filledFromLink, result, pasteText, activeReference]);
 
   // A paste in full capitals came out of a case list or a judgment database, and
   // rule 3.2's "exactly as on the first page of the report" is something only the
@@ -280,9 +285,10 @@ function App() {
   const shoutedPaste = useMemo(
     () =>
       reviewRequired &&
+      !filledFromLink &&
       result?.status === "ready" &&
       pasteIsAllCaps(splitReferences(pasteText)[activeReference] ?? pasteText),
-    [reviewRequired, result, pasteText, activeReference],
+    [reviewRequired, filledFromLink, result, pasteText, activeReference],
   );
 
   const footnoteResults = useMemo(
@@ -327,6 +333,7 @@ function App() {
     setDetections([]);
     setAnalysisAttempted(false);
     setReviewRequired(false);
+    setFilledFromLink(false);
     setLinkStatus("");
   };
 
@@ -339,6 +346,7 @@ function App() {
       : {};
     setFields(prefill);
     setReviewRequired(fromPaste);
+    setFilledFromLink(false);
     const missingNow = missingRequiredComponents(guideTypeById[id], prefill);
     const focusId = missingNow[0]
       ? `input-${missingNow[0].id}`
@@ -373,7 +381,26 @@ function App() {
       setSelectedType(resolved.typeId);
       setFields(resolved.fields);
       setReviewRequired(true);
-      if (resolved.source === "url-only") {
+      setFilledFromLink(true);
+      if (resolved.source === "nz-legal-source" || resolved.source === "nz-legal-url") {
+        // A New Zealand legal source: the web address itself settled what kind of
+        // thing this is, so the type is right whether or not the page could be
+        // read. Say which boxes the source cannot fill rather than implying it
+        // filled them all.
+        const site = resolved.sourceName ?? "the source";
+        const needed = (resolved.stillNeeded ?? [])
+          .map((id) => visibleComponents(guideTypeById[resolved.typeId]).find((c) => c.id === id)?.label ?? id)
+          .join(", ");
+        const read =
+          resolved.source === "nz-legal-source"
+            ? `Read from ${site}.`
+            : `Recognised as ${site}, but the page itself could not be read.`;
+        setLinkStatus(
+          needed
+            ? `${read} The web address gives the citation’s structure; please add ${needed} from the source itself, then check every field.`
+            : `${read} Check every field against the source before you copy.`,
+        );
+      } else if (resolved.source === "url-only") {
         // The page blocked automated reading; only the URL/slug was usable.
         setLinkStatus(
           "This site blocked automatic reading, so the title was taken from the web address and the site name from the link. Please add the author and date, and check the title.",
@@ -745,6 +772,17 @@ function App() {
                   </a>
                 </div>
 
+                {filledFromLink && linkStatus && (
+                  // Where the fields came from, shown beside them. The status was
+                  // only rendered in the paste view, so the one thing a reader
+                  // needs to know about a link fill — which site it was read from,
+                  // and what that site could not tell us — disappeared the moment
+                  // the form opened.
+                  <div className="review-banner extraction-summary">
+                    <strong>Filled from a link</strong>
+                    <span>{linkStatus}</span>
+                  </div>
+                )}
                 {reviewRequired && (
                   <div className="review-banner extraction-summary">
                     <strong>
