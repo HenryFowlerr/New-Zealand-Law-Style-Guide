@@ -159,3 +159,35 @@ test("a citation wrapped across lines by a PDF stays one reference", () => {
     ["Taylor v New Zealand Poultry Board [1984] 1 NZLR 394 (CA) at 398."],
   );
 });
+
+test("a bibliography's section headings are not glued to the references", () => {
+  // Copied out of Word these carry no punctuation, so the line below joined them:
+  // "Cases Attorney-General v X [2007] NZCA 388." — the heading inside the case
+  // name — and "Books and chapters" even displaced the book's author.
+  const bibliography = `Cases
+Attorney-General v X [2007] NZCA 388.
+Bowen v Paramount Builders (Hamilton) Ltd [1977] 1 NZLR 394 (CA).
+
+Legislation
+Evidence Act 2006.
+Crimes Act 1961, s 167.
+
+Books and chapters
+Stephen Todd (ed) The Law of Torts in New Zealand (8th ed, Thomson Reuters, Wellington, 2019).`;
+  const parts = splitReferences(bibliography);
+  assert.equal(parts.length, 5);
+  assert.ok(parts[0].startsWith("Attorney-General v X"), parts[0]);
+  assert.ok(parts[2].startsWith("Evidence Act"), parts[2]);
+  assert.ok(parts[4].startsWith("Stephen Todd"), parts[4]);
+  assert.ok(!parts.some((p) => /^(Cases|Legislation|Books)/.test(p)));
+});
+
+test("a wrapped line is not mistaken for a heading", () => {
+  // A heading carries no citation signal at all. These two carry theirs — a " v "
+  // and a bracket — which is what keeps them attached to what follows.
+  assert.equal(splitReferences("Taylor v New Zealand Poultry\nBoard [1984] 1 NZLR 394 (CA) at 398.").length, 1);
+  assert.equal(
+    splitReferences("Home Office Report of the Royal\nCommission on Capital Punishment 1949–1953 (Cmd 8932, 1953).").length,
+    1,
+  );
+});

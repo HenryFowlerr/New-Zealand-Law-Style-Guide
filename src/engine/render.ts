@@ -719,6 +719,23 @@ export function splitReferences(raw: string): string[] {
   // A line that opens a citation: a capital, a quotation mark, or a bracketed
   // date — the shapes every one of the Guide's formats can begin with.
   const opensCitation = /^(?:[“"(\[]|[A-ZĀ-ſ])/;
+  /**
+   * A section heading in a bibliography — "Cases", "Legislation", "Books and
+   * chapters". Copied out of Word these carry no punctuation, so the line below
+   * simply joined them and the citation came out "Cases Attorney-General v X
+   * [2007] NZCA 388." with the heading inside the case name.
+   *
+   * A heading carries NO citation signal at all — no number, no " v ", no bracket
+   * or quotation mark — and is short. That is what separates it from a line a PDF
+   * wrapped mid-citation: "Taylor v New Zealand Poultry" has its " v ", and
+   * "Stephen Todd (ed) The Law of Torts in New" has its bracket.
+   */
+  const isHeading = (line: string): boolean =>
+    line.length > 0 &&
+    !/\d/.test(line) &&
+    !/\sv\s/i.test(line) &&
+    !/[“"(\[]/.test(line) &&
+    line.split(/\s+/).length <= 4;
   // A line that closes one: a full stop, allowing a closing quote or bracket.
   const closesCitation = /[.!?][”"')\]]?$/;
 
@@ -747,7 +764,7 @@ export function splitReferences(raw: string): string[] {
     const startsNew =
       current.length > 0 &&
       opensCitation.test(line) &&
-      (hadMarker(index) || isList || closesCitation.test(previous));
+      (hadMarker(index) || isList || closesCitation.test(previous) || isHeading(previous));
     if (startsNew) flush();
     current.push(line);
   }
