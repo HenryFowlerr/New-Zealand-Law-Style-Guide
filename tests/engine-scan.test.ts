@@ -836,3 +836,48 @@ test("a New Zealand Act tagged “(NZ)” is not offered as an Australian one", 
   assert.equal(detectTypes("Chaffey Dam Act 1974 (NSW).", 1)[0].typeId, "australia-statute");
   assert.equal(detectTypes("Pensions Act 1995 (UK).", 1)[0].typeId, "uk-modern-statute");
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The dash a student types is not evidence about which rule they meant
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a Māori Land Court block name is found whether the dash is typed or printed", () => {
+  // Rule 3.5 separates the case name from the block with an en dash, and the
+  // template demanded that exact character — so a hyphen meant the rule's own
+  // type was not offered in the picker at all (rank -1).
+  const want = "Faulkner v Hoete – Motiti North C No 1 [2018] Māori Appellate Court MB 17 (2018 APPEAL 17).";
+  for (const text of [want, want.replace("–", "-")]) {
+    const f = prefill("maori-land-court", text);
+    assert.equal(f.caseName, "Faulkner v Hoete");
+    assert.equal(f.blockName, "Motiti North C No 1");
+    // The en dash the rule prints is restored on the way out.
+    assert.equal(buildCitation("maori-land-court", f).text, want);
+    assert.ok(
+      detectTypes(text, 86).findIndex((d) => d.typeId === "maori-land-court") >= 0,
+      "the type was not offered at all",
+    );
+  }
+});
+
+test("a span of years typed with a hyphen takes the en dash (3.2.8)", () => {
+  const want =
+    "Geoffrey Palmer “A Bill of Rights for New Zealand: A White Paper” [1984–1985] I AJHR A6 at 29.";
+  assert.equal(buildCitation("ajhr", prefill("ajhr", want.replace("–", "-"))).text, want);
+});
+
+test("a hyphen that is not a range is left exactly as given", () => {
+  // A docket number and a title keep every hyphen they were given. A title is
+  // reproduced as its source printed it, and guessing at someone else's
+  // punctuation is not this tool's business.
+  const docket =
+    "Wellington International Airport Ltd v Commerce Commission HC Wellington CIV-2011-485-249, 1 June 2011 at [2].";
+  assert.equal(
+    buildCitation("unreported-case-file-number-nz", prefill("unreported-case-file-number-nz", docket)).text,
+    docket,
+  );
+  const title = "Simon France (ed) Adams on Criminal Law - Evidence (looseleaf ed, Thomson Reuters) at [ED1.01(2)].";
+  assert.match(
+    buildCitation("looseleaf-online-commentary", prefill("looseleaf-online-commentary", title)).text ?? "",
+    /Adams on Criminal Law - Evidence/,
+  );
+});

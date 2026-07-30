@@ -660,7 +660,10 @@ export function refineFields(
   // swallowed the block, leaving a required field empty so that the tool
   // refused to generate anything at all.
   if (ids.has("blockName")) {
-    const dash = text.match(/^(.+?)\s+[–—]\s+(.+?)(?=\s+[[(]\d{4}[\])]|\s*$)/);
+    // The dash may be typed as a hyphen — it is what a keyboard offers, and
+    // without accepting one "Faulkner v Hoete - Motiti North C No 1" was not
+    // recognised as a Māori Land Court decision at all.
+    const dash = text.match(/^(.+?)\s+[–—-]\s+(.+?)(?=\s+[[(]\d{4}[\])]|\s*$)/);
     if (dash) {
       set("caseName", dash[1]);
       set("blockName", dash[2]);
@@ -833,10 +836,26 @@ export function refineFields(
     if (!positionalValueLooksValid(id, value)) delete fields[id];
   }
 
+  // A span of years is a range, and rule 3.2.8's "ranges with en dash" governs it
+  // as much as a pinpoint's: the AJHR volume "[1984–1985]" is printed that way.
+  // Only a year-to-year span is touched, so a docket number or a title keeps
+  // every hyphen it was given — a title is reproduced as its source printed it,
+  // and guessing at someone else's punctuation is not this tool's business.
+  for (const [id, value] of Object.entries(fields)) {
+    if (!YEAR_RANGE_FIELDS.has(id)) continue;
+    fields[id] = (value ?? "").replace(
+      /^(\[?)((?:1[6-9]|20)\d{2})\s*-\s*((?:1[6-9]|20)\d{2})(\]?)$/,
+      "$1$2–$3$4",
+    );
+  }
+
   dropOverlapWithAnchoredName(fields, anchored);
 
   return stripBracketsSuppliedByTemplate(type, fields);
 }
+
+/** Components whose value can be a span of years rather than a single one. */
+const YEAR_RANGE_FIELDS = new Set(["year", "volume", "yearOfJournal", "neutralYear", "date"]);
 
 /** Words of a value, for building prefixes and suffixes of it. */
 const words = (value: string): string[] => value.trim().split(/\s+/).filter(Boolean);

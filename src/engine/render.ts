@@ -315,6 +315,20 @@ function escapeRegExp(input: string): string {
 }
 
 /**
+ * Escape a template's literal text, but let any dash in it match any other.
+ *
+ * A template prints the dash the Guide prints — rule 3.5 separates a Māori Land
+ * Court case name from its block with an en dash — and a keyboard offers a
+ * hyphen. Demanding the exact character meant "Faulkner v Hoete - Motiti North C
+ * No 1 …" did not match the rule's own template at all, so the type was not even
+ * offered in the picker. The dash a student types is not evidence about which
+ * rule they meant.
+ */
+function escapeLiteral(input: string): string {
+  return escapeRegExp(input).replace(/[-–—]/g, "[-–—]");
+}
+
+/**
  * Constrained capture patterns for fields with a recognisable shape. Typing
  * these anchors the surrounding free-text fields, so (for example) a case name
  * stops at its neutral citation instead of bleeding into it. Kept deliberately
@@ -350,7 +364,7 @@ export function buildExtractionRegex(
       // A literal that leads a following placeholder is emitted while handling
       // that placeholder; only a trailing literal is emitted here.
       if (tpl[i + 1] && tpl[i + 1].kind === "ph") continue;
-      pattern += escapeRegExp(t.text);
+      pattern += escapeLiteral(t.text);
       continue;
     }
 
@@ -430,8 +444,8 @@ export function buildExtractionRegex(
     }
 
     ids.push(t.id);
-    pattern += escapeRegExp(mandatoryPrefix);
-    const unit = `${escapeRegExp(sep)}${capture}${escapeRegExp(trailer)}`;
+    pattern += escapeLiteral(mandatoryPrefix);
+    const unit = `${escapeLiteral(sep)}${capture}${escapeLiteral(trailer)}`;
     pattern += required ? unit : `(?:${unit})?`;
   }
   pattern += "$";

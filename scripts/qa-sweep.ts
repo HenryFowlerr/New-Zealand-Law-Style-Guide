@@ -166,7 +166,19 @@ const PERTURBATIONS: {
   { name: "double internal spaces", apply: (s) => s.replace(/ /g, "  ") },
   { name: "non-breaking spaces", apply: (s) => s.replace(/ /g, " ") },
   { name: "newlines instead of spaces", apply: (s) => s.replace(/ /g, (m, i) => (i % 17 === 0 ? "\n" : m)) },
-  { name: "en-dash → hyphen", apply: (s) => s.replace(/–/g, "-") },
+  // A RANGE typed with a hyphen. Rule 3.2.8 requires an en dash for one, so this
+  // is a real correction the tool owes the reader.
+  //
+  // Deliberately not every en dash: most of them in the corpus sit inside a
+  // TITLE — "Adams on Criminal Law – Evidence", "Parliament and the Bill of
+  // Rights – a blasé attitude?" — and a title is reproduced as its source printed
+  // it. Demanding that the tool restore an en dash there would be demanding that
+  // it guess at someone else's punctuation, which is exactly the kind of
+  // invented rule this project refuses.
+  {
+    name: "a range typed with a hyphen",
+    apply: (s) => s.replace(/(\d)–(\d)/g, "$1-$2"),
+  },
 ];
 
 type PertFail = { pert: string; typeName: string; rule: string; input: string; want: string; got: string; kind: string };
