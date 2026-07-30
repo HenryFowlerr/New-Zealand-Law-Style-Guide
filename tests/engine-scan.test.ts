@@ -1308,3 +1308,36 @@ test("a named report series is not split as though it were a court", () => {
     text,
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A rule's alternate forms need different facts (8.5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("a Scottish case cited by neutral citation alone needs no report series", () => {
+  // Rule 8.5's own example. The single template demanded a year and a report
+  // series for both forms, so the Guide's illustration of its own rule produced
+  // nothing at all.
+  const text = "Inveresk plc v Tullis Russell Papermakers Ltd [2009] CSIH 56.";
+  const f = prefill("scotland-case", text);
+  assert.equal(f.neutralCitation, "[2009] CSIH 56");
+  assert.equal(buildCitation("scotland-case", f).text, text);
+});
+
+test("the report form of rule 8.5 is unaffected by the neutral one existing", () => {
+  // The narrow form has an optional citation slot, so it matches ANY input by
+  // putting all of it in the case name — and "round-trips" perfectly while
+  // explaining nothing. That displaced the form that reads the report citation,
+  // and Glenday v Johnston lost its court identifier.
+  for (const text of [
+    "Glenday v Johnston (1905) 13 SLT 467 (IH).",
+    "Musaj v Secretary of State for the Home Department 2004 SLT 623 (OH).",
+  ]) {
+    assert.equal(buildCitation("scotland-case", prefill("scotland-case", text)).text, text);
+  }
+});
+
+test("a form is not credited for reproducing a reference by copying it", () => {
+  const f = prefill("scotland-case", "Glenday v Johnston (1905) 13 SLT 467 (IH).");
+  assert.equal(f.caseName, "Glenday v Johnston");
+  assert.equal(f.court, "IH");
+});

@@ -5559,7 +5559,7 @@
       "group": "International & foreign",
       "rule": "8.5",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.8.5.html#8.5",
-      "outputTemplate": "*{caseName}* {neutralCitation} {year} {volume} {reportSeries} {startingPage} ({court})",
+      "outputTemplate": "*{caseName}* {neutralCitation} {year} {volume} {reportSeries} {startingPage} ({court}) | *{caseName}* {neutralCitation}",
       "components": [
         {
           "id": "caseName",

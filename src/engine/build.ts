@@ -19,6 +19,7 @@ import {
   tokensToHtml,
   tokensToText,
   type ComponentValue,
+  chooseForm,
   type Token,
 } from "./render";
 import {
@@ -98,6 +99,29 @@ const STANDS_IN_FOR: Record<string, Record<string, string[]>> = {
   "text-book": { author: ["editor"] },
 };
 
+/**
+ * The components a type requires GIVEN the form it is being cited under.
+ *
+ * A rule's alternate forms need different facts. Rule 8.5 cites a Scottish case
+ * either by report — year, series, page — or by neutral citation alone, and rule
+ * 9.3.1's second form needs only a short title. Demanding every component marked
+ * required across ALL forms meant those citations were asked for facts the form
+ * does not have and refused to build, so the Guide's own worked examples produced
+ * nothing.
+ *
+ * This was tried once before and reverted, because it makes `chooseForm`
+ * load-bearing for correctness rather than presentation and `chooseForm` was not
+ * good enough to carry it. It is measured directly now — `npm run qa:forms` —
+ * which is what changed.
+ */
+function requiredForChosenForm(type: GuideType, fields: CitationFields): GuideComponent[] {
+  const inForm = new Set(
+    [...chooseForm(type.outputTemplate, fields as Record<string, string>).matchAll(/\{([^}]+)\}/g)]
+      .map((m) => m[1]),
+  );
+  return visibleComponents(type).filter((c) => c.required && inForm.has(c.id));
+}
+
 /** Is a required component satisfied, directly or by one that stands in for it? */
 function componentSatisfied(
   type: GuideType,
@@ -110,8 +134,8 @@ function componentSatisfied(
 
 export function validate(type: GuideType, fields: CitationFields): Issue[] {
   const issues: Issue[] = [];
-  for (const component of visibleComponents(type)) {
-    if (component.required && !componentSatisfied(type, fields, component.id)) {
+  for (const component of requiredForChosenForm(type, fields)) {
+    if (!componentSatisfied(type, fields, component.id)) {
       issues.push({
         level: "error",
         field: component.id,
@@ -192,8 +216,8 @@ export function missingRequiredComponents(
   type: GuideType,
   fields: CitationFields,
 ): GuideComponent[] {
-  return visibleComponents(type).filter(
-    (component) => component.required && !componentSatisfied(type, fields, component.id),
+  return requiredForChosenForm(type, fields).filter(
+    (component) => !componentSatisfied(type, fields, component.id),
   );
 }
 

@@ -728,9 +728,29 @@ export function extractByTemplate(
     // edition/year/online ed, correctly; both rebuild the string exactly, so
     // field count alone picked whichever came first. A value that contradicts
     // the shape its component is defined to have settles it.
+    // How much of this form's own FIXED TEXT the source turned out to contain.
+    // A form that matched seventy characters of its own wording has explained the
+    // reference; one that matched a comma has not. Rule 9.3.1's Charter form is
+    // "{shortTitle}, pt 1 of the Constitution Act 1982, being sch B to the Canada
+    // Act 1982 (UK)" — a near-total literal match — while its ordinary form reads
+    // the same string by cutting it at arbitrary spaces and scores higher on field
+    // count alone, which is how the Charter ended up with a volume and a chapter.
+    const literalWeight =
+      form.replace(/\*|\{[^}]+\}/g, "").replace(/\s/g, "").length / 4;
+    // A form whose optional slots all collapse can become an identity function:
+    // "{caseName} {neutralCitation}" with the citation optional matches ANY input
+    // by putting the whole of it in the case name, and then "round-trips"
+    // perfectly. It has explained nothing, and it displaced the form that reads
+    // rule 8.5's report citation properly — losing the court identifier from
+    // Glenday v Johnston. Reproducing a reference by copying it is not evidence.
+    const explains =
+      !Object.values(values).some(
+        (value) => value.replace(/\s/g, "").length >= 0.85 * stripped.replace(/\s/g, "").length,
+      );
     const score =
-      (roundTrips ? 1000 : 0) +
-      Object.keys(values).length -
+      (roundTrips && explains ? 1000 : 0) +
+      Object.keys(values).length +
+      (roundTrips && explains ? literalWeight : 0) -
       10 * fieldShapeViolations(type, values);
     if (score > bestScore) {
       bestScore = score;
