@@ -23,9 +23,9 @@ Never report a single accuracy number. It hides which layer is broken.
 |---|---|---|---|
 | **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **215/215, all 86 types, 1 knownGap** |
 | **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 215/216 fields, 213/216 exact |
-| **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 151/216 |
+| **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 155/216 |
 | **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 21/21 type, 8/8 exact |
-| **PARTIAL** | Does a SHORTER paste still land right? | `scripts/partial-report.ts` | 151 realistic; 36 corrupted |
+| **PARTIAL** | Does a SHORTER paste still land right? | `scripts/partial-report.ts` | 151 realistic; 27 corrupted |
 
 RENDER is the promise; the others are convenience. It is measured for every type
 in the Guide AND for 215 of the Guide's 216 worked examples — it used to cover 38
@@ -376,11 +376,20 @@ partly this repo's own fixture. Re-derive the clusters from
 - **Guide audit 154/154.** Every citation read off the published Guide rebuilds
   rebuilds exactly. That is the measure to watch: it is the only one whose
   expected strings did not come from this repository.
-- **Classification 151/216.** Much weaker than domestic. The
+- **Classification 155/216.** Much weaker than domestic. The
   foreign *case* types matter most, since New Zealand common law reasons from
   English and Australian authority. Canada (8.3), Scotland (8.5) and the American
-  courts (8.6.2, 8.6.3) now READ correctly; ranking them first is the part still
-  outstanding, and it is a fitted-model question rather than a pattern one.
+  courts (8.6.2, 8.6.3) now READ correctly.
+  **The cheapest remaining gains are FEATURES, not weights.** `JURISDICTION_MARKERS`
+  in `scan.ts` had no `international` entry at all, so "82 ILR 499" and "1332
+  UNTS 126" named nothing and fell to the unmarked-is-domestic prior — an ICJ
+  decision was offered as a New Zealand case. Adding that entry, plus the
+  Commission's own series (`DR`, `EComHR`) and the English nominate reports
+  (`HLC`, `ER`, `(HL)`), moved classification 152 to 155 with nothing else
+  changing. A series abbreviation IS its jurisdiction, and reading one
+  generalises beyond the corpus in a way a refitted weight does not.
+  What is left is mostly domestic shape ambiguity — "At 535." against Laws of
+  New Zealand — where more markers would be fitting the corpus, not the Guide.
 - **A capitalised paste has two defects that the text cannot settle.** In capitals
   an abbreviation and an ordinary word look identical, so `BOARD OF TRADE 546`
   reads as though "TRADE" started the citation, and a Gazette notice number is

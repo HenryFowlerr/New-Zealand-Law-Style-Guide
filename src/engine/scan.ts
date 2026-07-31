@@ -1820,7 +1820,12 @@ const JURISDICTION_MARKERS: { jurisdiction: string; pattern: RegExp }[] = [
     // rule 4.1.1(b) — "Pensions Act 1995 (UK)" — and without reading that tag
     // every United Kingdom Act was offered as New Zealand provincial
     // legislation, whose form is also "{title} {year} ({place})".
-    pattern: /\bEW(CA|HC)\b|\bUK(SC|HL|PC)\b|\b(AC|WLR|QB|KB|Ch)\b|\bEngland\b|\((?:UK|Scotland|Northern Ireland|Wales)\)/,
+    // The nominate reports and the English Reports reprint are named in rule
+    // 8.4.2's own example — "Vernon v Wright (1858) 7 HLC 34, 11 ER 15 (HL)" —
+    // and without them every one of them was offered as a New Zealand reported
+    // case, whose form is also "case name, year, volume, series, page, court".
+    pattern:
+      /\bEW(CA|HC)\b|\bUK(SC|HL|PC)\b|\b(AC|WLR|QB|KB|Ch)\b|\b(HLC|ER|All ER|App Cas|Cl & F|B & S)\b|\(HL\)|\bEngland\b|\((?:UK|Scotland|Northern Ireland|Wales)\)/,
   },
   { jurisdiction: "scotland", pattern: /\bCSIH\b|\bCSOH\b|\bSLT\b|\bSC \(HL\)\b/ },
   {
@@ -1829,8 +1834,20 @@ const JURISDICTION_MARKERS: { jurisdiction: string; pattern: RegExp }[] = [
   },
   { jurisdiction: "canada", pattern: /\bSCC\b|\bSCR\b|\bDLR\b|\bRSC\b|\bONCA\b/ },
   { jurisdiction: "us", pattern: /\bUSC\b|\bF (2d|3d|Supp)\b|\bS Ct\b|\bUS\b|\bStat\b|\b(?:SD|ED|ND|WD) NY\b|\b\d+th Cir\b/ },
-  { jurisdiction: "eu", pattern: /\bECLI\b|\bECR\b|\bCJEU\b|\bECJ\b/ },
-  { jurisdiction: "echr", pattern: /\bECHR\b|\bEHRR\b/ },
+  { jurisdiction: "eu", pattern: /\bECLI\b|\bECR\b|\bCJEU\b|\bECJ\b|\bOJ\b/ },
+  // "DR" is the Commission's Decisions and Reports and "EComHR" its own
+  // identifier; rule 10.5.4's three examples use one or the other, and without
+  // them all three were offered as New Zealand reported cases.
+  { jurisdiction: "echr", pattern: /\bECHR\b|\bEHRR\b|\bEComHR\b|\bDR\b/ },
+  {
+    // There was no international marker at all, so a reference whose series IS
+    // its jurisdiction — "82 ILR 499", "1332 UNTS 126" — named nothing the
+    // detector could read. It then fell to the unmarked-is-domestic prior and
+    // an ICJ decision or an arbitral award was offered as a New Zealand case.
+    jurisdiction: "international",
+    pattern:
+      /\bILR\b|\b[UL]NTS\b|\bICJ\b|\bPCIJ\b|\bRIAA\b|\bITLOS\b|\bICTY\b|\bICTR\b|\b(?:GA|SC|ESC) Res\b|\bUN Doc\b|\bUNGA\b|\bWT\/DS|\bGATT\b/,
+  },
 ];
 
 /** Which jurisdiction a source type belongs to, from its id. */
