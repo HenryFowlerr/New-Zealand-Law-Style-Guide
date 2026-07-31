@@ -578,7 +578,15 @@ export function refineFields(
     head = head.slice(0, openParen).trim();
   }
   const quotedTitleFound = anchors.some((a) => a.kind === "quotedTitle");
-  const hasHead = Boolean(head) && earliestCitation < text.length;
+  // A paste with NO citation apparatus in it is free text from end to end — an
+  // Act's short title with no year, an instrument's name, a committee's name,
+  // which is what a half-remembered reference looks like.
+  //
+  // `earliestCitation` never moves in that case, so requiring the head to stop
+  // short of the end meant the head was never assigned at all and the positional
+  // split stood: "Evidence Act" came back as shortTitle "Evidence", "Civil
+  // Aviation Rules" as title "Civil". The head IS the whole paste here.
+  const hasHead = Boolean(head);
 
   if (ids.has("caseName") && !fields.caseName && hasHead) {
     set("caseName", head);
@@ -613,6 +621,20 @@ export function refineFields(
     // outcome this tool is supposed to make impossible.
     set("title", head);
   }
+  // Twenty-three types LEAD with some other free-text component — a committee, a
+  // speaker, an interviewee, a treaty's name — and fall through every branch
+  // above, keeping whatever the positional pass cut. Generalising the chain was
+  // tried twice and measured, and both readings cost more than they fixed:
+  //
+  //   the head to the first slot the template writes    output 213 -> 208
+  //   ...only when exactly one slot is free and open    output 213 -> 205,
+  //                                                     classification -6
+  //
+  // The reason is rule 5.2.5's shape, "{committeeName} {title}": two free-text
+  // slots with nothing between them, so the head spans BOTH and any rule for
+  // splitting it is a guess. Giving it all to the first merely moves the damage.
+  // Where the boundary is genuinely unknowable the positional cut is the lesser
+  // harm — it is at least visibly odd. Measured by `scripts/partial-report.ts`.
 
   // An encyclopaedia is cited by the work's name and then the topic inside it.
   // Rule 6.6's elements are "Author (if appropriate), Title, Topic name,

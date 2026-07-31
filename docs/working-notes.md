@@ -21,17 +21,23 @@ Never report a single accuracy number. It hides which layer is broken.
 
 | | What it asks | Where | Now |
 |---|---|---|---|
-| **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **148/148, all 86 types, none skipped** |
-| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 215/216 fields, 210/216 exact |
-| **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 148/216 |
-| **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 16/16 type, 6/6 exact |
+| **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **215/215, all 86 types, 1 knownGap** |
+| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 215/216 fields, 213/216 exact |
+| **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 151/216 |
+| **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 21/21 type, 8/8 exact |
+| **PARTIAL** | Does a SHORTER paste still land right? | `scripts/partial-report.ts` | 151 realistic; 36 corrupted |
 
-RENDER is the promise; the other three are convenience. It is now measured for
-every type in the Guide — it used to cover 38 of 86, so for the rest the promise
-was simply untested. Two further checks back it up, both at 100%:
-`render-invariants` (621/621 — every combination of omitted optional fields still
-renders something well-formed) and `render-omission` (455/455 — dropping one
-optional part disturbs nothing else).
+RENDER is the promise; the others are convenience. It is measured for every type
+in the Guide AND for 215 of the Guide's 216 worked examples — it used to cover 38
+types of 86, and then 148 examples of 216, so for a third of the Guide the promise
+was resting on the extractor and the renderer agreeing with each other. Two
+further checks back it up, both at 100%: `render-invariants` (637/637 — every
+combination of omitted optional fields still renders something well-formed) and
+`render-omission` (583/583 — dropping one optional part disturbs nothing else).
+
+`scripts/render-coverage.ts` is what reports the gap. Run it before claiming
+coverage: "all 86 types" and "every worked example" are different statements, and
+so are "every type" and "every FORM".
 
 **Re-read these numbers from the scripts before quoting them.** The table above
 went stale twice: it claimed 214/207 when the tree measured 215/208, which made a
@@ -85,10 +91,12 @@ features generalise, weights tuned to 216 examples do not.
 **Inventing a rule.** If the Guide is ambiguous, leave it alone and say so. A
 rule we made up is worse than a gap we documented.
 
-**Validating against the chosen form.** Seven citations refuse because a type
-marks a component required that the FORM being used has no slot for — rule 8.5's
-neutral-citation-only Scottish case, rule 9.3.1's Charter. Requiring only what the
-chosen form uses looks obviously right, and it is not.
+**Validating against the chosen form — SUPERSEDED, kept for the reasoning.**
+This was reverted once, and has since been done properly: `requiredForChosenForm`
+in `build.ts` asks a type only for the slots the chosen form actually writes, and
+`npm run qa:forms` measures form choice on its own, which is what made it safe.
+Rule 8.5's neutral-citation-only Scottish case builds correctly now. What follows
+is why it failed the first time, because the lesson still holds.
 
 It was implemented in full and measured: the Charter and the Inveresk case both
 started building, and the corpus went BACKWARDS — output exact 194 → 191, template
@@ -138,9 +146,24 @@ Two identifications is the whole price of putting it one function too early. If 
 field fix looks like it costs classification, try moving it before trading it
 away.
 
+**Believing a coverage claim.** "148/148, all 86 types" was true and misleading:
+`scripts/render-coverage.ts` reports that 73 of the Guide's 216 worked examples
+had no hand-written field set at all, so for a THIRD of the Guide the guarantee
+rested on the extractor and the renderer agreeing with each other. Writing those
+73 by hand found five real defects nothing else could see. Covering every *type*
+is not covering every *form*, and a type's alternate forms are different
+citations rather than variations on one.
+
 **Believing the corpus measures everything.** The corpus is 216 citations printed
 in the Guide, and it is printed correctly, in mixed case, fully punctuated. Real
-pastes are not. A citation copied out of a case list arrives in capitals, and
+pastes are not. They are also rarely COMPLETE: a student pastes what they have,
+and nothing measured a shorter reference until `scripts/partial-report.ts`. It
+needs no new ground truth, because removing a detail must not move the others —
+render a hand-written field set, drop one value, and read it back. It also
+separates a TRAILING omission (what a student really has) from an INTERIOR one
+(dropping the volume out of "791 P 2d 1329" leaves a reference no rule produces).
+Without that split it reported 190 defects, most of them noise, and a noisy
+measure gets quoted. A citation copied out of a case list arrives in capitals, and
 because nothing in the corpus does, nothing scored it: 71 of 118 capitalised
 pastes were wrong, including silently dropped pinpoints, while every headline
 number looked healthy. When a real-world input shape is missing from the corpus,
@@ -319,21 +342,27 @@ pre-1854 ordinances were already passing, and the Gazette problem turned out to 
 partly this repo's own fixture. Re-derive the clusters from
 `scripts/failure-shapes.ts` rather than trusting a list.
 
-- **Paste→output 210/216.** Run `scripts/failure-shapes.ts` for the current
+- **Paste→output 213/216.** Run `scripts/failure-shapes.ts` for the current
   breakdown rather than reading a list here; it goes stale.
-- **The two remaining refusals are the same modelling gap.** Rule 8.5's
-  neutral-citation-only form ("Inveresk plc v Tullis Russell Papermakers Ltd
-  [2009] CSIH 56") needs neither a year nor a report series, but both are marked
-  required, and rule 9.3.1's Charter form needs only a short title. **Validating
-  per-form has been tried and does not pay — read the trap of that name before
-  attempting it again.** Where one component simply takes another's place, the
-  narrow fix is `STANDS_IN_FOR` in `build.ts`, which has one entry citing its rule.
-- **The link layer covers five New Zealand sites and nothing else.** Westlaw and
-  LexisNexis are paywalled and their URLs carry no citation, so they cannot be
-  read this way; a student pasting one should be told to paste the reference text
-  instead, and currently is not. Also unhandled: the NZ Gazette
-  (gazette.govt.nz), Hansard (parliament.nz), and AustLII/BAILII paths other than
-  `/cases/`.
+- **One refusal left: rule 9.3.1's Canadian Charter.** Its form takes only a
+  short title, and `chooseForm` will not select it, because the form's literals
+  ("pt 1 of the Constitution Act 1982, being sch B to the Canada Act 1982 (UK)")
+  name a specific instrument the supplied fields do not corroborate. That penalty
+  is deliberate and load-bearing: without it a bare "Crimes Act" becomes the
+  Charter. Making it selectable needs `chooseForm` to recognise that the short
+  title IS the Charter, which is a narrower question than it looks. One citation
+  of 216, and a foreign constitutional instrument a New Zealand essay rarely
+  cites. Where one component simply takes another's place the narrow fix is
+  `STANDS_IN_FOR` in `build.ts`, which has one entry citing its rule.
+- **The link layer, and what a LII path really says.** `scripts/link-coverage.ts`
+  enumerates URL SHAPES rather than pages, so it needs no network, and it found
+  six gaps the 20-entry fixture could not. The worst was silent: every BAILII and
+  AustLII link was read as a New Zealand unreported case, because the parser took
+  the court code and ignored the jurisdiction segment in front of it. The
+  jurisdiction is the reliable signal — AustLII and CanLII both publish an "FCA".
+  Still open: CanLII (canlii.org) is not recognised at all, and a journal's Guide
+  abbreviation is asked for rather than guessed from the site's slug, which would
+  be inventing a rule.
 - **Multi-form validation.** `validate` requires every component marked required
   across ALL of a type's alternate forms, so rule 9.3.1's second form (the
   Canadian Charter, which needs only a short title) can never be built. Relaxing
@@ -347,7 +376,7 @@ partly this repo's own fixture. Re-derive the clusters from
 - **Guide audit 154/154.** Every citation read off the published Guide rebuilds
   rebuilds exactly. That is the measure to watch: it is the only one whose
   expected strings did not come from this repository.
-- **Classification 148/216.** Much weaker than domestic. The
+- **Classification 151/216.** Much weaker than domestic. The
   foreign *case* types matter most, since New Zealand common law reasons from
   English and Australian authority. Canada (8.3), Scotland (8.5) and the American
   courts (8.6.2, 8.6.3) now READ correctly; ranking them first is the part still
