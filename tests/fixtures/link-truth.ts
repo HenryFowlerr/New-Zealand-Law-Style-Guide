@@ -194,4 +194,51 @@ export const LINK_TRUTH: LinkTruth[] = [
     stillNeeded: ["title", "date"],
     note: "Unreadable page: the notice number still comes from the path.",
   },
+
+  // ────────────────── AustLII and BAILII — rules 8.2, 8.4.1, and the jurisdiction
+  //
+  // These were all read as NEW ZEALAND unreported cases, because the parser took
+  // the court code and ignored the jurisdiction segment that precedes it. A UK
+  // Supreme Court judgment came out under rule 3.3. The jurisdiction in the path
+  // is what settles which rule applies, and it is now what decides the type.
+  {
+    // AustLII's ordinary link goes through /cgi-bin/viewdoc/, and the path
+    // carries a sub-jurisdiction ("cth") between "cases" and the court.
+    url: "http://www.austlii.edu.au/cgi-bin/viewdoc/au/cases/cth/HCA/1992/23.html",
+    pageTitle: "Mabo v Queensland (No 2) [1992] HCA 23 (3 June 1992)",
+    typeId: "australia-case",
+    want: "Mabo v Queensland (No 2) [1992] HCA 23.",
+  },
+  {
+    url: "https://www.bailii.org/uk/cases/UKSC/2019/41.html",
+    pageTitle: "R (Miller) v The Prime Minister [2019] UKSC 41 (24 September 2019)",
+    typeId: "england-wales-case-modern",
+    want: "R (Miller) v The Prime Minister [2019] UKSC 41.",
+  },
+  {
+    // Rule 8.4.1 writes the Court of Appeal's division after the court —
+    // "[2020] EWCA Civ 1058" — and BAILII puts it in its own path segment.
+    url: "https://www.bailii.org/ew/cases/EWCA/Civ/2020/1058.html",
+    typeId: "england-wales-case-modern",
+    stillNeeded: ["caseName"],
+    note: "The division is part of the citation and must survive the path.",
+  },
+  {
+    // The same division segment, but rule 8.4.1 puts a High Court division in
+    // BRACKETS AFTER the judgment number instead.
+    url: "https://www.bailii.org/ew/cases/EWHC/Comm/2009/254.html",
+    typeId: "england-wales-case-modern",
+    stillNeeded: ["caseName"],
+    note: "EWHC takes its division in brackets after the number, EWCA does not.",
+  },
+
+  // ─────────────────────────────────────────── parliament.nz — rule 5.1.1
+  {
+    // The sitting date is in the path. The volume and column are on the page, so
+    // they are asked for rather than guessed.
+    url: "https://www.parliament.nz/en/pb/hansard-debates/rhr/combined/HansD_20170816_20170816",
+    typeId: "hansard",
+    stillNeeded: ["volume", "pinpoint"],
+    note: "A debate must not be cited as internet material.",
+  },
 ];

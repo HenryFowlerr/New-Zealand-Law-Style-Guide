@@ -226,6 +226,86 @@ function gazetteGovtNz(pathname: string): NzSourceMatch | null {
 
 const escapeForRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/**
+ * Read a Hansard debate on parliament.nz.
+ *
+ * The path carries the sitting date, which is the one fact rule 5.1.1 puts
+ * first: /en/pb/hansard-debates/rhr/combined/HansD_20170816_20170816. The
+ * volume and the column are on the page rather than in the path, so they are
+ * asked for — but the type, the date and "NZPD" are settled offline, which is
+ * what stops a debate being cited as a web page.
+ *
+ * Only the debate paths are claimed. parliament.nz also serves bills, papers
+ * and members' pages, and the generic resolvers are a better answer for those
+ * than filing them under rule 5.1.1.
+ */
+function parliamentNz(pathname: string): NzSourceMatch | null {
+  if (!/\/hansard-debates?\//i.test(pathname)) return null;
+  const stamp = pathname.match(/Hans[A-Za-z]*_((?:1[89]|20)\d{2})(\d{2})(\d{2})/i);
+  const fields: Record<string, string> = { abbreviatedTitle: "NZPD" };
+  if (stamp) {
+    const month = MONTH_NAMES[Number(stamp[2]) - 1];
+    if (month) fields.dateOfDebate = `${Number(stamp[3])} ${month} ${stamp[1]}`;
+  }
+  return {
+    typeId: "hansard",
+    fields,
+    source: "New Zealand Parliament",
+    stillNeeded: ["dateOfDebate", "volume", "pinpoint"],
+  };
+}
+
+/**
+ * Read a consolidated Act on NZLII: /nz/legis/consol_act/{slug}{year}n{number}/
+ *
+ * Rule 4.1.1 gives an Act no URL at all, so the value here is entirely in
+ * refusing to cite it as internet material. The short title is on the page, not
+ * in the slug — the slug is an abbreviation of it — so it is asked for rather
+ * than guessed.
+ */
+function liiLegislation(pathname: string): NzSourceMatch | null {
+  const match = pathname.match(/\/nz\/legis\/[a-z_]+\/[a-z]+((?:1[89]|20)\d{2})/i);
+  if (!match) return null;
+  return {
+    typeId: "nz-statute",
+    fields: { year: match[1] },
+    source: "NZLII",
+    stillNeeded: ["shortTitle"],
+    corroborates: (title) => title.includes(match[1]),
+    fromTitle: (title): Record<string, string> => {
+      // "Evidence Act 2006 No 69 (as at 01 January 2020)" — the short title is
+      // what precedes the year, and the year is already established.
+      const name = pageTitleOnly(title).split(new RegExp(`\\s*${match[1]}\\b`))[0].trim();
+      return name ? { shortTitle: name } : {};
+    },
+  };
+}
+
+/**
+ * Read a law review article on NZLII or AustLII:
+ * /nz/journals/VUWLawRw/2010/3.html
+ *
+ * The path settles that this is a journal article and gives its year. It does
+ * NOT give the Guide's abbreviation for the journal — "VUWLawRw" is the site's
+ * own slug, and mapping site slugs to NZLSG abbreviations would be inventing a
+ * rule the Guide does not state. So the abbreviation is asked for.
+ */
+function liiJournal(pathname: string): NzSourceMatch | null {
+  const match = pathname.match(/\/(?:nz|au|uk)\/journals\/[A-Za-z]+\/((?:1[89]|20)\d{2})\/\d+/);
+  if (!match) return null;
+  return {
+    typeId: "journal-article",
+    fields: { year: `(${match[1]})` },
+    source: "NZLII",
+    stillNeeded: ["author", "title", "journalAbbrev", "startingPage"],
+  };
+}
+
 /**
  * Read the citation out of an NZLII page title.
  *
@@ -279,26 +359,113 @@ export function nzliiTitleToFields(
   };
 }
 
-/** Read an NZLII judgment URL: /nz/cases/{COURT}/{year}/{number}.html */
-function nzlii(pathname: string): NzSourceMatch | null {
+/**
+ * The LII jurisdiction segment decides which rule of the Guide applies.
+ *
+ * It is the reliable signal, and the court code is not: AustLII and CanLII both
+ * publish an "FCA", and they are different courts under different rules. Reading
+ * the jurisdiction also stops an English or Australian judgment being typed as a
+ * New Zealand one, which is what happened to every BAILII link — "[2019] UKSC
+ * 41" came out under rule 3.3, the NZ unreported-case rule.
+ */
+const LII_JURISDICTION: Record<string, string> = {
+  nz: "neutral-citation-case-nz",
+  au: "australia-case",
+  ca: "canada-case",
+  uk: "england-wales-case-modern",
+  ew: "england-wales-case-modern",
+  nie: "england-wales-case-modern",
+  scot: "scotland-case",
+};
+
+/**
+ * An English division is part of the citation, and WHERE it goes depends on the
+ * court (rule 8.4.1). The Court of Appeal writes it after the court — "[2020]
+ * EWCA Civ 1058" — and the High Court in brackets after the judgment number —
+ * "[2009] EWHC 254 (Comm)". BAILII puts it in the same place in the path either
+ * way, so the path cannot tell us; the court code does.
+ */
+function englishNeutralNumber(court: string, division: string, number: string): string {
+  if (!division) return number;
+  return court.toUpperCase() === "EWHC" ? `${number} (${division})` : `${division} ${number}`;
+}
+
+/**
+ * Read a judgment URL on NZLII, AustLII or BAILII.
+ *
+ *   /nz/cases/NZSC/2008/55.html                      NZLII
+ *   /cgi-bin/viewdoc/au/cases/cth/HCA/1992/23.html   AustLII — note the SUB-
+ *                                                    jurisdiction ("cth"), and
+ *                                                    that viewdoc prefix, which
+ *                                                    is AustLII's normal link
+ *   /ew/cases/EWCA/Civ/2020/1058.html                BAILII — note the division
+ */
+function lii(pathname: string, source: string): NzSourceMatch | null {
   const match = pathname.match(
-    /\/(?:nz|au|uk|ie|ca)\/cases\/([A-Za-z]+)\/((?:1[6-9]|20)\d{2})\/(\d+)\b/,
+    new RegExp(
+      String.raw`\/(nz|au|ca|uk|ew|nie|scot|ie|eu)\/cases\/` +
+        String.raw`(?:[a-z]{2,4}\/)?` + // AustLII's state or "cth"
+        String.raw`([A-Za-z]+)\/` +
+        String.raw`(?:([A-Z][A-Za-z]{1,6})\/)?` + // BAILII's division, always capitalised
+        String.raw`((?:1[6-9]|20)\d{2})\/(\d+)\b`,
+    ),
   );
   if (!match) return null;
-  const court = match[1];
-  const fallback = { year: match[2], court, number: match[3] };
-  const bare = nzliiTitleToFields("", fallback);
+  const [, jurisdiction, court, division = "", year, number] = match;
+  const typeId = LII_JURISDICTION[jurisdiction];
+  // Ireland and the EU have no type of their own; the generic resolvers are a
+  // better answer than filing them under a rule that does not cover them.
+  if (!typeId) return null;
+
+  if (typeId === "neutral-citation-case-nz") {
+    const fallback = { year, court, number };
+    const bare = nzliiTitleToFields("", fallback);
+    return {
+      typeId: bare.typeId,
+      fields: bare.fields,
+      source,
+      stillNeeded: ["caseName"],
+      // The path already IS the neutral citation, so the page title has to
+      // contain it. Anything else — a Cloudflare interstitial, a search result,
+      // the site's front page — is not this judgment's title.
+      corroborates: (title) =>
+        new RegExp(`\\[\\s*${year}\\s*\\]\\s*${court}\\s+${number}\\b`, "i").test(title),
+      fromTitle: (title) => nzliiTitleToFields(title, fallback).fields,
+    };
+  }
+
+  // Each foreign type spells the neutral citation into different boxes.
+  const neutralNumber =
+    typeId === "england-wales-case-modern"
+      ? englishNeutralNumber(court, division, number)
+      : division
+        ? `${division} ${number}`
+        : number;
+  const fields: Record<string, string> =
+    typeId === "canada-case"
+      ? { neutralCitationNoBrackets: `${year} ${court} ${neutralNumber}` }
+      : typeId === "scotland-case"
+        ? { neutralCitation: `[${year}] ${court} ${neutralNumber}` }
+        : { neutralYear: year, neutralCourt: court, number: neutralNumber };
+
   return {
-    typeId: bare.typeId,
-    fields: bare.fields,
-    source: "NZLII",
+    typeId,
+    fields,
+    source,
     stillNeeded: ["caseName"],
-    // The path already IS the neutral citation, so the page title has to contain
-    // it. Anything else — a Cloudflare interstitial, a search result, the site's
-    // front page — is not this judgment's title.
     corroborates: (title) =>
-      new RegExp(`\\[\\s*${fallback.year}\\s*\\]\\s*${fallback.court}\\s+${fallback.number}\\b`, "i").test(title),
-    fromTitle: (title) => nzliiTitleToFields(title, fallback).fields,
+      new RegExp(`\\[?\\s*${year}\\s*\\]?\\s*${court}\\s+(?:${division}\\s+)?${number}\\b`, "i").test(
+        title,
+      ),
+    fromTitle: (title): Record<string, string> => {
+      // The parties are whatever precedes the citation the path established.
+      const name = pageTitleOnly(title)
+        .split(/\s*[[(]\d{4}[\])]/)[0]
+        .split(/\s*\|\s*/)[0]
+        .replace(/[;,]\s*$/, "")
+        .trim();
+      return name ? { caseName: name } : {};
+    },
   };
 }
 
@@ -390,8 +557,14 @@ export function recogniseNzSource(rawUrl: string): NzSourceMatch | null {
   }
   if (host === "legislation.govt.nz") return legislationGovtNz(pathname);
   if (host === "gazette.govt.nz") return gazetteGovtNz(pathname);
+  if (host === "parliament.nz") return parliamentNz(pathname);
   if (host.endsWith("nzlii.org") || host.endsWith("austlii.edu.au") || host.endsWith("bailii.org")) {
-    return nzlii(pathname);
+    const source = host.endsWith("nzlii.org")
+      ? "NZLII"
+      : host.endsWith("austlii.edu.au")
+        ? "AustLII"
+        : "BAILII";
+    return lii(pathname, source) ?? liiLegislation(pathname) ?? liiJournal(pathname);
   }
   if (host === "courtsofnz.govt.nz") return courtsOfNz(pathname);
   if (host === "lawcom.govt.nz") return lawCommission();
