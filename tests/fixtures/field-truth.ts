@@ -1563,4 +1563,841 @@ export const FIELD_TRUTH: FieldTruth[] = [
     },
     want: "Generalized System of Preferences L/7073, 4 September 1992 (Notification by New Zealand) at 3.",
   },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Coverage completion. `scripts/render-coverage.ts` reported 73 of the
+  // Guide's 216 worked examples with no hand-written field set — a third of the
+  // Guide where the guarantee was resting on the extractor and the renderer
+  // agreeing with each other. These close that gap. Every `fields` set below is
+  // written against the type's own template, and where the template cannot
+  // express the Guide's form the entry says so in `knownGap` rather than
+  // bending the expected string to what the engine happens to emit.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ------------------------------------------------------------- 3 — cases
+  {
+    // Rule 3.2.3(b)(i): a pre-1958 NZLR volume was split into court sections,
+    // and the court belongs to the SERIES reference ("5 NZLR CA 111") rather
+    // than to the bracketed court identifier. With no neutral citation the
+    // comma that follows it must disappear.
+    typeId: "reported-case-nz",
+    fields: {
+      caseName: "Gray v Gray",
+      year: "(1887)",
+      volume: "5",
+      reportSeries: "NZLR CA",
+      startingPage: "111",
+    },
+    want: "Gray v Gray (1887) 5 NZLR CA 111.",
+  },
+  {
+    typeId: "neutral-citation-case-nz",
+    fields: {
+      caseName: "Erwood v Ministry of Social Development",
+      year: "2010",
+      courtIdentifier: "NZCA",
+      judgmentNumber: "619",
+      pinpoint: "[35]",
+    },
+    want: "Erwood v Ministry of Social Development [2010] NZCA 619 at [35].",
+  },
+  {
+    // No pinpoint: the " at " must not survive.
+    typeId: "neutral-citation-case-nz",
+    fields: {
+      caseName: "Craggy Range Vineyards Ltd v Campbell",
+      year: "2008",
+      courtIdentifier: "NZCA",
+      judgmentNumber: "96",
+    },
+    want: "Craggy Range Vineyards Ltd v Campbell [2008] NZCA 96.",
+  },
+  {
+    typeId: "unreported-case-file-number-nz",
+    fields: {
+      caseName: "Plot Ltd v Brereton",
+      courtAbbreviation: "HC",
+      registry: "Christchurch",
+      fileNumber: "CIV-2007-409-2659",
+      dateOfJudgment: "17 January 2008",
+    },
+    want: "Plot Ltd v Brereton HC Christchurch CIV-2007-409-2659, 17 January 2008.",
+  },
+  {
+    // Rule 3.4.7 identifies a minute by number after the date of judgment.
+    typeId: "unreported-case-file-number-nz",
+    fields: {
+      caseName: "Wellington International Airport Ltd v Commerce Commission",
+      courtAbbreviation: "HC",
+      registry: "Wellington",
+      fileNumber: "CIV-2011-485-249",
+      dateOfJudgment: "1 June 2011",
+      minute: "Minute No 17",
+      pinpoint: "[2]",
+    },
+    want: "Wellington International Airport Ltd v Commerce Commission HC Wellington CIV-2011-485-249, 1 June 2011 (Minute No 17) at [2].",
+  },
+  {
+    // A Chief Judge's minute book, and a case name with no block-name dash of
+    // its own — the template's own dash has to supply it.
+    typeId: "maori-land-court",
+    fields: {
+      caseName: "McCallum v The Māori Trustee",
+      blockName: "Estate of Ngapiki Waaka Hakaraia",
+      year: "[2017]",
+      minuteBookReference: "Chief Judge’s MB 144",
+      citation: "2017 CJ 144",
+    },
+    want: "McCallum v The Māori Trustee – Estate of Ngapiki Waaka Hakaraia [2017] Chief Judge’s MB 144 (2017 CJ 144).",
+  },
+  {
+    typeId: "maori-land-court",
+    fields: {
+      caseName: "Craig v Kira",
+      blockName: "Wainui 2F4D",
+      year: "(2006)",
+      minuteBookReference: "7 Taitokerau Appellate MB 1",
+      citation: "7 APWH 1",
+    },
+    want: "Craig v Kira – Wainui 2F4D (2006) 7 Taitokerau Appellate MB 1 (7 APWH 1).",
+  },
+  {
+    // No volume: "vol {volume}" must go entirely, literal included.
+    typeId: "waitangi-tribunal-report",
+    fields: {
+      author: "Waitangi Tribunal",
+      title: "Muriwhenua Land Report",
+      waiNumber: "45",
+      year: "1997",
+      pinpoint: "132",
+    },
+    want: "Waitangi Tribunal Muriwhenua Land Report (Wai 45, 1997) at 132.",
+  },
+  {
+    typeId: "historic-judgment-newspaper",
+    fields: {
+      caseName: "Jones v Smith",
+      courtAbbrev: "SC",
+      location: "Wellington",
+      dateOfJudgment: "2 April 1844",
+      newspaper: "The New Zealand Gazette and Wellington Spectator",
+      newspaperPlace: "Wellington",
+      newspaperDate: "17 April 1844",
+      startingPage: "3",
+      pinpoint: "3",
+    },
+    want: "Jones v Smith SC Wellington, 2 April 1844 reported in The New Zealand Gazette and Wellington Spectator (Wellington, 17 April 1844) 3 at 3.",
+  },
+  {
+    typeId: "lost-cases-project",
+    fields: {
+      caseName: "New Zealand Banking Corp v Cutten",
+      courtAbbrev: "CA",
+      location: "Dunedin",
+      date: "3 November 1864",
+      url: "<www.victoria.ac.nz/law/nzlostcases/>",
+    },
+    want: "New Zealand Banking Corp v Cutten CA Dunedin, 3 November 1864 available at <www.victoria.ac.nz/law/nzlostcases/>.",
+  },
+  {
+    // Rule 3.8's second form — a transcript identified by file number and
+    // hearing date rather than by an NZSC Trans number.
+    typeId: "supreme-court-transcript",
+    fields: {
+      caseName: "Couch v Attorney-General",
+      fileNumber: "SC49/2006",
+      hearingDate: "17 April 2007",
+    },
+    want: "Couch v Attorney-General Transcript SC49/2006, 17 April 2007.",
+  },
+
+  // ------------------------------------------------------- 4 — legislation
+  {
+    typeId: "nz-provincial-legislation",
+    fields: {
+      shortTitle: "Otago Harbour Trust Leasing Ordinance",
+      year: "1862",
+      province: "Otago",
+    },
+    want: "Otago Harbour Trust Leasing Ordinance 1862 (Otago).",
+  },
+  {
+    typeId: "nz-provincial-legislation",
+    fields: {
+      shortTitle: "Christ’s College Ordinance",
+      year: "1855",
+      province: "Canterbury",
+    },
+    want: "Christ’s College Ordinance 1855 (Canterbury).",
+  },
+  {
+    // No pinpoint, so the comma the template writes before it must go.
+    typeId: "nz-pre-1854-ordinance",
+    fields: {
+      title: "Supreme Court Practitioners Ordinance",
+      year: "1853",
+      regnalYear: "16 Vict",
+      ordinanceNumber: "5",
+    },
+    want: "Supreme Court Practitioners Ordinance 1853 16 Vict 5.",
+  },
+  {
+    typeId: "treaty-of-waitangi",
+    fields: { title: "Treaty of Waitangi", year: "1840", pinpoint: "art 3" },
+    want: "Treaty of Waitangi 1840, art 3.",
+  },
+  {
+    typeId: "treaty-of-waitangi",
+    fields: { title: "He Whakaputanga o te Rangatiratanga o Nu Tirene", year: "1835" },
+    want: "He Whakaputanga o te Rangatiratanga o Nu Tirene 1835.",
+  },
+  {
+    typeId: "bill",
+    fields: {
+      shortTitle: "Business Law Reform Bill",
+      year: "2003",
+      billNumber: "56",
+      barNumber: "2",
+    },
+    want: "Business Law Reform Bill 2003 (56-2).",
+  },
+  {
+    typeId: "legislative-instrument",
+    fields: { title: "Lotto Amendment Rules", year: "2010", pinpoint: "r 6" },
+    want: "Lotto Amendment Rules 2010, r 6.",
+  },
+  {
+    typeId: "court-rules",
+    fields: { title: "Supreme Court Rules", year: "2004", rule: "4" },
+    want: "Supreme Court Rules 2004, r 4.",
+  },
+  {
+    typeId: "other-instrument-dinli",
+    fields: {
+      title: "Telecommunications Information Privacy Code",
+      year: "2003",
+      pinpoint: "r 3",
+    },
+    want: "Telecommunications Information Privacy Code 2003, r 3.",
+  },
+  {
+    typeId: "instrument-in-own-right-gazette",
+    fields: {
+      title:
+        "Reference to the Court of Appeal of the Question of the Convictions of David Cullen Bain for Murder",
+      date: "6 March 2003",
+      issueNumber: "22",
+      startingPage: "689",
+      pinpoint: "cl 5",
+    },
+    want: "“Reference to the Court of Appeal of the Question of the Convictions of David Cullen Bain for Murder” (6 March 2003) 22 New Zealand Gazette 689 at cl 5.",
+  },
+  {
+    typeId: "letters-patent",
+    fields: {
+      title:
+        "Letters Patent Constituting the Office of Governor-General and Commander-in-Chief of the Dominion of New Zealand",
+      year: "1917",
+      clause: "2",
+    },
+    want: "Letters Patent Constituting the Office of Governor-General and Commander-in-Chief of the Dominion of New Zealand 1917, cl 2.",
+  },
+
+  // --------------------------------------------- 5 — parliamentary & official
+  {
+    // Westminster Hansard: the House is part of the abbreviated title.
+    typeId: "hansard",
+    fields: {
+      dateOfDebate: "1 November 1990",
+      volume: "178",
+      abbreviatedTitle: "GBPD HC",
+      pinpoint: "1088",
+    },
+    want: "(1 November 1990) 178 GBPD HC 1088.",
+  },
+  {
+    // Rule 5.1.1 also pinpoints a debate by NAME rather than by column.
+    typeId: "hansard",
+    fields: {
+      dateOfDebate: "16 August 2017",
+      volume: "724",
+      abbreviatedTitle: "NZPD",
+      pinpoint: "(Maritime Transport Amendment Bill – Second Reading, Julie Anne Genter)",
+    },
+    want: "(16 August 2017) 724 NZPD (Maritime Transport Amendment Bill – Second Reading, Julie Anne Genter).",
+  },
+  {
+    typeId: "law-commission-report",
+    fields: {
+      author: "Law Commission",
+      title: "Forfeiture under the Customs and Excise Act 1996",
+      officialCitation: "NZLC R91",
+      year: "2006",
+    },
+    want: "Law Commission Forfeiture under the Customs and Excise Act 1996 (NZLC R91, 2006).",
+  },
+  {
+    typeId: "nz-gazette",
+    fields: {
+      title: "Register of Pharmacies",
+      date: "24 August 2001",
+      issueNumber: "100",
+      startingPage: "2597",
+      pinpoint: "2601",
+    },
+    want: "“Register of Pharmacies” (24 August 2001) 100 New Zealand Gazette 2597 at 2601.",
+  },
+  {
+    typeId: "select-committee-report-other",
+    fields: {
+      committeeName: "Transport and Industrial Relations Committee",
+      title: "Inquiry into the future of New Zealand’s mobility",
+      date: "15 August 2017",
+    },
+    want: "Transport and Industrial Relations Committee Inquiry into the future of New Zealand’s mobility (15 August 2017).",
+  },
+  {
+    // No publisher: the parenthesis opens straight onto the official citation.
+    typeId: "paper-or-report",
+    fields: {
+      author: "Home Office",
+      title: "Report of the Royal Commission on Capital Punishment 1949–1953",
+      officialCitation: "Cmd 8932",
+      date: "1953",
+    },
+    want: "Home Office Report of the Royal Commission on Capital Punishment 1949–1953 (Cmd 8932, 1953).",
+  },
+
+  // -------------------------------------------------- 6 — secondary sources
+  {
+    typeId: "text-book",
+    fields: {
+      author: "Richard Mahoney and others",
+      title: "The Evidence Act 2006: Act & Analysis",
+      edition: "3rd ed",
+      publisher: "Brookers",
+      placeOfPublication: "Wellington",
+      year: "2014",
+    },
+    want: "Richard Mahoney and others The Evidence Act 2006: Act & Analysis (3rd ed, Brookers, Wellington, 2014).",
+  },
+  {
+    // Rule 6.1.9's second form: an eBook with no edition statement, which puts
+    // the place of publication where "eBook ed" sits in the first form.
+    typeId: "ebook-electronic-only",
+    fields: {
+      author: "Geoffrey Robertson",
+      title: "The Case of the Pope: Vatican Accountability for Human Rights Abuse",
+      publisher: "Penguin Books",
+      location: "London",
+      year: "2010",
+      pinpoint: "[94]",
+    },
+    want: "Geoffrey Robertson The Case of the Pope: Vatican Accountability for Human Rights Abuse (Penguin Books, London, 2010) at [94].",
+  },
+  {
+    typeId: "looseleaf-online-commentary",
+    fields: {
+      editor: "Mathew Downs",
+      title: "Cross on Evidence",
+      edition: "online ed",
+      publisher: "LexisNexis",
+      pinpoint: "[1.2]",
+    },
+    want: "Mathew Downs (ed) Cross on Evidence (online ed, LexisNexis) at [1.2].",
+  },
+  {
+    // Rule 6.3.7 dates a looseleaf service inside the same parenthesis.
+    typeId: "looseleaf-online-commentary",
+    fields: {
+      title: "Andrew Beck and others McGechan on Procedure",
+      edition: "looseleaf ed",
+      publisher: "Brookers",
+      serviceUpdate: "updated to 10 July 2009",
+      pinpoint: "[HRPt14.15(1)]",
+    },
+    want: "Andrew Beck and others McGechan on Procedure (looseleaf ed, Brookers, updated to 10 July 2009) at [HRPt14.15(1)].",
+  },
+  {
+    // Rule 6.4 puts the issue number in round brackets after the volume where
+    // the journal is not sequentially paginated — one value in the volume box.
+    typeId: "journal-article",
+    fields: {
+      author: "Ben Mathews and Kerryann Walsh",
+      title:
+        "At the Cutting Edge: Issues in Mandatory Reporting of Child Sexual Abuse by Australian Teachers",
+      year: "(2004)",
+      volume: "9(2)",
+      journalAbbrev: "Australia & New Zealand Journal of Law & Education",
+      startingPage: "3",
+    },
+    want: "Ben Mathews and Kerryann Walsh “At the Cutting Edge: Issues in Mandatory Reporting of Child Sexual Abuse by Australian Teachers” (2004) 9(2) Australia & New Zealand Journal of Law & Education 3.",
+  },
+  {
+    // Rule 6.5.2's online form: no reissue, and "online ed" closes the
+    // parenthesis where the reissue sits in the hardcopy form.
+    typeId: "legal-encyclopaedia",
+    fields: {
+      title: "Halsbury’s Laws of England",
+      edition: "5th ed",
+      year: "2012",
+      onlineEd: "online ed",
+      volume: "22",
+      topic: "Contract",
+      pinpoint: "[231]",
+    },
+    want: "Halsbury’s Laws of England (5th ed, 2012, online ed) vol 22 Contract at [231].",
+  },
+  {
+    typeId: "laws-of-new-zealand",
+    fields: {
+      author: "Geoffrey Palmer",
+      title: "Laws of New Zealand",
+      topic: "Parliament",
+      reissue: "Reissue 1",
+      onlineEd: "online ed",
+      pinpoint: "[212]",
+    },
+    want: "Geoffrey Palmer Laws of New Zealand Parliament (Reissue 1) (online ed) at [212].",
+  },
+  {
+    // No separate location — the conference name carries it — so the comma the
+    // template writes between them must disappear.
+    typeId: "conference-paper-seminar",
+    fields: {
+      speaker: "Justin Smith",
+      title: "Good Faith",
+      conference:
+        "New Zealand Law Society The Law of Obligations – “Contract in Context” Intensive Conference",
+      date: "July 2007",
+      startingPage: "27",
+      pinpoint: "28",
+    },
+    want: "Justin Smith “Good Faith” (paper presented to New Zealand Law Society The Law of Obligations – “Contract in Context” Intensive Conference, July 2007) 27 at 28.",
+  },
+  {
+    typeId: "forthcoming-work",
+    fields: {
+      baseCitation:
+        "William Collins “Advowson and Patronage” in CD Bourgh (ed) Essay on Incorporeal Hereditaments (LCDB Press, Pemberley, 2018)",
+      forthcoming: "forthcoming",
+    },
+    want: "William Collins “Advowson and Patronage” in CD Bourgh (ed) Essay on Incorporeal Hereditaments (LCDB Press, Pemberley, 2018) (forthcoming).",
+  },
+
+  // ------------------------------------------------------- 7 — other sources
+  {
+    typeId: "internet-material",
+    fields: {
+      author: "Federico Varese",
+      title: "The Secret History of Japanese Cinema: The Yakuza Movies",
+      date: "14 May 2006",
+      websiteName: "Social Science Research Network",
+      url: "<www.ssrn.com>",
+      pinpoint: "14",
+    },
+    want: "Federico Varese “The Secret History of Japanese Cinema: The Yakuza Movies” (14 May 2006) Social Science Research Network <www.ssrn.com> at 14.",
+  },
+  {
+    // Rule 7.1.4 names the body as the AUTHOR, in front of the title — not as
+    // the website after it. No date and no website name, so both introduced
+    // separators have to vanish.
+    typeId: "internet-material",
+    fields: {
+      author: "Ministry of Justice",
+      title: "Frequently Asked Questions – Electoral Finance Reform",
+      url: "<www.justice.govt.nz>",
+    },
+    want: "Ministry of Justice “Frequently Asked Questions – Electoral Finance Reform” <www.justice.govt.nz>.",
+  },
+  {
+    // A magazine issue spanning two days, and no online edition marker.
+    typeId: "newspaper-magazine-article",
+    fields: {
+      author: "Ruth Laugesen",
+      articleTitle: "Charge of the emissions brigade",
+      newspaperTitle: "New Zealand Listener",
+      place: "New Zealand",
+      date: "24–30 September 2011",
+      pinpoint: "24",
+    },
+    want: "Ruth Laugesen “Charge of the emissions brigade” New Zealand Listener (New Zealand, 24–30 September 2011) at 24.",
+  },
+  {
+    typeId: "speech",
+    fields: {
+      speaker: "David Baragwanath, Judge of the Court of Appeal of New Zealand",
+      title: "Magna Carta and the New Zealand Constitution",
+      location: "speech to the English Speaking Union, Wellington",
+      date: "29 June 2008",
+    },
+    want: "David Baragwanath, Judge of the Court of Appeal of New Zealand “Magna Carta and the New Zealand Constitution” (speech to the English Speaking Union, Wellington, 29 June 2008).",
+  },
+  {
+    typeId: "historical-edited-translated-text",
+    fields: {
+      author: "Justinian",
+      title: "Digest",
+      editorOrTranslator: "Alan Watson (translator)",
+      publisher: "University of Pennsylvania Press",
+      place: "Philadelphia",
+      year: "1985",
+      pinpoint: "1.1.1.2",
+    },
+    want: "Justinian Digest (Alan Watson (translator), University of Pennsylvania Press, Philadelphia, 1985) at 1.1.1.2.",
+  },
+
+  // ----------------------------------------------------- 8 — foreign cases
+  {
+    // Rule 8.2.2(b): a paragraph-numbered Australian series, where the
+    // "starting page" is a paragraph symbol rather than a number.
+    typeId: "australia-case",
+    fields: {
+      caseName: "Transfield Constructions Pty Ltd v GIO Australia Holdings Pty Ltd",
+      year: "1996",
+      volume: "9",
+      reportSeries: "ANZ Insurance Cases",
+      startingPage: "¶61-336",
+      jurisdictionCourt: "NSWCA",
+      pinpoint: "71,716",
+    },
+    want: "Transfield Constructions Pty Ltd v GIO Australia Holdings Pty Ltd (1996) 9 ANZ Insurance Cases ¶61-336 (NSWCA) at 71,716.",
+  },
+  {
+    // Canada writes its neutral citation without brackets, and rule 8.3.3(a)
+    // needs no report reference beside it — so the comma after it must go.
+    typeId: "canada-case",
+    fields: {
+      caseName: "Canada Post Corp v Canada (Minister of Public Works)",
+      neutralCitationNoBrackets: "2004 FC 1",
+    },
+    want: "Canada Post Corp v Canada (Minister of Public Works) 2004 FC 1.",
+  },
+  {
+    typeId: "canada-case",
+    fields: {
+      caseName: "Burke v Cory",
+      year: "1959",
+      volume: "19",
+      reportSeries: "DLR (2d)",
+      startingPage: "262",
+      jurisdictionCourt: "ONCA",
+    },
+    want: "Burke v Cory (1959) 19 DLR (2d) 262 (ONCA).",
+  },
+  {
+    // Rule 8.4.1 keeps the English division with the judgment number, and this
+    // citation has no court identifier and no pinpoint after the report.
+    typeId: "england-wales-case-modern",
+    fields: {
+      caseName: "Nationwide Building Society v Dunlop Haywards (DHL) Ltd",
+      neutralYear: "2009",
+      neutralCourt: "EWHC",
+      number: "254 (Comm)",
+      year: "2010",
+      volume: "1",
+      reportSeries: "WLR",
+      startingPage: "258",
+    },
+    want: "Nationwide Building Society v Dunlop Haywards (DHL) Ltd [2009] EWHC 254 (Comm), [2010] 1 WLR 258.",
+  },
+  {
+    // Rule 8.4.2(c): a nominate report and its reprint, neither pinpointed.
+    typeId: "england-wales-nominate-report",
+    fields: {
+      caseName: "Vernon v Wright",
+      year: "1858",
+      nominateCitation: "7 HLC 34",
+      reprintCitation: "11 ER 15",
+      court: "HL",
+    },
+    want: "Vernon v Wright (1858) 7 HLC 34, 11 ER 15 (HL).",
+  },
+  {
+    typeId: "scotland-case",
+    fields: {
+      caseName: "Glenday v Johnston",
+      year: "(1905)",
+      volume: "13",
+      reportSeries: "SLT",
+      startingPage: "467",
+      court: "IH",
+    },
+    want: "Glenday v Johnston (1905) 13 SLT 467 (IH).",
+  },
+  {
+    // Rule 8.5.2(b)'s neutral-citation-only form needs neither a year nor a
+    // report series. `requiredForChosenForm` asks only for what the chosen form
+    // has a slot for, which is what lets this build at all.
+    typeId: "scotland-case",
+    fields: {
+      caseName: "Inveresk plc v Tullis Russell Papermakers Ltd",
+      neutralCitation: "[2009] CSIH 56",
+    },
+    want: "Inveresk plc v Tullis Russell Papermakers Ltd [2009] CSIH 56.",
+  },
+  {
+    typeId: "us-federal-case",
+    fields: {
+      caseName: "Rockford Map Publishing Inc v Directory Service Co",
+      volume: "768",
+      reportSeries: "F 2d",
+      startingPage: "145",
+      courtAndYear: "7th Cir 1986",
+      pinpoint: "151",
+    },
+    want: "Rockford Map Publishing Inc v Directory Service Co 768 F 2d 145 (7th Cir 1986) at 151.",
+  },
+  {
+    typeId: "us-state-case",
+    fields: {
+      caseName: "Dale v Boy Scouts of America",
+      volume: "734",
+      reportSeries: "A 2d",
+      startingPage: "1196",
+      stateCourtAndYear: "NJ 1999",
+      pinpoint: "1200",
+    },
+    want: "Dale v Boy Scouts of America 734 A 2d 1196 (NJ 1999) at 1200.",
+  },
+
+  // ----------------------------------------------- 9 — foreign legislation
+  {
+    // Rule 9.3.1's second form needs only a short title; the first form's
+    // volume, jurisdiction, year and chapter are all marked required.
+    typeId: "canada-statute",
+    fields: { shortTitle: "Canadian Charter of Rights and Freedoms" },
+    want: "Canadian Charter of Rights and Freedoms, pt 1 of the Constitution Act 1982, being sch B to the Canada Act 1982 (UK).",
+    knownGap:
+      "Multi-form validation: the Charter form takes only a short title, but `volume`, `jurisdiction`, `year` and `chapter` are required across forms.",
+  },
+  {
+    typeId: "uk-modern-statute",
+    fields: {
+      shortTitle: "Freedom of Information Act",
+      year: "2000",
+      jurisdiction: "UK",
+    },
+    want: "Freedom of Information Act 2000 (UK).",
+  },
+  {
+    // Rule 9.4.3(b): a Northern Ireland Act carries "(Northern Ireland)" in its
+    // own short title, BEFORE the year — it is not the jurisdiction tag the
+    // template writes after it.
+    typeId: "uk-modern-statute",
+    fields: { shortTitle: "Financial Assistance Act (Northern Ireland)", year: "2009" },
+    want: "Financial Assistance Act (Northern Ireland) 2009.",
+  },
+  {
+    typeId: "us-code",
+    fields: {
+      citation: "Pa Stat Ann, title 63",
+      section: "425.3",
+      supplement: "Supp 1986",
+    },
+    want: "Pa Stat Ann, title 63 § 425.3 (Supp 1986).",
+  },
+
+  // ------------------------------------------------------ 10 — international
+  {
+    typeId: "treaty",
+    fields: {
+      treatyName:
+        "Convention for the Avoidance of Double Taxation with Respect to Taxes on Income and Capital",
+      partiesNames: "Israel–Italy",
+      treatySeriesCitation: "1332 UNTS 126",
+      signatureDetails: "signed 22 April 1968, entered into force 8 August 1973",
+      pinpoint: "art 2",
+    },
+    want: "Convention for the Avoidance of Double Taxation with Respect to Taxes on Income and Capital, Israel–Italy 1332 UNTS 126 (signed 22 April 1968, entered into force 8 August 1973), art 2.",
+  },
+  {
+    // Rule 10.1.1(b): the parties are named inside the treaty's own title, so
+    // the comma the template writes before a separate parties box must go.
+    typeId: "treaty",
+    fields: {
+      treatyName:
+        "Memorandum of Understanding on Labour Cooperation between New Zealand and the People’s Republic of China",
+      treatySeriesCitation: "[2008] NZTS 17",
+      signatureDetails: "signed 4 April 1998, entered into force 12 September 2008",
+    },
+    want: "Memorandum of Understanding on Labour Cooperation between New Zealand and the People’s Republic of China [2008] NZTS 17 (signed 4 April 1998, entered into force 12 September 2008).",
+  },
+  {
+    // Rule 10.1.1(d): not yet in force, and no treaty series citation at all.
+    typeId: "treaty",
+    fields: {
+      treatyName:
+        "Multilateral Agreement for the Establishment of an International Think Tank for Landlocked Developing Countries",
+      signatureDetails: "opened for signature 1 November 2010, not yet in force",
+    },
+    want: "Multilateral Agreement for the Establishment of an International Think Tank for Landlocked Developing Countries (opened for signature 1 November 2010, not yet in force).",
+  },
+  {
+    // A PCIJ decision: the year keeps its round brackets and the series is part
+    // of the publication, not a volume.
+    typeId: "icj-pcij-decision",
+    fields: {
+      caseName: "Factory at Chorzów",
+      parties: "Germany v Poland",
+      phase: "Merits",
+      year: "(1928)",
+      publication: "PCIJ (series A)",
+      pageOrCaseNumber: "No 13",
+      pinpoint: "47",
+    },
+    want: "Factory at Chorzów (Germany v Poland) (Merits) (1928) PCIJ (series A) No 13 at 47.",
+  },
+  {
+    typeId: "international-criminal-tribunal",
+    fields: {
+      parties: "Prosecutor v Krnojelac",
+      phase: "Judgment",
+      courtTribunal: "ICTY",
+      chamber: "Trial Chamber II",
+      caseNumber: "IT-97-25-T",
+      date: "15 March 2002",
+      pinpoint: "[187]",
+    },
+    want: "Prosecutor v Krnojelac (Judgment) ICTY Trial Chamber II, IT-97-25-T, 15 March 2002 at [187].",
+  },
+  {
+    typeId: "international-criminal-tribunal",
+    fields: {
+      parties: "Prosecutor v Dyilo",
+      phase: "Confirmation of Charges",
+      courtTribunal: "ICC",
+      chamber: "Pre-Trial Chamber I",
+      caseNumber: "ICC-01-04-01/06",
+      date: "29 January 2007",
+      pinpoint: "[348]",
+    },
+    want: "Prosecutor v Dyilo (Confirmation of Charges) ICC Pre-Trial Chamber I, ICC-01-04-01/06, 29 January 2007 at [348].",
+  },
+  {
+    typeId: "international-arbitral-reported",
+    fields: {
+      caseName: "Rainbow Warrior",
+      parties: "New Zealand v France",
+      phase: "Judgment",
+      year: "1990",
+      citation: "82 ILR 499",
+      pinpoint: "[101]",
+    },
+    want: "Rainbow Warrior (New Zealand v France) (Judgment) (1990) 82 ILR 499 at [101].",
+  },
+  {
+    // Rule 10.3.2(d): the arbitrators ARE the arbitral body, and there is no
+    // separate case name and no case number.
+    typeId: "international-arbitral-unreported",
+    fields: {
+      parties: "Walter Bau AG (in liq) v Thailand",
+      phase: "Award",
+      arbitralBody: "Ian Barker, Marc Lalonde, Jayavadh Bunnag",
+      date: "1 July 2009",
+      pinpoint: "[9.60]",
+    },
+    want: "Walter Bau AG (in liq) v Thailand (Award) Ian Barker, Marc Lalonde, Jayavadh Bunnag 1 July 2009 at [9.60].",
+  },
+  {
+    typeId: "un-resolution",
+    fields: {
+      title:
+        "Mainstreaming a gender perspective into all policies and programmes in the United Nations system",
+      resolutionNumber: "ESC Res 2016/2",
+      year: "2016",
+    },
+    want: "Mainstreaming a gender perspective into all policies and programmes in the United Nations system ESC Res 2016/2 (2016).",
+  },
+  {
+    typeId: "eu-case-pre-2012",
+    fields: {
+      caseNumber: "C-135/08",
+      caseName: "Rottmann v Freistat Bayern",
+      year: "2010",
+      reportSeries: "QB",
+      volumePage: "761",
+      courtIdentifier: "CJEU",
+    },
+    want: "Case C-135/08 Rottmann v Freistat Bayern [2010] QB 761 (CJEU).",
+  },
+  {
+    // Rule 10.5.2(c): an Official Journal special edition spanning two years,
+    // written as a range inside the square brackets.
+    typeId: "eu-legislation",
+    fields: {
+      legislationType: "Directive",
+      numberAndTitle: "68/221 on the Free Movement of Workers",
+      year: "1963-4",
+      seriesNumberPage: "Spec Ed 117",
+    },
+    want: "Directive 68/221 on the Free Movement of Workers [1963-4] OJ Spec Ed 117.",
+  },
+  {
+    // Rule 10.5.3(a): a pre-1996 official report, cited by series and number
+    // rather than by volume and page.
+    typeId: "echr-case",
+    fields: {
+      caseName: "Johnston v Ireland",
+      year: "(1986)",
+      reportSeries: "Series A",
+      page: "no 122",
+    },
+    want: "Johnston v Ireland (1986) Series A no 122.",
+  },
+  {
+    // Rule 10.5.3(a)'s UNREPORTED form: court identifier, application number
+    // and date, with the court in front and no brackets.
+    typeId: "echr-case",
+    fields: {
+      caseName: "Adyan v Armenia",
+      courtIdentifier: "ECHR",
+      applicationNumber: "75604/11",
+      date: "12 October 2017",
+    },
+    want: "Adyan v Armenia ECHR 75604/11, 12 October 2017.",
+  },
+  {
+    typeId: "european-commission-hr-case",
+    fields: {
+      caseName: "X and Y v United Kingdom",
+      year: "1977",
+      volume: "12",
+      reportSeries: "DR",
+      page: "32",
+    },
+    want: "X and Y v United Kingdom (1977) 12 DR 32.",
+  },
+  {
+    typeId: "wto-document",
+    fields: {
+      title: "Australia – Measures Affecting the Importation of Apples from New Zealand",
+      documentNumber: "WT/DS367/AB/R",
+      date: "29 November 2010",
+      description: "Report of the Appellate body",
+      pinpoint: "[230]",
+    },
+    want: "Australia – Measures Affecting the Importation of Apples from New Zealand WT/DS367/AB/R, 29 November 2010 (Report of the Appellate body) at [230].",
+  },
+
+  // ------------------------------------------------ 2 — subsequent references
+  {
+    typeId: "subsequent-references",
+    fields: { identifier: "Baigent’s case", footnoteNumber: "4", pinpoint: "668" },
+    want: "Baigent’s case, above n 4, at 668.",
+  },
+  {
+    // Rule 2.3.1(a)(ii): a section pinpoint follows the comma directly — the
+    // Guide writes ", s 63", not ", at s 63".
+    typeId: "subsequent-references",
+    fields: { identifier: "Securities Act", pinpoint: "s 63" },
+    want: "Securities Act, s 63.",
+  },
+  {
+    // Rule 2.1.2 / 2.3.1(a)(i): where the immediately preceding footnote cites
+    // the same source, the reference is the pinpoint alone, capitalised.
+    typeId: "subsequent-references",
+    fields: { pinpoint: "535" },
+    want: "At 535.",
+  },
 ];

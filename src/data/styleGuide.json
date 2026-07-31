@@ -249,7 +249,7 @@
       "group": "Cases",
       "rule": "3.4",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.3.4.html#3.4",
-      "outputTemplate": "*{caseName}* {courtAbbreviation} {registry} {fileNumber}, {dateOfJudgment} at {pinpoint}",
+      "outputTemplate": "*{caseName}* {courtAbbreviation} {registry} {fileNumber}, {dateOfJudgment} ({minute}) at {pinpoint}",
       "components": [
         {
           "id": "caseName",
@@ -322,6 +322,18 @@
           "omittedWhen": "if none",
           "formatting": "as 3.2.8",
           "notes": "3.4.2"
+        },
+        {
+          "label": "Minute number",
+          "required": false,
+          "italic": false,
+          "order": 7,
+          "separatorBefore": "space",
+          "includedWhen": "included where the judgment cited is a numbered minute",
+          "omittedWhen": "omit for an ordinary judgment",
+          "formatting": "'Minute No N' in round brackets",
+          "notes": "3.4.7",
+          "id": "minute"
         }
       ],
       "bracketRules": "No year brackets; date is written out (day month year). A minute/ruling description may follow the date in round brackets, e.g. (Minute No 16).",
@@ -3283,7 +3295,7 @@
       "group": "Secondary sources",
       "rule": "6.3",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.6.3.html#6.3.1",
-      "outputTemplate": "{editor} (ed) {title} ({edition}, {publisher}) at {pinpoint} | {title} ({edition}, {publisher}) at {pinpoint}",
+      "outputTemplate": "{editor} (ed) {title} ({edition}, {publisher}, {serviceUpdate}) at {pinpoint} | {title} ({edition}, {publisher}, {serviceUpdate}) at {pinpoint}",
       "components": [
         {
           "id": "editor",
@@ -7920,7 +7932,7 @@
       "group": "International & foreign",
       "rule": "10.5.3",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.10.5.html#10.5.3",
-      "outputTemplate": "*{caseName}* {year} {volume} {reportSeries} {page} ({courtIdentifier}) at {pinpoint}",
+      "outputTemplate": "*{caseName}* {year} {volume} {reportSeries} {page} ({courtIdentifier}) at {pinpoint} | *{caseName}* {courtIdentifier} {applicationNumber}, {date}",
       "components": [
         {
           "id": "caseName",
@@ -8017,6 +8029,30 @@
           "omittedWhen": "may be omitted",
           "formatting": "",
           "notes": "added to complete the form (template placeholder had no component)"
+        },
+        {
+          "label": "Application number",
+          "required": false,
+          "italic": false,
+          "order": 9,
+          "separatorBefore": "space",
+          "includedWhen": "included for an unreported judgment",
+          "omittedWhen": "omit where the judgment is reported",
+          "formatting": "application number as the Court gives it, e.g. '75604/11'",
+          "notes": "10.5.3(a)",
+          "id": "applicationNumber"
+        },
+        {
+          "label": "Date of judgment",
+          "required": false,
+          "italic": false,
+          "order": 10,
+          "separatorBefore": "', '",
+          "includedWhen": "included for an unreported judgment",
+          "omittedWhen": "omit where the judgment is reported",
+          "formatting": "day month year",
+          "notes": "10.5.3(a)",
+          "id": "date"
         }
       ],
       "bracketRules": "Court identifier in round brackets. Year bracket style follows the report series.",
@@ -8384,7 +8420,7 @@
       "group": "Subsequent references",
       "rule": "2.3",
       "ruleUrl": "https://lawfoundation.org.nz/style-guide2019/chapter-pt.2.3.html#2.3",
-      "outputTemplate": "{identifier}, above n {footnoteNumber}, at {pinpoint}",
+      "outputTemplate": "{identifier}, above n {footnoteNumber}, at {pinpoint} | {identifier}, {pinpoint} | At {pinpoint}",
       "components": [
         {
           "id": "identifier",
@@ -8439,7 +8475,7 @@
       "validation": "Never use 'ibid'. Two styles: GENERAL (student/academic/court/judgment work — uses 'above n x') and COMMERCIAL (publishers — repeat full citation for cases and legislation each time, but use the general style for texts/articles/essays). Confirm with the publisher which style applies.",
       "pinpoint": "If the source is obvious, give only the pinpoint ('At [52].'). Otherwise identifier + ', above n x,' + pinpoint. Where two successive footnotes cite the same source with no pinpoint, use 'Source, above n x.'",
       "subsequentForm": "This IS the subsequent-reference rule. Reference tags: give the tag + ', above n x,' (2.3.2); an obvious tag (a party's name) need not be introduced, a less obvious one (popular name) is introduced in square brackets at first citation.",
-      "parseStructure": "[Identifier] [', above n ' x ','] [' at ' pinpoint]  — or just 'At ' pinpoint where the source is obvious.",
+      "parseStructure": "[Identifier] [', above n ' x ','] [' at ' pinpoint] — legislation takes '{identifier}, {pinpoint}' (2.3.1(a)(ii)) — or just 'At ' pinpoint where the source is obvious.",
       "examples": [
         {
           "correct_citation": "At 535.",

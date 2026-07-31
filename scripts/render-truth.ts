@@ -3,7 +3,8 @@
  *
  * The guarantee (correct fields in, perfect citation out) is measured by
  * tests/fixtures/field-truth.ts, where every field set is written out BY HAND for
- * every one of the 86 source types. That is 148/148.
+ * every one of the 86 source types, and for 215 of the Guide's 216 worked
+ * examples. That is 215/215, with 5 template gaps recorded as `knownGap`.
  *
  * This script asks something narrower: can a type's own template read its own
  * worked example back into fields, and do those fields then render to the example?
@@ -91,7 +92,7 @@ for (const r of failed) byType.set(r.type.id, [...(byType.get(r.type.id) ?? []),
 console.log("=".repeat(78));
 console.log("TEMPLATE ROUND-TRIP — can each template parse its own worked example?");
 console.log("=".repeat(78));
-console.log("  (the guarantee is field-truth: 148/148 by hand, all 86 types — see the header)");
+console.log("  (the guarantee is field-truth: 215/215 by hand, all 86 types — see the header)");
 console.log(
   `  ${results.length - failed.length}/${results.length} round-tripped ` +
     `(${(((results.length - failed.length) / results.length) * 100).toFixed(1)}%)` +

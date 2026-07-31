@@ -8,6 +8,7 @@ import { forbiddenShortForm } from "../src/engine/rules.ts";
 import test from "node:test";
 import { buildCitation, prefillFromPaste, visibleComponents } from "../src/engine/build.ts";
 import { guideTypeById } from "../src/data/styleGuide.ts";
+import { chooseForm } from "../src/engine/render.ts";
 
 test("builds a reported NZ case with a neutral citation", () => {
   const result = buildCitation("reported-case-nz", {
@@ -76,7 +77,19 @@ test("is fail-closed when a required component is missing", () => {
   assert.ok(result.issues.some((issue) => issue.level === "error" && issue.field === "year"));
 });
 
-test("dropping any single required component fails closed across every type", () => {
+/**
+ * Dropping a required component must fail closed — UNLESS the form that ends up
+ * being used has no slot for it.
+ *
+ * A rule's alternate forms need different facts, and per-form validation
+ * (`requiredForChosenForm`) is what lets rule 8.5's neutral-citation-only
+ * Scottish case and rule 2.1.2's bare "At 535." build at all. So the invariant
+ * is not "every component marked required is always demanded"; it is the one
+ * that actually protects the student: **a citation is never emitted while a
+ * slot the chosen form writes stands empty.** That is what a silently dropped
+ * fact looks like, and it is still checked here for every type.
+ */
+test("a citation is never emitted with a slot the chosen form needs left empty", () => {
   for (const type of Object.values(guideTypeById)) {
     const components = visibleComponents(type);
     const required = components.filter((c) => c.required);
@@ -88,12 +101,17 @@ test("dropping any single required component fails closed across every type", ()
       const broken = { ...full };
       delete broken[c.id];
       const result = buildCitation(type.id, broken);
-      assert.equal(
-        result.status,
-        "incomplete",
-        `${type.id} stayed ready without required ${c.id}`,
+      if (result.status === "incomplete") {
+        assert.equal(result.text, "", `${type.id} leaked text without ${c.id}`);
+        continue;
+      }
+      // It built. That is only legitimate if the form it chose never asked for
+      // the component we removed.
+      const form = chooseForm(type.outputTemplate, broken);
+      assert.ok(
+        !form.includes(`{${c.id}}`),
+        `${type.id} built without required ${c.id}, yet the form it chose writes it: ${form}`,
       );
-      assert.equal(result.text, "", `${type.id} leaked text without ${c.id}`);
     }
   }
 });
