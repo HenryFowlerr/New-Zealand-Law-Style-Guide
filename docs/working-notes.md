@@ -21,8 +21,8 @@ Never report a single accuracy number. It hides which layer is broken.
 
 | | What it asks | Where | Now |
 |---|---|---|---|
-| **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **149/149, all 86 types, none skipped** |
-| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 214/216 fields, 207/216 exact |
+| **RENDER** | Correct fields in, correct citation out? | `tests/fixtures/field-truth.ts` | **148/148, all 86 types, none skipped** |
+| **READ** | Does a paste land in the right boxes? | `scripts/qa-sweep.ts` | 215/216 fields, 210/216 exact |
 | **PICK** | Is the right source type ranked first? | `scripts/qa-sweep.ts` | 148/216 |
 | **LINK** | Does a URL give the right KIND of citation? | `scripts/link-report.ts` | 16/16 type, 6/6 exact |
 
@@ -30,8 +30,12 @@ RENDER is the promise; the other three are convenience. It is now measured for
 every type in the Guide — it used to cover 38 of 86, so for the rest the promise
 was simply untested. Two further checks back it up, both at 100%:
 `render-invariants` (621/621 — every combination of omitted optional fields still
-renders something well-formed) and `render-omission` (460/460 — dropping one
+renders something well-formed) and `render-omission` (455/455 — dropping one
 optional part disturbs nothing else).
+
+**Re-read these numbers from the scripts before quoting them.** The table above
+went stale twice: it claimed 214/207 when the tree measured 215/208, which made a
+change that gained nothing look like a gain of one.
 
 `npm run qa` runs everything. `scripts/common-law-report.ts` scores the subset a
 New Zealand essay is actually built from, which matters more than the total
@@ -113,12 +117,26 @@ runs where the boxes are filled and not where the type is ranked, and detection
 still sees what it was fitted on. Anything that touches a feature must be
 measured on classification too, not just on the layer it was aimed at.
 
-This has now happened three times — span reconciliation, the shape penalty in form
-choice, and splitting a neutral citation into its three boxes, which gained one
-citation and cost six identifications. **Treat it as the standing rule: work that
-improves the FIELDS belongs in `prefillFromPaste`, after `refineFields`, not
-inside it.** Both passes that do this are called from there for exactly this
-reason.
+This has now happened four times — span reconciliation, the shape penalty in form
+choice, splitting a neutral citation into its three boxes (one citation gained,
+six identifications lost), and the report-locus tail below. **Treat it as the
+standing rule: work that improves the FIELDS belongs in `prefillFromPaste`, after
+`refineFields`, not inside it.** All three passes that do this are called from
+there for exactly this reason.
+
+The fourth is the cleanest demonstration yet, because the SAME code was measured
+in both places:
+
+| `fillReportLocusTail` | PICK | exact |
+|---|---|---|
+| baseline | 148 | 208 |
+| page fill inside `refineFields` | 147 | 208 |
+| page + court inside `refineFields` | 146 | 210 |
+| both on the prefill path | **148** | **210** |
+
+Two identifications is the whole price of putting it one function too early. If a
+field fix looks like it costs classification, try moving it before trading it
+away.
 
 **Believing the corpus measures everything.** The corpus is 216 citations printed
 in the Guide, and it is printed correctly, in mixed case, fully punctuated. Real
@@ -178,6 +196,16 @@ discarded outright.
 
 If you extend it: a required field left empty outranks the word count, because an
 empty required field is what makes the tool refuse to build at all.
+
+**It trims an over-reaching claim; it does not discard one.** When the positional
+pass hands it a box holding the whole tail of the reference, the trim leaves a
+remnant that looks like a reading. `courtIdentifier` holding "1969) 12 Yearbook
+186 (EComHR" came out as "(186)" — a court that does not exist — and took the
+pinpoint's span with it. A general "drop any box that swallowed the apparatus
+whole" rule was written and measured: it cost an output and an identification,
+because plenty of legitimate boxes overlap a locus. The answer was to read the
+court off its brackets so the garbage is REPLACED rather than trimmed. Prefer
+giving a box a positive source over inventing a rule about when to empty it.
 
 ## Two lessons about scoring
 
@@ -291,9 +319,8 @@ pre-1854 ordinances were already passing, and the Gazette problem turned out to 
 partly this repo's own fixture. Re-derive the clusters from
 `scripts/failure-shapes.ts` rather than trusting a list.
 
-- **Paste→output 207/216.** By defect shape: 3 truncated, 3 other, 2 refused,
-  1 duplicated. Run `scripts/failure-shapes.ts` rather than reading this list; it
-  goes stale.
+- **Paste→output 210/216.** Run `scripts/failure-shapes.ts` for the current
+  breakdown rather than reading a list here; it goes stale.
 - **The two remaining refusals are the same modelling gap.** Rule 8.5's
   neutral-citation-only form ("Inveresk plc v Tullis Russell Papermakers Ltd
   [2009] CSIH 56") needs neither a year nor a report series, but both are marked
@@ -320,7 +347,7 @@ partly this repo's own fixture. Re-derive the clusters from
 - **Guide audit 154/154.** Every citation read off the published Guide rebuilds
   rebuilds exactly. That is the measure to watch: it is the only one whose
   expected strings did not come from this repository.
-- **Classification 147/216.** Much weaker than domestic. The
+- **Classification 148/216.** Much weaker than domestic. The
   foreign *case* types matter most, since New Zealand common law reasons from
   English and Australian authority. Canada (8.3), Scotland (8.5) and the American
   courts (8.6.2, 8.6.3) now READ correctly; ranking them first is the part still

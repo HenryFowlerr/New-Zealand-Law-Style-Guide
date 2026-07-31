@@ -29,6 +29,7 @@ import {
   refineFields,
   reconcileAgainstSource,
   splitNeutralCitationParts,
+  fillReportLocusTail,
 } from "./scan";
 import { fieldShapeViolations } from "./shapes";
 import { applyGuideRules, normaliseForComparison } from "./rules";
@@ -263,7 +264,11 @@ export function prefillFromPaste(
   if (italicIds.length === 0 || runs.length !== italicIds.length) {
     return reconcileAgainstSource(
       type,
-      splitNeutralCitationParts(type, refineFields(type, positional, text), text),
+      fillReportLocusTail(
+        type,
+        splitNeutralCitationParts(type, refineFields(type, positional, text), text),
+        text,
+      ),
       text,
     );
   }
@@ -289,7 +294,11 @@ export function prefillFromPaste(
     refined[id] = base[id];
   });
   if (priorId && before) refined[priorId] = before;
-  return reconcileAgainstSource(type, splitNeutralCitationParts(type, refined, text), text);
+  return reconcileAgainstSource(
+    type,
+    fillReportLocusTail(type, splitNeutralCitationParts(type, refined, text), text),
+    text,
+  );
 }
 
 export type Detection = {

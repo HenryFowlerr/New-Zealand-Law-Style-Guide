@@ -245,11 +245,19 @@ export function scanAnchors(text: string): Anchor[] {
 
   const reporter = text.match(REPORTER);
   if (reporter) {
+    // The court identifier sits in round brackets straight after the locus —
+    // "(EComHR)", "(ECHR)", "(Grand Chamber)" (rules 10.5.3, 10.5.4). Read here
+    // rather than positionally, because a case name carrying commas and an "and"
+    // gives the positional pass more parts than the template has slots and this
+    // box ends up holding the whole tail of the reference.
+    const afterLocus = text.slice((reporter.index ?? 0) + reporter[0].length);
+    const court = afterLocus.match(/^\s+\(([A-Z][A-Za-z]*(?: [A-Za-z]+)?)\)/);
     push("reporter", reporter, {
       year: reporter[1],
       volume: reporter[2],
       series: reporter[3].trim(),
       page: reporter[4],
+      ...(court ? { court: court[1] } : {}),
     });
   } else if (hasQuote) {
     // A journal spells its name out, and the strict series pattern above cannot
@@ -477,6 +485,9 @@ export function refineFields(
         // A reporter series maps to reportSeries; a journal to journalAbbrev.
         if (ids.has("reportSeries")) set("reportSeries", anchor.parts.series);
         else set("journalAbbrev", anchor.parts.series);
+        // A type that calls this box simply `page` rather than `startingPage`,
+        // and the court identifier beside it, are filled by `fillReportLocusTail`
+        // on the prefill path — doing it here costs correct type identifications.
         set("startingPage", anchor.parts.page);
         earliestCitation = Math.min(earliestCitation, anchor.start);
         break;
@@ -904,6 +915,21 @@ export function refineFields(
     if (addressed) {
       set("recipient", addressed[1].trim());
       set("subject", addressed[2].trim());
+    }
+  }
+
+  // A WTO or GATT document number is a code, not prose: "WT/DS177/AB/R",
+  // "DS18/R", "L/7073" (rules 10.6.1 and 10.6.2). Positional extraction cut the
+  // title at an arbitrary space instead, so the reference came out as "United"
+  // followed by half its own title in the document-number box.
+  if (ids.has("documentNumber") || ids.has("gattDocumentNumber")) {
+    const code = text.match(/\b((?:WT\/|L\/|G\/|DS)[\w/.-]*[\w])/);
+    if (code && code.index != null) {
+      set(ids.has("documentNumber") ? "documentNumber" : "gattDocumentNumber", code[1]);
+      if (ids.has("title")) {
+        const front = text.slice(0, code.index).replace(/[,\s]+$/, "").trim();
+        if (front) set("title", front);
+      }
     }
   }
 
@@ -1832,6 +1858,43 @@ function splitTopLevel(value: string): string[] {
   return parts.filter(Boolean);
 }
 
+/**
+ * Fill the `page` and `courtIdentifier` boxes from the report locus.
+ *
+ * Two defects with one cause. Most rules call it the STARTING page; the European
+ * human rights rules (10.5.3, 10.5.4) call it simply the page, and the anchor
+ * only knew the first name. And a case name carrying commas and an "and" —
+ * "Denmark, Norway, Sweden and the Netherlands v Greece" — gives the positional
+ * pass more parts than the template has slots, so every field shifts right and
+ * the last one swallows the tail: courtIdentifier held "1969) 12 Yearbook 186
+ * (EComHR". Reconciliation trims an over-reaching claim rather than discarding
+ * it, so that surfaced as the plausible-looking "(186)" — a court that does not
+ * exist — and took the pinpoint's span with it.
+ *
+ * On the prefill path only, per the standing rule. Both halves were measured
+ * inside `refineFields` first: the page fill alone cost one correct type
+ * identification, and the court identifier cost two, for the same +1 output.
+ * Here detection never sees them and the identifications are kept.
+ */
+export function fillReportLocusTail(
+  type: GuideType,
+  fields: Record<string, string>,
+  text: string,
+): Record<string, string> {
+  const ids = idsOf(type);
+  const anchor = scanAnchors(text).find((a) => a.kind === "reporter");
+  if (!anchor) return fields;
+  const result = { ...fields };
+  if (ids.has("page") && !ids.has("startingPage") && !(result.page ?? "").trim() && anchor.parts.page) {
+    result.page = anchor.parts.page;
+  }
+  // The court is read off the brackets that follow the locus, so whatever the
+  // positional pass left in the box is replaced rather than trimmed.
+  if (ids.has("courtIdentifier") && anchor.parts.court) {
+    result.courtIdentifier = anchor.parts.court;
+  }
+  return result;
+}
 
 /**
  * Write a neutral citation into the three boxes some rules give it.
