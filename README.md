@@ -146,16 +146,33 @@ npm run test:e2e
 
 ### How the tests are organised
 
-- `tests/accuracy.test.ts` — reproduces the Style Guide's own worked examples
-  and holds the accuracy floor.
-- `tests/engine-build.test.ts` — the interactive build pipeline: exact output
-  for representative types, fail-closed across every type, italic titles, html
-  escaping, and the rich-paste author/title split.
+- `tests/field-truth.test.ts` — **the guarantee.** Correct fields in, the Guide's
+  own citation out, for every one of the 86 types and for 215 of the Guide's 216
+  worked examples. Its field sets are written out BY HAND, so a pass means the
+  renderer agrees with the Guide rather than with the extractor.
+- `tests/guide-corpus.test.ts` — the same question against citations read off the
+  published Guide rather than off our ingested copy of it, so an ingestion error
+  cannot hide.
+- `tests/engine-build.test.ts` — the interactive build pipeline: exact output for
+  representative types, italic titles, html escaping, the rich-paste author/title
+  split, and that a citation is never emitted with a slot the chosen form needs
+  left empty.
 - `tests/engine-stress.test.ts` — adversarial and property-based checks across
   all 86 types: well-formed output, and building/detecting/extracting that never
   throw on thousands of random inputs.
 - `tests/e2e/interface.spec.ts` — the real student paths through the interface.
-- `scripts/accuracy-report.ts` — a per-group scoreboard (`npx tsx`).
+
+`npm run qa` runs every measurement. The ones worth reading first are
+`scripts/render-coverage.ts` (where is the guarantee NOT measured by hand?),
+`scripts/partial-report.ts` (does a shorter paste still land in the right
+boxes?) and `scripts/link-coverage.ts` (which pasted URLs does the tool
+actually recognise?).
+
+**`scripts/accuracy-report.ts` reports 216/216 and always will** — it derives
+each example's fields with the very template it then renders them back through,
+so it cannot fail on a wrong citation. It is kept for its per-group breakdown
+and must not be quoted as evidence. `docs/working-notes.md` explains this and
+the other traps; read it before changing the engine.
 
 ## Deployment
 
