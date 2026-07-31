@@ -955,6 +955,83 @@ export function refineFields(
     }
   }
 
+  // Rule 4.2.2 writes "{billCitation} ({locator})", and a bill citation carries
+  // brackets of ITS OWN: "Judicial Matters Bill 2008 (216-1) (explanatory note)".
+  // Cutting at the first bracket put the bill's own number in the locator box —
+  // "216-1) (explanatory note" — and dropped it from the citation, so the
+  // reference no longer identified which version of the Bill was meant. The
+  // locator is the LAST bracketed run, not the first.
+  if (ids.has("billCitation") && ids.has("locator")) {
+    const groups = [...text.matchAll(/\(([^()]*)\)/g)];
+    const last = groups[groups.length - 1];
+    if (last?.index != null) {
+      set("locator", last[1]);
+      const front = text.slice(0, last.index).replace(/[\s,]+$/, "").trim();
+      if (front) set("billCitation", front);
+    }
+  }
+
+  // Rule 5.2.5 writes "{committeeName} {title}" with nothing between them, so a
+  // positional split cuts at the first space and the committee came back as
+  // "Foreign" out of "Foreign Affairs, Defence and Trade Committee". A select
+  // committee's name ends in the word "Committee" — both of the Guide's own
+  // examples do — and that is the boundary the punctuation does not mark.
+  if (ids.has("committeeName") && ids.has("title")) {
+    const front = text.slice(0, earliestCitation < text.length ? earliestCitation : text.length);
+    const split = front.match(/^(.*\bCommittee)\s+(\S.*?)\s*$/);
+    if (split) {
+      set("committeeName", split[1].trim());
+      set("title", split[2].trim());
+    }
+  }
+
+  // Rule 6.2 writes an essay as "{author} “{essayTitle}” in …", and what follows
+  // the "in" takes three shapes: an editor marked "(ed)", the book's authors, or
+  // the book's title standing alone. Two things went wrong there.
+  //
+  // The template's literal " in " was matched at its first occurrence anywhere,
+  // and book titles contain the word: "Reason in Action: Collected Essays Volume
+  // 1" was cut at its own "in" and the book came back as "in Action: Collected
+  // Essays Volume 1". The "in" that belongs to the template is the one directly
+  // after the essay title's closing quotation mark.
+  //
+  // And "{bookAuthors} {bookTitle}" is two free-text slots with nothing between
+  // them, so the authors came back as "Paul" out of "Paul Rishworth and others".
+  // That is the same shape as the author/title split a book already uses, so it
+  // is the same answer: `splitAuthor`.
+  if (ids.has("essayTitle") && ids.has("bookTitle")) {
+    const closing = text.lastIndexOf("”");
+    const after = closing >= 0 ? text.slice(closing + 1) : "";
+    const lead = after.match(/^\s*in\s+/i);
+    if (lead) {
+      let rest = after.slice(lead[0].length);
+      const editorMark = rest.match(/^(.+?)\s*\(eds?\)\s*/i);
+      if (editorMark && ids.has("editor")) {
+        set("editor", editorMark[1].trim());
+        rest = rest.slice(editorMark[0].length);
+      }
+      // The publication parenthesis opens the edition/publisher run; the book's
+      // own identity is everything in front of it.
+      const pubStart = rest.indexOf("(");
+      const identity = (pubStart >= 0 ? rest.slice(0, pubStart) : rest).trim();
+      if (identity) {
+        const split = editorMark ? null : ids.has("bookAuthors") ? splitAuthor(identity) : null;
+        if (split?.rest) {
+          set("bookAuthors", split.author);
+          set("bookTitle", split.rest);
+        } else {
+          // No authors: rule 6.2's third form, the book's title alone. The
+          // positional guess must be CLEARED, not merely left — reconciliation
+          // gives each box exclusive title to its run, so a stale "Reason" in
+          // the authors box takes that word off the front of the title and
+          // "Reason in Action" became "in Action".
+          if (editorMark == null) delete fields.bookAuthors;
+          set("bookTitle", identity);
+        }
+      }
+    }
+  }
+
   // A bracketed list with more parts than the template has slots.
   //
   // Rule 7.5 writes a speech as "({location}, {date})" and its own example puts

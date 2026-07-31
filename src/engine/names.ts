@@ -92,6 +92,17 @@ export function splitAuthor(text: string): AuthorSplit | null {
   let end = consumeName(tokens, 0);
   if (end === 0) return null;
 
+  // "and others" is how the Guide itself shortens a list of four or more authors
+  // — "Richard Mahoney and others" (6.1.2(e)), "Paul Rishworth and others"
+  // (6.2). It is part of the author, but "others" is lowercase and so is not a
+  // name, so the connector loop below stopped in front of it and left "and
+  // others" to open the title.
+  const trailingOthers = (from: number): number =>
+    CONNECTORS.has(tokens[from]?.toLowerCase()) &&
+    /^(others|another)\b/i.test(tokens[from + 1] ?? "")
+      ? from + 2
+      : from;
+
   // Extend across a connector-joined author list.
   while (end < tokens.length) {
     let cursor = end;
@@ -108,6 +119,7 @@ export function splitAuthor(text: string): AuthorSplit | null {
     if (nextEnd === cursor) break; // connector not followed by a name
     end = nextEnd;
   }
+  end = trailingOthers(end);
 
   // Require at least two author tokens (a "Given Surname" shape, or an initial
   // plus surname). A single leading capitalised word — "Ministry" of "Ministry
