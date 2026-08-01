@@ -20,7 +20,8 @@
     "qa:paste": "tsx scripts/qa-sweep.ts && tsx scripts/common-law-report.ts && tsx scripts/partial-report.ts",
     "fit:detection": "tsx scripts/fit-detection.ts",
     "qa:link": "tsx scripts/link-report.ts && tsx scripts/link-coverage.ts",
-    "qa:forms": "tsx scripts/form-choice.ts"
+    "qa:forms": "tsx scripts/form-choice.ts",
+    "status": "tsx scripts/status.ts"
   },
   "dependencies": {
     "react": "19.2.6",
