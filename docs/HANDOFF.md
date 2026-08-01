@@ -1,20 +1,20 @@
 # Handoff
 
-Written by `npm run checkpoint` at 2026-08-01 01:47 UTC, on branch `main`.
+Written by `npm run checkpoint` at 2026-08-01 04:43 UTC, on branch `main`.
 Delete nothing here by hand — the next checkpoint overwrites it.
 
 ## State
 
 **GREEN — typecheck and unit tests pass**
-Unit tests: 450 passed, 0 failed.
+Unit tests: 458 passed, 0 failed.
 
 ## Last done
 
-Correct a hyphenated day span, stop the dash perturbation reaching inside a title, and delete the two dead LLM modules
+Read APA, Bluebook, Chicago and database-listing references by rewriting them into the Guide's shape before detection
 
 ## Next step
 
-Open list in docs/START-HERE.md — PICK 156/216 needs a different idea; 34 robustness failures, mostly ALL CAPS
+Surface the recognised style and what it could not carry in the UI; then Harvard/MLA/Vancouver and a journal-abbreviation table
 
 ## Where every measurement stands
 
@@ -37,6 +37,10 @@ PARTIAL — a shorter paste (realistic omissions only)
   corrupted                  25                 shows a FALSE value — worst
   dropped                    16                 loses a present one
   retyped                    11                 type rank changed
+FOREIGN FORMAT — a reference written in some other style
+  PICK type ranked first     11/12              
+  READ fields                12/12              
+  OUTPUT citation exact      12/12              APA, Bluebook, Chicago
 LINK — a pasted URL
   right KIND of source       21/21              
   exact citation             8/8                
@@ -58,6 +62,7 @@ WHAT IS FAILING — by defect shape
 Recent commits:
 
 ```
+70b3a0a Checkpoint: Correct a hyphenated day span, stop the dash perturbation re
 5657284 Checkpoint: Recognise CanLII — cases, statutes, and rule 8.3.3's forbidd
 d325a37 Checkpoint: Read a paragraph-numbered report locus and a bracketed year
 37df8ab Checkpoint: Skill, status command, checkpoint script and handoff protoco
@@ -65,18 +70,18 @@ bfcabc2 Checkpoint: Added the nz-law-cite skill, npm run status, and this checkp
 d95687c Make picking this project up cheap
 b9f197e Put a floor under the three measures that found the defects
 5647fd7 Read a report series as the jurisdiction it names
-ee6ad4e Point the README at the measure that can fail
 ```
 
 Uncommitted when this ran (the checkpoint commits them next):
 
 ```
-M docs/START-HERE.md
- M scripts/qa-sweep.ts
-D  src/engine/llmParse.ts
- M src/engine/scan.ts
-D  src/engine/webllmModel.ts
-D  tests/engine-llmparse.test.ts
+M package.json
+ M scripts/status.ts
+ M src/engine/build.ts
+?? scripts/foreign-format-report.ts
+?? src/engine/foreignFormat.ts
+?? tests/engine-foreign-format.test.ts
+?? tests/fixtures/foreign-format.ts
 ```
 
 ## Picking this up

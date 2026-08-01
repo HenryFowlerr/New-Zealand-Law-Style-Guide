@@ -44,6 +44,7 @@ const links = run("link-report.ts");
 const linkCoverage = run("link-coverage.ts");
 const working = run("common-law-report.ts");
 const shapes = run("failure-shapes.ts");
+const foreign = run("foreign-format-report.ts");
 
 console.log("\nTHE GUARANTEE — correct fields in, the Guide's citation out");
 line("field-truth (by hand)", grab(coverage, /hand-written cases\s*:\s*(\d+)/), "tests/fixtures/field-truth.ts");
@@ -65,6 +66,11 @@ const realistic = partial.split("REALISTIC")[1] ?? "";
 line("corrupted", grab(realistic, /CORRUPTED[^:]*:\s*(\d+)/), "shows a FALSE value — worst");
 line("dropped", grab(realistic, /DROPPED[^:]*:\s*(\d+)/), "loses a present one");
 line("retyped", grab(realistic, /RETYPED[^:]*:\s*(\d+)/), "type rank changed");
+
+console.log("\nFOREIGN FORMAT — a reference written in some other style");
+line("PICK type ranked first", grab(foreign, /PICK\s+type ranked first\s*:\s*(\S+)/));
+line("READ fields", grab(foreign, /FIELDS every field right\s*:\s*(\S+)/));
+line("OUTPUT citation exact", grab(foreign, /OUTPUT citation exact\s*:\s*(\S+)/), "APA, Bluebook, Chicago");
 
 console.log("\nLINK — a pasted URL");
 line("right KIND of source", grab(links, /TYPE recognised\s*:\s*(\S+)/));

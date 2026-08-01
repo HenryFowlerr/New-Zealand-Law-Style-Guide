@@ -33,6 +33,7 @@ import {
 } from "./scan";
 import { fieldShapeViolations } from "./shapes";
 import { applyGuideRules, normaliseForComparison } from "./rules";
+import { normaliseForeignFormat } from "./foreignFormat";
 
 export type CitationFields = Record<string, string>;
 
@@ -250,8 +251,15 @@ export function prefillFromPaste(
   // Canonicalise whitespace and straight quotes before any extraction, and
   // re-base the rich-paste italic runs onto the result so their offsets still
   // point at the same words.
-  const { text, fromRaw } = normalizePaste(rawText);
-  const runs = italicRuns.map((run) => ({
+  // As in detection: a recognised foreign style is rewritten into the Guide's
+  // shape before extraction. A rewritten paste no longer lines up with the
+  // rich-paste italic offsets — the words have moved — so those are dropped
+  // rather than applied to whatever now sits at the old position.
+  const foreign = normaliseForeignFormat(rawText);
+  const sourceText = foreign.style ? foreign.text : rawText;
+  const usableRuns = foreign.style ? [] : italicRuns;
+  const { text, fromRaw } = normalizePaste(sourceText);
+  const runs = usableRuns.map((run) => ({
     text: normalizeQuotes(run.text.replace(/\s+/g, " ").trim()),
     start: fromRaw[Math.min(run.start, rawText.length)] ?? 0,
     end: fromRaw[Math.min(run.end, rawText.length)] ?? 0,
@@ -411,7 +419,12 @@ export function scoreFeatures(
 export function detectionCandidates(
   text: string,
 ): { typeId: string; fields: CitationFields; features: DetectionFeatures }[] {
-  const trimmed = normalizePaste(text).text;
+  // A reference written in another style is rewritten into the Guide's shape
+  // FIRST, so the weights below score the kind of string they were fitted
+  // against. Nothing here learns a new format; the pre-pass hands it one it
+  // already knows. A paste that is not in a recognised foreign style comes
+  // through untouched.
+  const trimmed = normalizePaste(normaliseForeignFormat(text).text).text;
   if (!trimmed) return [];
   const lower = trimmed.toLowerCase();
   const normalise = (s: string) =>
