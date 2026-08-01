@@ -64,7 +64,15 @@ const NEUTRAL =
 // 1329" under rule 8.6. Without either, this pattern failed on the whole locus
 // and Burke v Cory rebuilt as "Burke v Cory (1959) (2d) 262 (ONCA)".
 const SERIES = "[A-Z][A-Za-z]*(?:\\s[A-Z][A-Za-z]*)*(?:\\s+\\(\\d+[A-Za-z]{1,2}\\)|\\s+\\d+[A-Za-z]{1,2}\\b)?";
-const REPORTER = new RegExp(`([[(]\\d{4}[\\])])\\s+(\\d+)\\s+(${SERIES})\\s+(\\d+)`);
+// A paragraph-numbered service locates a case by paragraph rather than by page:
+// rule 8.2's "(1996) 9 ANZ Insurance Cases ¶61-336 (NSWCA)". Requiring bare
+// digits here failed on the whole locus, so the volume, the series and the
+// paragraph went unread and the year anchor claimed "(1996)" on its own — which
+// the template then wrote beside the tail it had swallowed: "… (1996) (1996) 9
+// ANZ Insurance Cases …". The pilcrow is what makes this safe to admit: no
+// locus without one reads differently than it did before.
+const LOCUS_PAGE = "\\d+|¶\\s?\\d+(?:[-–—]\\d+)?";
+const REPORTER = new RegExp(`([[(]\\d{4}[\\])])\\s+(\\d+)\\s+(${SERIES})\\s+(${LOCUS_PAGE})`);
 
 // The same locus, but opening with a bracketed DATE instead of a bracketed year.
 // The New Zealand Gazette is cited "(19 February 2004) 18 New Zealand Gazette
@@ -355,7 +363,14 @@ export function scanAnchors(text: string): Anchor[] {
   // that closes a parenthesis ("…, 1994)" — chosen over a year embedded in the
   // title like "Property Law Act 1952"), then any standalone four digits.
   if (!neutral && !reporter) {
-    const bracket = text.match(/\[\d{4}\]|\(\d{4}\)/);
+    // A bracketed year may be a SPAN — the Official Journal's special edition is
+    // "[1963-4] OJ Spec Ed 117" (rule 10.5.2) and the AJHR runs over a
+    // parliamentary term, "[1984–1985] I AJHR A6" (rule 5.1.2). Reading only the
+    // first four digits shortened the span to its opening year, which names a
+    // different volume and looks entirely correct. The span is kept exactly as
+    // it was typed: the Guide itself prints the EU one with a hyphen and the
+    // AJHR one with an en dash, so there is no single form to normalise to.
+    const bracket = text.match(/\[\d{4}(?:\s*[-–—]\s*\d{1,4})?\]|\(\d{4}(?:\s*[-–—]\s*\d{1,4})?\)/);
     const pubYear = text.match(/[,(]\s*(\d{4})\s*[)\]]/);
     const bare = text.match(/\b\d{4}\b/);
     if (bracket && bracket.index != null) {
