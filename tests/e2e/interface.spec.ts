@@ -144,3 +144,47 @@ test("a pasted list of references is worked through, not silently truncated", as
   await expect(page.locator(".reference-done")).toHaveCount(1);
   await expect(page.getByRole("button", { name: /^Use New Zealand statute/ })).toBeVisible();
 });
+
+test("an APA reference is rearranged, and what APA lost is asked for", async ({ page }) => {
+  await page.getByRole("tab", { name: /Check what I have/ }).click();
+  await page
+    .locator("textarea")
+    .fill(
+      "Butler, A., & Butler, P. (2015). The New Zealand Bill of Rights Act: A commentary (2nd ed.). Wellington, New Zealand: LexisNexis.",
+    );
+  await expect(page.locator(".suggestion-top strong")).toContainText(/Text \/ book/);
+  await page.locator("textarea").press("Enter");
+  await expect(page.locator("#citation-form")).toBeVisible();
+  // Rule 6.1.2's "and", the Guide's publication bracket, and headline case.
+  await expect(page.locator(".citation-preview p")).toHaveText(
+    "A Butler and P Butler The New Zealand Bill of Rights Act: A Commentary (2nd ed, LexisNexis, Wellington, 2015).",
+  );
+  // The given names APA threw away are ASKED for, never invented.
+  const notice = page.locator(".issue-check", { hasText: "APA" });
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText(/given names/);
+  await expect(page.locator(".citation-preview p")).not.toContainText("Andrew");
+});
+
+test("a Bluebook citation loses its full stops and keeps everything else", async ({ page }) => {
+  await page.getByRole("tab", { name: /Check what I have/ }).click();
+  await page.locator("textarea").fill("United States v. Palmer, 16 U.S. 610 (1818).");
+  // Detection is debounced — wait for it to settle before accepting it.
+  await expect(page.locator(".suggestion-top strong")).toContainText(/United States/);
+  await page.locator("textarea").press("Enter");
+  await expect(page.locator("#citation-form")).toBeVisible();
+  await expect(page.locator(".citation-preview p")).toHaveText(
+    "United States v Palmer 16 US 610 (1818).",
+  );
+});
+
+test("a Guide citation is never claimed to be in another style", async ({ page }) => {
+  await page.getByRole("tab", { name: /Check what I have/ }).click();
+  await page
+    .locator("textarea")
+    .fill("Andrew Burrows The Law of Restitution (3rd ed, Oxford University Press, Oxford, 2011).");
+  await expect(page.locator(".suggestion-top strong")).toContainText(/Text \/ book/);
+  await page.locator("textarea").press("Enter");
+  await expect(page.locator("#citation-form")).toBeVisible();
+  await expect(page.locator(".issue-check", { hasText: /APA|Chicago|Bluebook/ })).toHaveCount(0);
+});

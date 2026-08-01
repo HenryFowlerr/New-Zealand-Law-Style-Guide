@@ -60,12 +60,14 @@ before pushing UI changes.
 | `qa-sweep` | READ and PICK from a paste | yes |
 | `partial-report` | a SHORTER paste still lands right | yes, the "realistic" block only |
 | `link-report` / `link-coverage` | a pasted URL | yes |
+| `foreign-format-report` | a paste in APA / Bluebook / Chicago | yes |
 | `render-truth` | template parses its own example | no — mostly extractor mis-splits |
 | `accuracy-report` | — | **no — cannot fail** |
 
 ## Layout
 
 ```
+src/engine/foreignFormat.ts  APA/Bluebook/Chicago → the Guide's shape, BEFORE detection
 src/engine/render.ts   templates, forms, separators, italics, splitting a paste
 src/engine/scan.ts     shape anchors — the field-level extraction
 src/engine/build.ts    detection features and weights, buildCitation, the audit
@@ -99,6 +101,16 @@ scripts/               every measurement; none of them ship
 6. **CanLII legislation beyond `/laws/stat/`** — regulations (`/laws/regu/`) and
    constitutional documents (`/laws/const/`) still fall through to the generic
    resolvers. Cases and statutes are read from the path.
+7. **More foreign formats.** `foreignFormat.ts` reads APA, Bluebook, Chicago and
+   a hyphen-columned database listing. Not yet: Harvard, MLA, Vancouver, McGill,
+   a BibTeX/RIS record, and an APA *chapter in an edited book*. Add a fixture
+   case FIRST — `foreign-format-report` is the measure.
+8. **A journal-abbreviation table.** APA spells a journal's name out and the
+   Guide abbreviates it from its own appendix ("Law Quarterly Review" → "LQR").
+   Without the table that conversion is unreachable, and it is reported as lossy
+   rather than guessed.
+9. **Bluebook district courts.** "S.D.N.Y." becomes "SDNY"; the Guide writes
+   "SD NY". Splitting a court from its state needs Appendix 3, not a pattern.
 
 ## Deploying
 

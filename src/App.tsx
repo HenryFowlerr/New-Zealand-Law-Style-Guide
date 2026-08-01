@@ -20,6 +20,7 @@ import {
 import { pasteIsAllCaps, splitReferences } from "./engine/render";
 import { forbiddenShortForm } from "./engine/rules";
 import { resolveLink, looksLikeLink } from "./engine/linkResolve";
+import { normaliseForeignFormat } from "./engine/foreignFormat";
 import { browserFetchers } from "./engine/browserFetch";
 
 type Mode = "paste" | "build";
@@ -291,6 +292,19 @@ function App() {
       pasteIsAllCaps(splitReferences(pasteText)[activeReference] ?? pasteText),
     [reviewRequired, filledFromLink, result, pasteText, activeReference],
   );
+
+  // A reference pasted in APA, Bluebook or Chicago is rewritten into the Guide's
+  // shape before it is read. Those formats can LOSE what the Guide requires —
+  // APA initialises given names, so "Carter, R." can only become "R Carter" —
+  // and the tool must not invent the rest back. Saying which style was
+  // recognised and exactly what it could not carry is the difference between a
+  // citation the reader knows to finish and one they trust as complete.
+  const foreignFormat = useMemo(() => {
+    if (!reviewRequired || filledFromLink) return null;
+    const source = splitReferences(pasteText)[activeReference] ?? pasteText;
+    const read = normaliseForeignFormat(source);
+    return read.style ? read : null;
+  }, [reviewRequired, filledFromLink, pasteText, activeReference]);
 
   // "ibid" is a habit from other disciplines; rule 2.3 does not use it.
   const shortFormWarning = useMemo(
@@ -893,6 +907,28 @@ function App() {
                         </p>
                       </div>
                     )}
+                    {foreignFormat && (
+                      <div className="issue issue-check">
+                        <span aria-hidden="true">?</span>
+                        <p>
+                          That looked like{" "}
+                          <strong>{foreignFormat.style}</strong>, so it has been
+                          rearranged into the Style Guide’s order.
+                          {foreignFormat.lossy.length > 0 ? (
+                            <>
+                              {" "}
+                              {foreignFormat.style} can’t carry everything the
+                              Guide needs, and nothing has been guessed for you —
+                              please supply{" "}
+                              <strong>{foreignFormat.lossy.join("; ")}</strong>{" "}
+                              from the source itself.
+                            </>
+                          ) : (
+                            " Check every field against the source before you copy."
+                          )}
+                        </p>
+                      </div>
+                    )}
                     {citationWarnings.length > 0 && (
                       <div className="issue issue-check">
                         <span aria-hidden="true">?</span>
@@ -907,7 +943,7 @@ function App() {
                         </p>
                       </div>
                     )}
-                    {copyReady && !result.issues.length && !citationWarnings.length && !shoutedPaste && (
+                    {copyReady && !result.issues.length && !citationWarnings.length && !shoutedPaste && !foreignFormat && (
                       <div className="issue issue-success">
                         <span aria-hidden="true">✓</span>
                         <p>All required fields for this format are complete.</p>

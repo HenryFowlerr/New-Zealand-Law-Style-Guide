@@ -1,6 +1,6 @@
 # Handoff
 
-Written by `npm run checkpoint` at 2026-08-01 04:43 UTC, on branch `main`.
+Written by `npm run checkpoint` at 2026-08-01 23:42 UTC, on branch `main`.
 Delete nothing here by hand — the next checkpoint overwrites it.
 
 ## State
@@ -10,11 +10,11 @@ Unit tests: 458 passed, 0 failed.
 
 ## Last done
 
-Read APA, Bluebook, Chicago and database-listing references by rewriting them into the Guide's shape before detection
+Tell the reader which foreign style was recognised and what it could not carry, with e2e cover
 
 ## Next step
 
-Surface the recognised style and what it could not carry in the UI; then Harvard/MLA/Vancouver and a journal-abbreviation table
+Open list in docs/START-HERE.md — more foreign formats (Harvard/MLA/Vancouver, APA chapter); journal-abbreviation table
 
 ## Where every measurement stands
 
@@ -62,6 +62,7 @@ WHAT IS FAILING — by defect shape
 Recent commits:
 
 ```
+cc8f2be Checkpoint: Read APA, Bluebook, Chicago and database-listing references
 70b3a0a Checkpoint: Correct a hyphenated day span, stop the dash perturbation re
 5657284 Checkpoint: Recognise CanLII — cases, statutes, and rule 8.3.3's forbidd
 d325a37 Checkpoint: Read a paragraph-numbered report locus and a bracketed year
@@ -69,19 +70,14 @@ d325a37 Checkpoint: Read a paragraph-numbered report locus and a bracketed year
 bfcabc2 Checkpoint: Added the nz-law-cite skill, npm run status, and this checkp
 d95687c Make picking this project up cheap
 b9f197e Put a floor under the three measures that found the defects
-5647fd7 Read a report series as the jurisdiction it names
 ```
 
 Uncommitted when this ran (the checkpoint commits them next):
 
 ```
-M package.json
- M scripts/status.ts
- M src/engine/build.ts
-?? scripts/foreign-format-report.ts
-?? src/engine/foreignFormat.ts
-?? tests/engine-foreign-format.test.ts
-?? tests/fixtures/foreign-format.ts
+M docs/START-HERE.md
+ M src/App.tsx
+ M tests/e2e/interface.spec.ts
 ```
 
 ## Picking this up
