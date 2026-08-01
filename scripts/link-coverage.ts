@@ -33,6 +33,15 @@ const PROBES: Probe[] = [
   { url: "http://www.austlii.edu.au/cgi-bin/viewdoc/au/cases/cth/HCA/1992/23.html", what: "AustLII HCA", expect: "case" },
   { url: "https://www.bailii.org/uk/cases/UKSC/2019/41.html", what: "BAILII UKSC", expect: "case" },
   { url: "https://www.bailii.org/ew/cases/EWCA/Civ/2020/1058.html", what: "BAILII EWCA Civ", expect: "case" },
+  { url: "https://www.canlii.org/en/ca/scc/doc/2010/2010scc2/2010scc2.html", what: "CanLII SCC", expect: "case" },
+  { url: "https://www.canlii.org/en/on/onca/doc/2015/2015onca100/2015onca100.html", what: "CanLII ONCA", expect: "case" },
+  // Rule 8.3.3 forbids CanLII's own pseudo-neutral citation, so this one is a
+  // Canadian case with the citation left for the reader — recognised, not filled.
+  { url: "https://www.canlii.org/en/ca/scc/doc/1959/1959canlii45/1959canlii45.html", what: "CanLII pre-neutral", expect: "case" },
+  { url: "https://www.canlii.org/en/ca/laws/stat/rsc-1985-c-c-46/latest/rsc-1985-c-c-46.html", what: "CanLII federal statute", expect: "canada-statute" },
+  { url: "https://www.canlii.org/en/on/laws/stat/rso-1990-c-h-8/latest/rso-1990-c-h-8.html", what: "CanLII provincial statute", expect: "canada-statute" },
+  // CanLII's short link is an opaque token with no citation in it.
+  { url: "https://canlii.ca/t/2bfxd", what: "CanLII short link", expect: "generic (fine)" },
 
   // ------------------------------------------------- non-/cases/ AustLII paths
   { url: "http://www.nzlii.org/nz/legis/consol_act/ea20062006n69/", what: "NZLII legislation", expect: "legislation" },

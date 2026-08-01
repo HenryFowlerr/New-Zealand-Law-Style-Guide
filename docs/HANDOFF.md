@@ -1,20 +1,20 @@
 # Handoff
 
-Written by `npm run checkpoint` at 2026-08-01 01:39 UTC, on branch `main`.
+Written by `npm run checkpoint` at 2026-08-01 01:43 UTC, on branch `main`.
 Delete nothing here by hand — the next checkpoint overwrites it.
 
 ## State
 
 **GREEN — typecheck and unit tests pass**
-Unit tests: 454 passed, 0 failed.
+Unit tests: 455 passed, 0 failed.
 
 ## Last done
 
-Read a paragraph-numbered report locus and a bracketed year span
+Recognise CanLII — cases, statutes, and rule 8.3.3's forbidden pseudo-citation
 
 ## Next step
 
-Open list in docs/START-HERE.md — CanLII unrecognised; en-dash/hyphen; dead llmParse/webllmModel
+Open list in docs/START-HERE.md — en-dash/hyphen costs outputs; dead llmParse/webllmModel; PICK 156/216
 
 ## Where every measurement stands
 
@@ -58,6 +58,7 @@ WHAT IS FAILING — by defect shape
 Recent commits:
 
 ```
+d325a37 Checkpoint: Read a paragraph-numbered report locus and a bracketed year
 37df8ab Checkpoint: Skill, status command, checkpoint script and handoff protoco
 bfcabc2 Checkpoint: Added the nz-law-cite skill, npm run status, and this checkp
 d95687c Make picking this project up cheap
@@ -65,13 +66,14 @@ b9f197e Put a floor under the three measures that found the defects
 5647fd7 Read a report series as the jurisdiction it names
 ee6ad4e Point the README at the measure that can fail
 98e9882 Cut where the Guide puts the boundary, not at the first space
-9da8326 Give a paste with no citation in it back whole
 ```
 
 Uncommitted when this ran (the checkpoint commits them next):
 
 ```
-M src/engine/scan.ts
+M scripts/link-coverage.ts
+ M src/engine/nzSources.ts
+ M tests/coverage-floors.test.ts
 ```
 
 ## Picking this up

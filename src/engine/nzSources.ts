@@ -470,6 +470,107 @@ function lii(pathname: string, source: string): NzSourceMatch | null {
 }
 
 /**
+ * Read a judgment on CanLII, which is where Canadian law is actually read.
+ *
+ *   /en/ca/scc/doc/2010/2010scc2/2010scc2.html      → 2010 SCC 2
+ *   /en/on/onca/doc/2015/2015onca100/2015onca100.html → 2015 ONCA 100
+ *   /en/ca/scc/doc/1959/1959canlii45/1959canlii45.html → NO neutral citation
+ *
+ * CanLII's path is not an LII path — the court sits before a `/doc/` segment
+ * rather than after `/cases/`, and the citation is a slug rather than separate
+ * year and number — so `lii()` reads none of it and the whole site fell through
+ * to the generic resolvers, which cite a judgment as a web page.
+ *
+ * The third shape is the one that matters. Where a judgment predates neutral
+ * citation, CanLII assigns its own identifier in the same slot, and rule 8.3.3
+ * is explicit that it is not a citation: "never use CanLII pseudo-neutral
+ * citations". So that slug is read as evidence of a Canadian case and nothing
+ * more — the report citation stays for the reader to supply, which is the
+ * failure that leaves a box empty rather than the one that fills it wrongly.
+ */
+function canlii(pathname: string): NzSourceMatch | null {
+  const match = pathname.match(
+    /\/(?:en|fr)\/[a-z]{2,4}\/([a-z0-9]+)\/doc\/((?:1[6-9]|20)\d{2})\/(\d{4})([a-z]+)(\d+)\b/,
+  );
+  if (!match) return null;
+  const [, pathCourt, year, slugYear, slugCourt, number] = match;
+  // The slug is a neutral citation only when it agrees with the path it sits in.
+  // A disagreement means this is some other identifier, and guessing at one is
+  // exactly what rule 8.3.3 forbids.
+  const isNeutral =
+    slugCourt !== "canlii" && slugCourt === pathCourt && slugYear === year;
+  const citation = `${year} ${pathCourt.toUpperCase()} ${number}`;
+  return {
+    typeId: "canada-case",
+    fields: isNeutral ? { neutralCitationNoBrackets: citation } : {},
+    source: "CanLII",
+    stillNeeded: isNeutral ? ["caseName"] : ["caseName", "reportCitation"],
+    // Where the path gave a neutral citation the title must show it; where it
+    // did not there is nothing to check it against, so any title but an
+    // interstitial is as good as we can do.
+    corroborates: isNeutral
+      ? (title) => new RegExp(`${year}\\s+${pathCourt}\\s+${number}\\b`, "i").test(title)
+      : undefined,
+    fromTitle: (title): Record<string, string> => {
+      // "R v Smith, 2010 SCC 2 (CanLII)" — the parties are what precedes the
+      // citation, and CanLII's own suffix is not part of the name.
+      const name = pageTitleOnly(title)
+        .split(/,?\s*(?:1[6-9]|20)\d{2}\s+[A-Za-z]+\s+\d+/)[0]
+        .split(/\s*\|\s*/)[0]
+        .replace(/\s*\(CanLII\)\s*$/i, "")
+        .replace(/[;,]\s*$/, "")
+        .trim();
+      return name ? { caseName: name } : {};
+    },
+  };
+}
+
+/**
+ * Read a Canadian statute on CanLII.
+ *
+ *   /en/ca/laws/stat/rsc-1985-c-c-46/latest/…  → RSC 1985 c C-46
+ *   /en/on/laws/stat/rso-1990-c-h-8/latest/…   → RSO 1990 c H-8
+ *
+ * Rule 9.3.1 makes the volume and the jurisdiction two elements written with no
+ * space between them — "RS" + "C", "S" + "C" — and the slug carries them joined
+ * exactly that way, so the split is a prefix test rather than a lookup: what is
+ * left after "rs" or "s" is the jurisdiction, whether that is Canada or a
+ * province. Everything but the short title comes off the path; the title comes
+ * from the page, and rule 4.1.1's principle holds — no URL goes in the citation.
+ */
+function canliiStatute(pathname: string): NzSourceMatch | null {
+  const match = pathname.match(
+    /\/(?:en|fr)\/[a-z]{2,4}\/laws\/stat\/(rs|s)([a-z]{1,3})-((?:1[6-9]|20)\d{2})-c-([a-z0-9]+(?:-[a-z0-9]+)*)(?=\/|$)/,
+  );
+  if (!match) return null;
+  const [, volume, jurisdiction, year, chapter] = match;
+  return {
+    typeId: "canada-statute",
+    source: "CanLII",
+    fields: {
+      volume: volume.toUpperCase(),
+      jurisdiction: jurisdiction.toUpperCase(),
+      year,
+      // "c-46" is chapter C-46; "10" is chapter 10. Only the letter half is
+      // capitalised, and the hyphen the Guide prints is already there.
+      chapter: chapter.toUpperCase(),
+    },
+    stillNeeded: ["shortTitle"],
+    // A statute's page is titled with its short title, and the chapter number is
+    // not always shown beside it, so there is nothing here to corroborate
+    // against. An interstitial is still rejected by the caller.
+    fromTitle: (title): Record<string, string> => {
+      const name = pageTitleOnly(title)
+        .split(/\s*[|–—-]\s*CanLII/i)[0]
+        .split(/\s*\|\s*/)[0]
+        .replace(/,?\s*(?:RS|S)[A-Z]{1,3}\s+\d{4}.*$/, "")
+        .trim();
+      return name ? { shortTitle: name } : {};
+    },
+  };
+}
+
+/**
  * Read a judgment published on the Courts of New Zealand site, whose file name
  * is the neutral citation: /assets/cases/2019/2019-NZSC-40.pdf
  */
@@ -566,6 +667,9 @@ export function recogniseNzSource(rawUrl: string): NzSourceMatch | null {
         : "BAILII";
     return lii(pathname, source) ?? liiLegislation(pathname) ?? liiJournal(pathname);
   }
+  // canlii.ca is CanLII's short-link host: the path is an opaque token, so there
+  // is nothing to read and the generic resolvers are the better answer.
+  if (host.endsWith("canlii.org")) return canlii(pathname) ?? canliiStatute(pathname);
   if (host === "courtsofnz.govt.nz") return courtsOfNz(pathname);
   if (host === "lawcom.govt.nz") return lawCommission();
   if (host === "waitangitribunal.govt.nz") return waitangiTribunal();

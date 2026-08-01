@@ -68,12 +68,41 @@ test("every legal URL shape is recognised from the path alone", () => {
     ["https://www.bailii.org/ew/cases/EWCA/Civ/2020/1058.html", "england-wales-case-modern"],
     ["https://gazette.govt.nz/notice/id/2019-au1234", "nz-gazette"],
     ["https://www.parliament.nz/en/pb/hansard-debates/rhr/combined/HansD_20170816_20170816", "hansard"],
+    // CanLII, whose path puts the court before a "/doc/" segment and the
+    // citation in a slug — nothing an LII path pattern reads.
+    ["https://www.canlii.org/en/ca/scc/doc/2010/2010scc2/2010scc2.html", "canada-case"],
+    ["https://www.canlii.org/en/on/onca/doc/2015/2015onca100/2015onca100.html", "canada-case"],
+    ["https://www.canlii.org/en/ca/laws/stat/rsc-1985-c-c-46/latest/rsc-1985-c-c-46.html", "canada-statute"],
   ];
   for (const [url, typeId] of shapes) {
     const match = recogniseNzSource(url);
     assert.ok(match, `not recognised at all: ${url}`);
     assert.equal(match.typeId, typeId, `wrong kind of source for ${url}`);
   }
+});
+
+/**
+ * Rule 8.3.3: "never use CanLII pseudo-neutral citations". Where a judgment
+ * predates neutral citation, CanLII puts its own identifier in the same slot of
+ * the path — "1959canlii45" sits exactly where "2010scc2" does. Reading it as a
+ * citation would produce "1959 SCC 45", which names a court that did not decide
+ * it in a form the Guide forbids, and would look entirely correct.
+ */
+test("a CanLII pseudo-neutral citation is left empty, not written", () => {
+  const match = recogniseNzSource(
+    "https://www.canlii.org/en/ca/scc/doc/1959/1959canlii45/1959canlii45.html",
+  );
+  assert.ok(match, "the URL is still a Canadian case");
+  assert.equal(match.typeId, "canada-case");
+  assert.equal(
+    match.fields.neutralCitationNoBrackets,
+    undefined,
+    "CanLII's own identifier must never be written as a neutral citation",
+  );
+  assert.ok(
+    match.stillNeeded?.includes("reportCitation"),
+    "the reader must be asked for the report citation instead",
+  );
 });
 
 /** A subscription database must be declined by name, never guessed at. */
