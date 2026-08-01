@@ -40,3 +40,22 @@ part applies.
 `npm run check && npm test` while working; `npm run qa` before committing;
 `npm run test:e2e` before pushing UI changes. Data changes go through a
 `scripts/patch-*.mjs`, not by hand-editing the JSON.
+
+## Checkpoint early — a session can end at any moment
+
+```bash
+npm run checkpoint -- "what I just did" "what to do next"
+```
+
+Runs the gate, writes `docs/HANDOFF.md` (state, next step, every measurement,
+git), and commits. Safe when the tests are RED too — it saves anyway and says so
+at the top, because losing work is worse than recording it unfinished.
+
+**Run it without being asked when:** a coherent piece of work is finished and
+verified; before starting something risky or large; the session has grown long or
+replies are slowing; the user mentions usage, limits, cost or slowness; or
+anything is uncommitted and the next step is uncertain.
+
+Then say plainly that a fresh chat will be cheaper and that `docs/HANDOFF.md`
+carries the state. **Never end a turn with work uncommitted** — that turn may be
+the last one. A new chat starts with `npm run status` and the handoff.

@@ -102,3 +102,10 @@ scripts/               every measurement; none of them ship
 
 Push to `main`. Pages runs `npm run verify` and deploys to
 <https://henryfowlerr.github.io/New-Zealand-Law-Style-Guide/>.
+
+## Session hygiene
+
+Run `npm run checkpoint -- "did" "next"` at every natural boundary, and read
+`docs/HANDOFF.md` at the start of a session. A long chat costs more per turn than
+a short one, because the whole conversation is re-sent each time — so hand off
+early rather than pushing one session further.

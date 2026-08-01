@@ -1,6 +1,6 @@
 # Handoff
 
-Written by `npm run checkpoint` at 2026-08-01 01:10 UTC, on branch `main`.
+Written by `npm run checkpoint` at 2026-08-01 01:11 UTC, on branch `main`.
 Delete nothing here by hand — the next checkpoint overwrites it.
 
 ## State
@@ -10,11 +10,11 @@ Unit tests: 454 passed, 0 failed.
 
 ## Last done
 
-Added the nz-law-cite skill, npm run status, and this checkpoint script
+Skill, status command, checkpoint script and handoff protocol; checkpoint verified green and red
 
 ## Next step
 
-Continue the open list in docs/START-HERE.md — PICK at 155/216 is the weakest layer
+Open list in docs/START-HERE.md — PICK 155/216 is weakest; 27 realistic partial corruptions; 3 output failures
 
 ## Where every measurement stands
 
@@ -60,6 +60,7 @@ WHAT IS FAILING — by defect shape
 Recent commits:
 
 ```
+bfcabc2 Checkpoint: Added the nz-law-cite skill, npm run status, and this checkp
 d95687c Make picking this project up cheap
 b9f197e Put a floor under the three measures that found the defects
 5647fd7 Read a report series as the jurisdiction it names
@@ -67,15 +68,13 @@ ee6ad4e Point the README at the measure that can fail
 98e9882 Cut where the Guide puts the boundary, not at the first space
 9da8326 Give a paste with no citation in it back whole
 5efd1aa Read the jurisdiction in a LII path, not just the court code
-7ab9500 Write by hand the third of the Guide the guarantee never covered
 ```
 
 Uncommitted when this ran (the checkpoint commits them next):
 
 ```
-M package.json
-?? .claude/skills/
-?? scripts/checkpoint.ts
+M CLAUDE.md
+ M docs/START-HERE.md
 ```
 
 ## Picking this up
