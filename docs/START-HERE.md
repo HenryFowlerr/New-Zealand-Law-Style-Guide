@@ -29,7 +29,7 @@ several hundred lines.
 npm run check && npm test
 ```
 
-Typecheck and 455 unit tests. `npm run qa` before committing, `npm run test:e2e`
+Typecheck and 451 unit tests. `npm run qa` before committing, `npm run test:e2e`
 before pushing UI changes.
 
 ## The five rules that cost real work to learn
@@ -78,25 +78,27 @@ scripts/               every measurement; none of them ship
 
 ## Open work, roughly by value
 
-1. **PICK is the weakest layer (155/216).** Domestic shape ambiguity now, not
+1. **PICK is the weakest layer (156/216).** Domestic shape ambiguity now, not
    jurisdiction — "At 535." against Laws of New Zealand. More markers would be
    fitting the corpus rather than the Guide, so this needs a different idea.
-2. **27 realistic partial corruptions**, mostly US and EU types a New Zealand
+2. **25 realistic partial corruptions**, mostly US and EU types a New Zealand
    essay rarely cites. `partial-report --verbose`. The domestic working set is
    clean.
-3. **Three output failures** (`failure-shapes`): rule 8.2's Australian
-   paragraph-numbered series duplicates its year; rule 10.5.2 loses the second
-   half of a `[1963-4]` year range; rule 9.3.1's Charter refuses.
+3. **One output failure** (`failure-shapes`): rule 9.3.1's Charter refuses, and
+   see 4 — that is the right failure, so this line is now at its floor.
 4. **The Charter is the last declared gap.** Its form takes only a short title,
    and `chooseForm` will not pick it because the form's literals name an
    instrument the fields do not corroborate — a penalty that is load-bearing,
    since without it a bare "Crimes Act" becomes the Charter. It fails CLOSED,
    which is the right failure.
-5. **`en-dash → hyphen` costs outputs.** A student typing `-` where the Guide
-   prints `–` is realistic; several title fields key on the dash.
-6. **CanLII (canlii.org) is unrecognised.** AustLII and BAILII are handled.
-7. **`llmParse.ts` and `webllmModel.ts` are unreachable** — leftovers from a
-   removed feature, tree-shaken out either way.
+5. **34 robustness failures**, now mostly ALL CAPS (19 misclassified, 7 wrong
+   output) — a case list pasted out of a database. The en-dash item is closed: a
+   day span is corrected to the en dash rule 3.2.8 requires, and a dash inside a
+   quoted TITLE is reproduced as its author wrote it, which is why the
+   perturbation no longer reaches inside one.
+6. **CanLII legislation beyond `/laws/stat/`** — regulations (`/laws/regu/`) and
+   constitutional documents (`/laws/const/`) still fall through to the generic
+   resolvers. Cases and statutes are read from the path.
 
 ## Deploying
 

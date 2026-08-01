@@ -202,6 +202,20 @@ const DATE = new RegExp(
   "i",
 );
 
+/**
+ * Write a span of days with the en dash rule 3.2.8 requires, and no spaces
+ * around it — "24-30 September 2011" typed becomes "24–30 September 2011".
+ *
+ * A keyboard offers a hyphen and the Guide prints an en dash, so this is a
+ * correction the tool owes the reader, exactly as it is for a pinpoint range.
+ * Only the two day numbers are touched: the dash sits between two bare digits
+ * inside a date the pattern has already recognised, so there is no title
+ * punctuation within reach of it.
+ */
+function normaliseDateSpan(value: string): string {
+  return value.replace(/^(\d{1,2})\s*[-–—]\s*(\d{1,2})\b/, "$1–$2");
+}
+
 // Where a citation begins after a case name: a bracketed year, a court/report
 // abbreviation immediately followed by a number ("NZSC 55", "CA339"), or a
 // full date. Used to cut "R v Reekie" out of "R v Reekie CA339/03, 3 August
@@ -356,7 +370,7 @@ export function scanAnchors(text: string): Anchor[] {
   if (edition) push("edition", edition, { value: edition[1] });
 
   const date = text.match(DATE);
-  if (date) push("date", date, { value: date[1] });
+  if (date) push("date", date, { value: normaliseDateSpan(date[1]) });
 
   // A year, only if no reporter/neutral already claimed one (they are more
   // specific). Prefer a year on its own in brackets, then a publication year

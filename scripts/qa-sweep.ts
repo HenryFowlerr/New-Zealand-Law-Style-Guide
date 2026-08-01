@@ -175,9 +175,20 @@ const PERTURBATIONS: {
   // it. Demanding that the tool restore an en dash there would be demanding that
   // it guess at someone else's punctuation, which is exactly the kind of
   // invented rule this project refuses.
+  // Nor inside a QUOTED title, which is the same principle and was not being
+  // applied: rule 6.7.1's dissertation is titled "…Constitutional Change, 1891
+  // and 1912–1920", so a digit-to-digit test still reached inside a title and
+  // then scored the tool for reproducing it as its author wrote it. That is the
+  // engine being right and the measurement being wrong, and it is worth the
+  // extra line here — a floor that fails on correct behaviour teaches the next
+  // session to change the engine to satisfy it.
   {
     name: "a range typed with a hyphen",
-    apply: (s) => s.replace(/(\d)–(\d)/g, "$1-$2"),
+    apply: (s) =>
+      s
+        .split(/([“"][^”"]*[”"])/)
+        .map((part, i) => (i % 2 === 1 ? part : part.replace(/(\d)–(\d)/g, "$1-$2")))
+        .join(""),
   },
 ];
 
