@@ -188,3 +188,33 @@ test("a Guide citation is never claimed to be in another style", async ({ page }
   await expect(page.locator("#citation-form")).toBeVisible();
   await expect(page.locator(".issue-check", { hasText: /APA|Chicago|Bluebook/ })).toHaveCount(0);
 });
+
+test("APA 7 omits the place, so the tool asks for it instead of inventing one", async ({ page }) => {
+  await page.getByRole("tab", { name: /Check what I have/ }).click();
+  // Zotero's APA 7: no place of publication, and a DOI on the end.
+  await page
+    .locator("textarea")
+    .fill(
+      "Carter, R. (2015). Burrows and Carter statute law in New Zealand (5th ed.). LexisNexis. https://doi.org/10.1000/x",
+    );
+  // With no place in the paste the publication bracket has three parts, which
+  // rule 6.3's looseleaf template fits more tightly — so the book is offered
+  // second and is chosen from the list rather than accepted with Enter.
+  const useBook = page.locator('.suggestion-card:has(strong:text-is("Text / book"))');
+  await expect(useBook).toBeVisible();
+  await useBook.click();
+  await expect(page.locator("#citation-form")).toBeVisible();
+  // Everything APA carried is filled in…
+  await expect(page.locator("#input-publisher")).toHaveValue("LexisNexis");
+  await expect(page.locator("#input-year")).toHaveValue("2015");
+  await expect(page.locator("#input-edition")).toHaveValue("5th ed");
+  // …the place APA dropped is EMPTY, and no citation is offered until it is given.
+  await expect(page.locator("#input-placeOfPublication")).toHaveValue("");
+  await expect(page.locator(".result-status.ready")).toHaveCount(0);
+  await expect(page.locator(".issue-check", { hasText: "APA" })).toContainText(/place of publication/);
+  // Supplying it completes the citation.
+  await page.fill("#input-placeOfPublication", "Wellington");
+  await expect(page.locator(".citation-preview p")).toHaveText(
+    "R Carter Burrows and Carter Statute Law in New Zealand (5th ed, LexisNexis, Wellington, 2015).",
+  );
+});

@@ -41,6 +41,30 @@ export type ForeignFormat = {
   style: string | null;
   /** What the format could not carry, for the reader to complete. */
   lossy: string[];
+  /**
+   * The parts this reader identified, under the component ids of the type it
+   * recognised — applied over the positional extraction, for the ids the
+   * chosen type actually has.
+   *
+   * Rewriting to text and re-reading it is enough only while every part is
+   * present. Where a format OMITS one, the rewritten bracket is genuinely
+   * ambiguous: MLA gives "(3rd ed, Oxford University Press, 2011)" with no
+   * place, the template expects four parts there, and the positional read slid
+   * the publisher into the place box — producing "Oxford University Press,
+   * Oxford University Press". The reader already knew which part was which, so
+   * it says so rather than throwing that away and hoping.
+   */
+  fields?: Record<string, string>;
+  /**
+   * Component ids this format DOES NOT CARRY, which must therefore be left
+   * empty rather than filled by re-reading the rewritten string.
+   *
+   * Naming them is what makes the citation fail closed. Without it the
+   * positional pass slid the publisher into the place box for every MLA and
+   * APA 7 reference — "Oxford University Press, Oxford University Press" — a
+   * value that is wrong, looks deliberate, and no reader would query.
+   */
+  omitted?: string[];
 };
 
 const untouched = (text: string): ForeignFormat => ({ text, style: null, lossy: [] });
@@ -127,6 +151,57 @@ function placeOnly(place: string): string {
   return first || place.trim();
 }
 
+/**
+ * Strip the apparatus a reference collects on its way to the clipboard.
+ *
+ * A footnote number comes with a reference copied out of a footnote, and APA 7
+ * ends almost everything with a DOI or a retrieval URL. Rules 6.1 and 6.4 cite
+ * a book by its publication details and an article by its volume and page, and
+ * give neither a web address, so the DOI is not information the citation has
+ * anywhere to put. Left in place both of them simply defeated every pattern
+ * below and the reference was not recognised at all.
+ */
+function stripApparatus(text: string): string {
+  return text
+    // A leading footnote or list number: "12. ", "12) ", "[12] ".
+    .replace(/^\s*(?:\[\d{1,3}\]|\d{1,3}[.)])\s+(?=[A-Z])/, "")
+    // A trailing DOI or URL, with or without APA's "Retrieved … from".
+    .replace(
+      /[\s.,]*(?:Retrieved\s+[^,]*,?\s*from\s+)?(?:https?:\/\/\S+|doi:\s*\S+)\s*$/i,
+      "",
+    )
+    .trim();
+}
+
+/**
+ * The publication tail the Guide writes inside one bracket: edition, publisher,
+ * place, year (rules 6.1.4–6.1.7).
+ *
+ * The place is OMITTED when the format did not carry one — APA 7 and MLA both
+ * dropped it — rather than filled with a guess. Rule 6.1.6 requires it, so the
+ * citation then fails closed and the interface asks for it, which is the whole
+ * point: an empty box the reader fills beats a plausible city they never check.
+ */
+function publicationTail(parts: {
+  edition?: string;
+  publisher?: string;
+  place?: string;
+  year: string;
+}): string {
+  return [parts.edition, parts.publisher, parts.place, parts.year]
+    .map((p) => p?.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+/** "Butler, A." or APA's forename-first editor "A. Butler" → "A Butler". */
+function personToGuide(name: string): string {
+  const inverted = apaAuthorsToGuide(name);
+  if (inverted) return inverted;
+  // Forename-first with initials, which is how APA writes an editor after "In".
+  return name.trim().replace(/\.\s*/g, " ").replace(/\s+/g, " ").trim();
+}
+
 /** "(5th ed.)" / "3rd ed." → "3rd ed". Rule 6.1.4 uses no full stop. */
 function tidyEdition(edition: string): string {
   return edition.replace(/\./g, "").replace(/\s+/g, " ").trim();
@@ -162,6 +237,13 @@ function apa(text: string): ForeignFormat | null {
       text: `${author} “${toHeadlineCase(title.trim())}” (${toHeadlineCase(paper.trim())}, ${university.trim()}, ${year}).`,
       style: "APA",
       lossy,
+      fields: {
+        author,
+        title: toHeadlineCase(title.trim()),
+        typeOfPaper: toHeadlineCase(paper.trim()),
+        university: university.trim(),
+        year,
+      },
     };
   }
 
@@ -178,30 +260,161 @@ function apa(text: string): ForeignFormat | null {
       lossy: spelledOut
         ? [...lossy, "the journal's Guide abbreviation — APA spells the name out"]
         : lossy,
+      fields: {
+        author,
+        title: toHeadlineCase(title.trim()),
+        year: `(${year})`,
+        volume,
+        journalAbbrev: journalName.trim(),
+        startingPage: page,
+      },
     };
   }
 
-  // ---- a book: "Title (3rd ed.). Place, Country: Publisher."
-  const book = rest.match(/^(.*?)\.\s*([^.:]+):\s*([^.]+?)\.?\s*$/s);
+  // ---- an essay in an edited book (rule 6.2):
+  // "Chapter. In A. Butler (Ed.), Book title (2nd ed., pp. 335-360). Publisher."
+  const chapter = rest.match(
+    /^(.*?)\.\s*In\s+(.+?)\s*\(Eds?\.\),?\s*(.+?)\s*\(([^)]*)\)\.\s*(.+?)\.?\s*$/s,
+  );
+  if (chapter) {
+    const [, essayTitle, editor, bookTitle, bracket, publisher] = chapter;
+    const edition = bracket.match(/(\d{1,2}(?:st|nd|rd|th)\s*ed|rev\.?\s*ed)\.?/i);
+    const firstPage = bracket.match(/pp?\.\s*(\d+)/i);
+    const tail = publicationTail({
+      edition: edition ? tidyEdition(edition[1]) : "",
+      publisher: publisher.trim(),
+      year,
+    });
+    const page = firstPage ? ` ${firstPage[1]}` : "";
+    return {
+      text: `${author} “${toHeadlineCase(essayTitle.trim())}” in ${personToGuide(editor)} (ed) ${toHeadlineCase(bookTitle.trim())} (${tail})${page}.`,
+      style: "APA",
+      lossy: [...lossy, "the place of publication — APA 7 omits it"],
+      omitted: ["place"],
+      fields: {
+        author,
+        essayTitle: toHeadlineCase(essayTitle.trim()),
+        editor: personToGuide(editor),
+        bookTitle: toHeadlineCase(bookTitle.trim()),
+        ...(edition ? { edition: tidyEdition(edition[1]) } : {}),
+        publisher: publisher.trim(),
+        year,
+        ...(firstPage ? { startingPage: firstPage[1] } : {}),
+      },
+    };
+  }
+
+  // ---- a book: "Title (3rd ed.). Place, Country: Publisher." — and APA 7's
+  // shorter "Title (3rd ed.). Publisher.", which carries no place at all.
+  const book = rest.match(/^(.*?)\.\s*(?:([^.:]+):\s*)?([^.:]+?)\.?\s*$/s);
   if (book) {
-    let [, title, place, publisher] = book;
+    let [, title, place = "", publisher] = book;
     let edition = "";
     const ed = title.match(/\s*\((\d{1,2}(?:st|nd|rd|th)\s*ed\.?|rev\.?\s*ed\.?)\)\s*$/i);
     if (ed) {
       edition = tidyEdition(ed[1]);
       title = title.slice(0, ed.index).trim();
     }
-    const inside = [edition, publisher.trim(), placeOnly(place), year]
-      .filter(Boolean)
-      .join(", ");
+    if (!title.trim() || !publisher.trim()) return null;
+    const tail = publicationTail({
+      edition,
+      publisher: publisher.trim(),
+      place: place ? placeOnly(place) : "",
+      year,
+    });
     return {
-      text: `${author} ${toHeadlineCase(title.trim())} (${inside}).`,
+      text: `${author} ${toHeadlineCase(title.trim())} (${tail}).`,
       style: "APA",
-      lossy,
+      lossy: place
+        ? lossy
+        : [...lossy, "the place of publication — APA 7 omits it"],
+      ...(place ? {} : { omitted: ["placeOfPublication"] }),
+      fields: {
+        author,
+        title: toHeadlineCase(title.trim()),
+        ...(edition ? { edition } : {}),
+        publisher: publisher.trim(),
+        ...(place ? { placeOfPublication: placeOnly(place) } : {}),
+        year,
+      },
     };
   }
 
   return null;
+}
+
+/**
+ * Read a Harvard reference.
+ *
+ *   Burrows, A. (2011) The Law of Restitution. 3rd edn. Oxford: OUP.
+ *
+ * Harvard differs from APA in two ways that matter to a pattern: no full stop
+ * after the year's bracket, and "edn" where the Guide writes "ed". It keeps the
+ * place, so unlike APA 7 a Harvard book reaches a complete citation.
+ */
+function harvard(text: string): ForeignFormat | null {
+  const match = text.match(
+    /^(.+?)\s*\((\d{4})\)\s+(.+?)\.\s*(?:(\d{1,2}(?:st|nd|rd|th)\s+edn?|rev\.?\s+edn?)\.\s*)?([^.:]+):\s*([^.]+?)\.?\s*$/,
+  );
+  if (!match) return null;
+  const [, rawAuthors, year, title, edition = "", place, publisher] = match;
+  const author = apaAuthorsToGuide(rawAuthors);
+  if (!author) return null;
+  const tail = publicationTail({
+    // "3rd edn" → "3rd ed": the Guide's abbreviation, not Harvard's.
+    edition: edition ? tidyEdition(edition).replace(/\bedn\b/i, "ed") : "",
+    publisher: publisher.trim(),
+    place: placeOnly(place),
+    year,
+  });
+  const guideEdition = edition ? tidyEdition(edition).replace(/\bedn\b/i, "ed") : "";
+  return {
+    text: `${author} ${toHeadlineCase(title.trim())} (${tail}).`,
+    style: "Harvard",
+    lossy: ["author's given name — Harvard initialises it"],
+    fields: {
+      author,
+      title: toHeadlineCase(title.trim()),
+      ...(guideEdition ? { edition: guideEdition } : {}),
+      publisher: publisher.trim(),
+      placeOfPublication: placeOnly(place),
+      year,
+    },
+  };
+}
+
+/**
+ * Read an MLA works-cited entry.
+ *
+ *   Burrows, Andrew. The Law of Restitution. 3rd ed., Oxford University Press, 2011.
+ *
+ * MLA keeps the given name in full, like Chicago, but puts the year last after
+ * a comma and carries no place of publication.
+ */
+function mla(text: string): ForeignFormat | null {
+  const match = text.match(
+    /^([A-Z][\w'’-]+),\s+([A-Z][\w'’.\s-]*?)\.\s+(.+?)\.\s+(?:(\d{1,2}(?:st|nd|rd|th)\s+ed|rev\.?\s+ed)\.,\s*)?([^,]+),\s*(\d{4})\.?\s*$/,
+  );
+  if (!match) return null;
+  const [, surname, given, title, edition = "", publisher, year] = match;
+  const tail = publicationTail({
+    edition: edition ? tidyEdition(edition) : "",
+    publisher: publisher.trim(),
+    year,
+  });
+  return {
+    text: `${given.trim()} ${surname} ${title.trim()} (${tail}).`,
+    style: "MLA",
+    lossy: ["the place of publication — MLA omits it"],
+    omitted: ["placeOfPublication"],
+    fields: {
+      author: `${given.trim()} ${surname}`,
+      title: title.trim(),
+      ...(edition ? { edition: tidyEdition(edition) } : {}),
+      publisher: publisher.trim(),
+      year,
+    },
+  };
 }
 
 /**
@@ -225,6 +438,14 @@ function chicago(text: string): ForeignFormat | null {
     text: `${given.trim()} ${surname} ${title.trim()} (${inside}).`,
     style: "Chicago",
     lossy: [],
+    fields: {
+      author: `${given.trim()} ${surname}`,
+      title: title.trim(),
+      ...(edition ? { edition: tidyEdition(edition) } : {}),
+      publisher: publisher.trim(),
+      placeOfPublication: placeOnly(place),
+      year,
+    },
   };
 }
 
@@ -338,9 +559,12 @@ function databaseListing(text: string): ForeignFormat | null {
  * be mutually exclusive, and each returns null rather than guessing.
  */
 export function normaliseForeignFormat(rawText: string): ForeignFormat {
-  const text = rawText.replace(/\s+/g, " ").trim();
+  const text = stripApparatus(rawText.replace(/\s+/g, " ").trim());
   if (!text) return untouched(rawText);
-  for (const read of [apa, chicago, bluebook, databaseListing]) {
+  // Chicago and MLA are both "Surname, Forename. Title." and are separated only
+  // by where the year sits, so Chicago (year last, after the publisher and a
+  // place) is tried before MLA (year last, no place).
+  for (const read of [apa, harvard, chicago, mla, bluebook, databaseListing]) {
     const result = read(text);
     if (result && result.text.trim() && result.text !== text) return result;
   }

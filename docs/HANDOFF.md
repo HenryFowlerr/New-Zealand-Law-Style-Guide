@@ -1,20 +1,20 @@
 # Handoff
 
-Written by `npm run checkpoint` at 2026-08-01 23:42 UTC, on branch `main`.
+Written by `npm run checkpoint` at 2026-08-01 23:54 UTC, on branch `main`.
 Delete nothing here by hand — the next checkpoint overwrites it.
 
 ## State
 
 **GREEN — typecheck and unit tests pass**
-Unit tests: 458 passed, 0 failed.
+Unit tests: 460 passed, 0 failed.
 
 ## Last done
 
-Tell the reader which foreign style was recognised and what it could not carry, with e2e cover
+Read APA 7, Harvard and MLA; have each reader name the fields it parsed and the ones its format omits; stop a trailing DOI sending a reference to link lookup
 
 ## Next step
 
-Open list in docs/START-HERE.md — more foreign formats (Harvard/MLA/Vancouver, APA chapter); journal-abbreviation table
+Open list in docs/START-HERE.md — does rule 6.2 require a place (data question); Vancouver/McGill/RIS; journal-abbreviation table
 
 ## Where every measurement stands
 
@@ -38,9 +38,9 @@ PARTIAL — a shorter paste (realistic omissions only)
   dropped                    16                 loses a present one
   retyped                    11                 type rank changed
 FOREIGN FORMAT — a reference written in some other style
-  PICK type ranked first     11/12              
-  READ fields                12/12              
-  OUTPUT citation exact      12/12              APA, Bluebook, Chicago
+  PICK type ranked first     15/18              
+  READ fields                18/18              
+  OUTPUT citation exact      18/18              APA, Bluebook, Chicago
 LINK — a pasted URL
   right KIND of source       21/21              
   exact citation             8/8                
@@ -62,6 +62,7 @@ WHAT IS FAILING — by defect shape
 Recent commits:
 
 ```
+e215e06 Checkpoint: Tell the reader which foreign style was recognised and what
 cc8f2be Checkpoint: Read APA, Bluebook, Chicago and database-listing references
 70b3a0a Checkpoint: Correct a hyphenated day span, stop the dash perturbation re
 5657284 Checkpoint: Recognise CanLII — cases, statutes, and rule 8.3.3's forbidd
@@ -69,15 +70,19 @@ d325a37 Checkpoint: Read a paragraph-numbered report locus and a bracketed year
 37df8ab Checkpoint: Skill, status command, checkpoint script and handoff protoco
 bfcabc2 Checkpoint: Added the nz-law-cite skill, npm run status, and this checkp
 d95687c Make picking this project up cheap
-b9f197e Put a floor under the three measures that found the defects
 ```
 
 Uncommitted when this ran (the checkpoint commits them next):
 
 ```
 M docs/START-HERE.md
- M src/App.tsx
+ M scripts/foreign-format-report.ts
+ M src/engine/build.ts
+ M src/engine/foreignFormat.ts
+ M src/engine/linkResolve.ts
  M tests/e2e/interface.spec.ts
+ M tests/engine-foreign-format.test.ts
+ M tests/fixtures/foreign-format.ts
 ```
 
 ## Picking this up

@@ -101,10 +101,22 @@ scripts/               every measurement; none of them ship
 6. **CanLII legislation beyond `/laws/stat/`** — regulations (`/laws/regu/`) and
    constitutional documents (`/laws/const/`) still fall through to the generic
    resolvers. Cases and statutes are read from the path.
-7. **More foreign formats.** `foreignFormat.ts` reads APA, Bluebook, Chicago and
-   a hyphen-columned database listing. Not yet: Harvard, MLA, Vancouver, McGill,
-   a BibTeX/RIS record, and an APA *chapter in an edited book*. Add a fixture
-   case FIRST — `foreign-format-report` is the measure.
+7. **More foreign formats.** `foreignFormat.ts` now reads APA 6 and 7 (book,
+   chapter, journal, thesis; DOI and footnote number stripped), Harvard,
+   Chicago, MLA, Bluebook and a hyphen-columned database listing. Not yet:
+   Vancouver, McGill, OSCOLA's secondary-source forms, and a BibTeX/RIS record.
+   Add a fixture case FIRST — `foreign-format-report` is the measure.
+7a. **Does rule 6.2 require a place of publication?** Rule 6.1.6 says "always"
+   for a book; `styleGuide.json` marks `place` optional for an essay in an
+   edited book, so an APA 7 chapter builds without one instead of asking. The
+   Guide's own 6.2 examples all print a place. Settle it from the Guide, then
+   patch the data with a `scripts/patch-*.mjs` — do not just flip the flag.
+7b. **PICK, when a format drops the place.** MLA and APA 7 leave a THREE-part
+   publication bracket, which rule 6.3's looseleaf template fits more tightly
+   than rule 6.1's four-part one, so the book ranks second. A numbered edition
+   ("3rd ed") is not a looseleaf ("looseleaf ed", "online ed") and that is a
+   real feature — but it is a detection change, so measure holdout before and
+   after.
 8. **A journal-abbreviation table.** APA spells a journal's name out and the
    Guide abbreviates it from its own appendix ("Law Quarterly Review" → "LQR").
    Without the table that conversion is unreachable, and it is reported as lossy

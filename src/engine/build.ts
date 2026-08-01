@@ -258,6 +258,32 @@ export function prefillFromPaste(
   const foreign = normaliseForeignFormat(rawText);
   const sourceText = foreign.style ? foreign.text : rawText;
   const usableRuns = foreign.style ? [] : italicRuns;
+  /**
+   * A recognised foreign reader parsed the reference into named parts, so those
+   * are the last word for whichever of them this type actually has — the
+   * positional pass is re-deriving from a string that reader wrote, and where
+   * the format omitted a part the string is ambiguous. A part the format did
+   * not carry is absent here rather than blank, so the box stays empty and the
+   * citation fails closed.
+   */
+  const applyForeignFields = (fields: CitationFields): CitationFields => {
+    if (!foreign.fields) return fields;
+    const ids = new Set(type.components.map((c) => c.id));
+    const merged = { ...fields };
+    for (const [id, value] of Object.entries(foreign.fields)) {
+      // Through the same quote normalisation the text path gets, so a keyboard
+      // apostrophe becomes the one the Guide prints — "Birks' Unjust
+      // Enrichment" is not the Guide's title, "Birks’ Unjust Enrichment" is.
+      if (ids.has(id) && value.trim()) merged[id] = normalizeQuotes(value.trim());
+    }
+    // A box the FORMAT does not carry stays empty, whatever the positional pass
+    // made of the rewritten string. This is what makes the citation fail closed
+    // and the interface ask for the missing part.
+    for (const id of foreign.omitted ?? []) {
+      if (ids.has(id)) delete merged[id];
+    }
+    return merged;
+  };
   const { text, fromRaw } = normalizePaste(sourceText);
   const runs = usableRuns.map((run) => ({
     text: normalizeQuotes(run.text.replace(/\s+/g, " ").trim()),
@@ -270,14 +296,16 @@ export function prefillFromPaste(
   // anchors (a neutral citation, a reporter locus, a pinpoint, an edition, a
   // quoted title, an "X v Y" case name) recognised anywhere in the text.
   if (italicIds.length === 0 || runs.length !== italicIds.length) {
-    return reconcileAgainstSource(
-      type,
-      fillReportLocusTail(
+    return applyForeignFields(
+      reconcileAgainstSource(
         type,
-        splitNeutralCitationParts(type, refineFields(type, positional, text), text),
+        fillReportLocusTail(
+          type,
+          splitNeutralCitationParts(type, refineFields(type, positional, text), text),
+          text,
+        ),
         text,
       ),
-      text,
     );
   }
   const base = { ...positional };
@@ -302,10 +330,12 @@ export function prefillFromPaste(
     refined[id] = base[id];
   });
   if (priorId && before) refined[priorId] = before;
-  return reconcileAgainstSource(
-    type,
-    fillReportLocusTail(type, splitNeutralCitationParts(type, refined, text), text),
-    text,
+  return applyForeignFields(
+    reconcileAgainstSource(
+      type,
+      fillReportLocusTail(type, splitNeutralCitationParts(type, refined, text), text),
+      text,
+    ),
   );
 }
 

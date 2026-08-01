@@ -51,14 +51,38 @@ export function extractIsbn(input: string): string | null {
   return m ? m[0].replace(/[- ]/g, "") : null;
 }
 
+/**
+ * Is this paste a LINK, rather than a reference that happens to contain one?
+ *
+ * The difference decides which half of the tool runs, so getting it wrong is
+ * expensive in one direction: a DOI matched ANYWHERE meant that a reference
+ * ending in one was sent to link lookup and never type-detected at all. That is
+ * how almost every APA 7 reference arrives — Zotero puts a DOI on the end of
+ * everything — so the commonest real paste in the world silently took the wrong
+ * path.
+ *
+ * A DOI or an ISBN therefore counts only when it is essentially the WHOLE
+ * input: strip the identifier and its label and nothing of substance is left. A
+ * web address still counts by its opening, because a paste that begins "http"
+ * is a link whatever follows it.
+ */
 export function looksLikeLink(input: string): boolean {
   const t = input.trim();
-  return (
-    /^https?:\/\//i.test(t) ||
-    /^www\./i.test(t) ||
-    extractDoi(t) != null ||
-    extractIsbn(t) != null
-  );
+  if (/^https?:\/\//i.test(t) || /^www\./i.test(t)) return true;
+  const identifier = extractDoi(t) ?? extractIsbn(t);
+  if (!identifier) return false;
+  // Remove the identifier as it was WRITTEN (the extractors normalise hyphens
+  // out of an ISBN, so the raw match is what has to go), plus the label a
+  // student types in front of it.
+  const raw = t.match(/10\.\d{4,9}\/[^\s"'<>&]+/i)?.[0]
+    ?? t.match(/\b(?:97[89][- ]?)?(?:\d[- ]?){9}[\dxX]\b/)?.[0]
+    ?? identifier;
+  const remainder = t
+    .replace(raw, " ")
+    .replace(/\b(?:doi|isbn|urn)\b\s*:?/gi, " ")
+    .replace(/https?:\/\/\S*/gi, " ")
+    .replace(/[\s.,;:()[\]<>"'/-]+/g, "");
+  return remainder.length === 0;
 }
 
 /** Map a Crossref `work` message to neutral citation metadata. */

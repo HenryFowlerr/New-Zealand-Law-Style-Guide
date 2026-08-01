@@ -17,7 +17,12 @@
  * Run with --verbose for the failing fields of every case.
  */
 import { FOREIGN_FORMAT } from "../tests/fixtures/foreign-format.ts";
-import { detectTypes, prefillFromPaste, buildCitation } from "../src/engine/build.ts";
+import {
+  detectTypes,
+  prefillFromPaste,
+  buildCitation,
+  missingRequiredComponents,
+} from "../src/engine/build.ts";
 import { guideTypeById } from "../src/data/styleGuide.ts";
 
 const verbose = process.argv.includes("--verbose");
@@ -28,6 +33,8 @@ let fieldsExact = 0;
 let outputExact = 0;
 let fieldTotal = 0;
 let fieldRight = 0;
+let askedCorrectly = 0;
+const failClosedCases = FOREIGN_FORMAT.filter((c) => !c.want).length;
 
 type Bad = { style: string; paste: string; note: string };
 const bad: Bad[] = [];
@@ -61,8 +68,17 @@ for (const c of FOREIGN_FORMAT) {
   if (allFields) fieldsExact++;
 
   const text = buildCitation(c.typeId, got).text ?? "";
-  const outOk = norm(text) === norm(c.want);
+  const missing = missingRequiredComponents(type, got).map((m) => m.id);
+  // A format that omits something the Guide requires must fail CLOSED, asking
+  // for exactly what it could not carry. Scoring that as an output failure
+  // would reward inventing the missing value, which is the opposite of the aim.
+  const outOk = c.want
+    ? norm(text) === norm(c.want)
+    : !text &&
+      (c.mustAsk ?? []).every((id) => missing.includes(id)) &&
+      missing.length === (c.mustAsk ?? []).length;
   if (outOk) outputExact++;
+  if (!c.want) askedCorrectly += outOk ? 1 : 0;
 
   const tally = byStyle.get(c.style) ?? { n: 0, pick: 0, out: 0 };
   tally.n++;
@@ -76,7 +92,9 @@ for (const c of FOREIGN_FORMAT) {
       paste: c.paste,
       note: !pickedFirst
         ? `PICK rank ${rank < 0 ? "not ranked" : rank} — top was ${detections[0]?.typeId ?? "(none)"}`
-        : "OUTPUT differs",
+        : c.want
+          ? "OUTPUT differs"
+          : `should fail CLOSED asking for ${(c.mustAsk ?? []).join(", ")}`,
     });
   }
 
@@ -86,7 +104,7 @@ for (const c of FOREIGN_FORMAT) {
     console.log(`  PICK  : ${pickedFirst ? "first" : `rank ${rank < 0 ? "not ranked" : rank} (top ${detections[0]?.typeId ?? "none"})`}`);
     for (const w of wrong) console.log(`  FIELD : ${w}`);
     console.log(`  got   : ${text || "(refused)"}`);
-    console.log(`  want  : ${c.want}`);
+    console.log(`  want  : ${c.want ?? `(refused — must ask for ${(c.mustAsk ?? []).join(", ")})`}`);
     if (c.lossy?.length) for (const l of c.lossy) console.log(`  lossy : ${l}`);
   }
 }
@@ -96,6 +114,7 @@ console.log(`\n  cases                      : ${n}`);
 console.log(`  PICK   type ranked first   : ${pick}/${n}`);
 console.log(`  FIELDS every field right   : ${fieldsExact}/${n}   (${fieldRight}/${fieldTotal} fields)`);
 console.log(`  OUTPUT citation exact      : ${outputExact}/${n}`);
+console.log(`  of those, failed CLOSED    : ${askedCorrectly}/${failClosedCases}   asked for what the format omits`);
 
 console.log("\n  by style —");
 for (const [style, t] of [...byStyle].sort((a, b) => a[0].localeCompare(b[0]))) {
