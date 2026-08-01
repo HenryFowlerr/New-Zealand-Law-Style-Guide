@@ -29,7 +29,7 @@ several hundred lines.
 npm run check && npm test
 ```
 
-Typecheck and 451 unit tests. `npm run qa` before committing, `npm run test:e2e`
+Typecheck and 460 unit tests. `npm run qa` before committing, `npm run test:e2e`
 before pushing UI changes.
 
 ## The five rules that cost real work to learn
