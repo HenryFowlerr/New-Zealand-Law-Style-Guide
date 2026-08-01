@@ -21,7 +21,8 @@
     "fit:detection": "tsx scripts/fit-detection.ts",
     "qa:link": "tsx scripts/link-report.ts && tsx scripts/link-coverage.ts",
     "qa:forms": "tsx scripts/form-choice.ts",
-    "status": "tsx scripts/status.ts"
+    "status": "tsx scripts/status.ts",
+    "checkpoint": "tsx scripts/checkpoint.ts"
   },
   "dependencies": {
     "react": "19.2.6",
