@@ -297,6 +297,16 @@ footer {
   line-height: 1.65;
 }
 
+/* A quiet aside under the paste copy: real guidance, not a warning. */
+.paste-hint {
+  margin-top: 12px;
+  padding-left: 12px;
+  border-left: 2px solid var(--line-dark);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .paste-box {
   display: block;
   overflow: hidden;

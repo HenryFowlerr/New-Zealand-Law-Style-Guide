@@ -483,6 +483,44 @@ export function scoreFeatures(
   return total;
 }
 
+/**
+ * Does this paste carry any CITATION APPARATUS at all?
+ *
+ * A run of words with nothing else in it is not a citation of anything. It is a
+ * fragment — an author's name, half a title, a case name a student half
+ * remembers — and the honest answer to one is to ask which kind of source it is,
+ * not to print it back with a full stop.
+ *
+ * That mattered because several of the Guide's rules require exactly one
+ * free-text box: rule 2.3's identifier, rule 4.3.4's title, the Cabinet Manual's
+ * author and title. Their templates are close to the identity function — they
+ * reproduce ANY input by cutting it at spaces — so every fragment filled one of
+ * them and came back finished:
+ *
+ *   "Andrew Burrows"                     → "Andrew Burrows."
+ *   "394"                                → "394."
+ *   "Taylor v New Zealand Poultry Board" → "Taylor v New Zealand Poultry Board."
+ *
+ * Each is a complete citation under a rule that has nothing to do with the
+ * source, and each looks exactly as right as a real one. Requiring the apparatus
+ * of the individual rules one at a time was whack-a-mole — every fragment simply
+ * fell through to the next permissive type.
+ *
+ * So the test is made once, about what a citation IS. Checked against the
+ * Guide rather than assumed: all 216 of its worked examples carry a letter AND
+ * either a digit, a web address, or a publication parenthesis. The two with no
+ * digit are rule 7.1's "Ministry of Justice “Frequently Asked Questions” <www.
+ * justice.govt.nz>." and rule 6.8's "… (The Castle Press, Bonnie Doon)
+ * (forthcoming)." — which is why those two shapes count as apparatus too.
+ */
+export function pasteCarriesCitationApparatus(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  // Digits alone are not a citation either: "394" is a page number.
+  if (!/\p{L}/u.test(t)) return false;
+  return /\d/.test(t) || /<[^>]{4,}>/.test(t) || /\([^)]{3,}\)/.test(t);
+}
+
 /** Every type whose template can read this text, with its evidence measured. */
 export function detectionCandidates(
   text: string,
@@ -500,6 +538,10 @@ export function detectionCandidates(
     normaliseForeignFormat(restoreCaseForDetection(text)).text,
   ).text;
   if (!trimmed) return [];
+  // A fragment is offered no type at all, rather than the most permissive one
+  // that can swallow it. The interface already has the right answer for this:
+  // it asks which kind of source it is and opens the form.
+  if (!pasteCarriesCitationApparatus(trimmed)) return [];
   const lower = trimmed.toLowerCase();
   const normalise = (s: string) =>
     s.trim().replace(/\.$/, "").replace(/\s+/g, " ").toLowerCase();

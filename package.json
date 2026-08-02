@@ -17,7 +17,7 @@
     "qa": "npm run qa:render && npm run qa:forms && npm run qa:guide && npm run qa:paste && npm run qa:link",
     "qa:render": "tsx scripts/render-truth.ts --all && tsx scripts/render-invariants.ts && tsx scripts/render-omission.ts && tsx scripts/render-coverage.ts",
     "qa:guide": "tsx scripts/guide-audit.ts",
-    "qa:paste": "tsx scripts/qa-sweep.ts && tsx scripts/common-law-report.ts && tsx scripts/partial-report.ts && tsx scripts/foreign-format-report.ts",
+    "qa:paste": "tsx scripts/qa-sweep.ts && tsx scripts/common-law-report.ts && tsx scripts/partial-report.ts && tsx scripts/foreign-format-report.ts && tsx scripts/fragment-report.ts",
     "fit:detection": "tsx scripts/fit-detection.ts",
     "qa:link": "tsx scripts/link-report.ts && tsx scripts/link-coverage.ts",
     "qa:forms": "tsx scripts/form-choice.ts",

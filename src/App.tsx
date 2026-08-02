@@ -21,6 +21,7 @@ import { pasteIsAllCaps, splitReferences } from "./engine/render";
 import { forbiddenShortForm } from "./engine/rules";
 import { resolveLink, looksLikeLink } from "./engine/linkResolve";
 import { normaliseForeignFormat } from "./engine/foreignFormat";
+import { pasteCarriesCitationApparatus } from "./engine/build";
 import { browserFetchers } from "./engine/browserFetch";
 
 type Mode = "paste" | "build";
@@ -249,6 +250,9 @@ function App() {
   // every part of the web address was reported as a detail the citation had lost.
   const [filledFromLink, setFilledFromLink] = useState(false);
   const [query, setQuery] = useState("");
+  // A fragment offers no type, so the reader picks one in place — without
+  // leaving the paste behind, which is the whole point of picking here.
+  const [pickingForPaste, setPickingForPaste] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
   const [linkStatus, setLinkStatus] = useState("");
   const [linkBusy, setLinkBusy] = useState(false);
@@ -291,6 +295,20 @@ function App() {
       result?.status === "ready" &&
       pasteIsAllCaps(splitReferences(pasteText)[activeReference] ?? pasteText),
     [reviewRequired, filledFromLink, result, pasteText, activeReference],
+  );
+
+  // A paste with no citation apparatus in it — no year, no report locus, no
+  // pinpoint, no web address — is PART of a reference rather than one. Nothing
+  // in it can say which rule it belongs to, so no type is offered and the
+  // interface says what is missing instead of guessing.
+  const isFragment = useMemo(
+    () =>
+      Boolean(pasteText.trim()) &&
+      !looksLikeLink(pasteText.trim()) &&
+      !pasteCarriesCitationApparatus(
+        splitReferences(pasteText)[activeReference] ?? pasteText,
+      ),
+    [pasteText, activeReference],
   );
 
   // A reference pasted in APA, Bluebook or Chicago is rewritten into the Guide's
@@ -348,6 +366,7 @@ function App() {
 
   const switchMode = (nextMode: Mode) => {
     setMode(nextMode);
+    setPickingForPaste(false);
     setSelectedType(null);
     setFields({});
     setItalicRuns([]);
@@ -613,6 +632,21 @@ function App() {
                   link, DOI or ISBN. The tool reads it and fills the boxes — you
                   skim to confirm, then copy the correct citation.
                 </p>
+                {/*
+                  Rule 3.2 wants the parties' names exactly as printed on the
+                  first page of the report, and a paste in capitals cannot say
+                  what that is — "ANZ" and "Anz" are the same string once
+                  shouted. The tool reads a shouted paste and keeps the capitals
+                  rather than guessing, so asking for ordinary case up front
+                  saves the reader retyping the names afterwards.
+                */}
+                <p className="paste-hint">
+                  Best results in ordinary case. If you paste in{" "}
+                  <strong>ALL CAPITALS</strong> the type is still recognised, but
+                  the names come back in capitals — the Guide wants them exactly
+                  as printed and a shouted paste can’t say what that is, so
+                  you’ll have to retype them.
+                </p>
               </div>
               <label className="paste-box">
                 <span className="sr-only">A citation or a link to check</span>
@@ -621,6 +655,7 @@ function App() {
                   value={pasteText}
                   onChange={(event) => {
                     setPasteText(event.target.value);
+                    setPickingForPaste(false);
                     setItalicRuns([]);
                     setLinkStatus("");
                     setActiveReference(0);
@@ -764,16 +799,52 @@ function App() {
 
               {analysisAttempted && detections.length === 0 && (
                 <div className="no-match" role="status">
-                  <strong>That structure was not recognised automatically.</strong>
-                  <span>Choose the format and enter the details instead.</span>
+                  {isFragment ? (
+                    <>
+                      {/*
+                        A fragment carries no citation apparatus — no year, no
+                        report, no pinpoint — so nothing can say which rule it
+                        belongs to. Naming what is missing is more use than
+                        "not recognised", and the words are kept: choosing a
+                        format below still reads them into the boxes.
+                      */}
+                      <strong>That looks like part of a reference.</strong>
+                      <span>
+                        There is no year, report citation, pinpoint or web
+                        address in it, so nothing here says which kind of source
+                        it is — and guessing would give you a citation that
+                        looks right and isn’t. Choose the format and it will be
+                        read into the boxes, with whatever is still missing
+                        marked.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <strong>That structure was not recognised automatically.</strong>
+                      <span>Choose the format and enter the details instead.</span>
+                    </>
+                  )}
                   <button
                     className="text-button"
-                    onClick={() => switchMode("build")}
+                    onClick={() => setPickingForPaste(true)}
                     type="button"
                   >
                     Choose a format →
                   </button>
                 </div>
+              )}
+
+              {pickingForPaste && (
+                <TypePicker
+                  onSelect={(id) => {
+                    setPickingForPaste(false);
+                    // fromPaste: the words the reader typed are still theirs, so
+                    // the chosen type reads them rather than opening empty.
+                    selectType(id, true);
+                  }}
+                  query={query}
+                  setQuery={setQuery}
+                />
               )}
             </section>
           )}

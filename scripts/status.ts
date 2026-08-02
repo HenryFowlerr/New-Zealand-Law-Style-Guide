@@ -45,6 +45,7 @@ const linkCoverage = run("link-coverage.ts");
 const working = run("common-law-report.ts");
 const shapes = run("failure-shapes.ts");
 const foreign = run("foreign-format-report.ts");
+const fragments = run("fragment-report.ts");
 
 console.log("\nTHE GUARANTEE — correct fields in, the Guide's citation out");
 line("field-truth (by hand)", grab(coverage, /hand-written cases\s*:\s*(\d+)/), "tests/fixtures/field-truth.ts");
@@ -71,6 +72,11 @@ console.log("\nFOREIGN FORMAT — a reference written in some other style");
 line("PICK type ranked first", grab(foreign, /PICK\s+type ranked first\s*:\s*(\S+)/));
 line("READ fields", grab(foreign, /FIELDS every field right\s*:\s*(\S+)/));
 line("OUTPUT citation exact", grab(foreign, /OUTPUT citation exact\s*:\s*(\S+)/), "APA, Bluebook, Chicago");
+
+console.log("\nFRAGMENT — part of a reference, not the whole of one");
+line("never built from a fragment", grab(fragments, /SAFE\s+builds only a real citation:\s*(\S+)/), "must stay at full");
+line("type offered in top 6", grab(fragments, /PICK\s+type offered in top 6:\s*(\S+)/));
+line("what it carries, read", grab(fragments, /FIELDS what it carries, read:\s*(\S+)/));
 
 console.log("\nLINK — a pasted URL");
 line("right KIND of source", grab(links, /TYPE recognised\s*:\s*(\S+)/));

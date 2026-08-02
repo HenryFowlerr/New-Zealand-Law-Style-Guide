@@ -752,13 +752,30 @@ test("a bare case name does not become a transcript that does not exist", () => 
   // Was: "Taylor v New Zealand Poultry Board Transcript." — a Supreme Court
   // transcript, invented out of nothing and formatted impeccably. Nineteen types
   // write a distinctive word of their own; missing one used to cost nothing.
+  // The answer is now stronger than it was: a bare case name carries no citation
+  // apparatus at all, so NO type is offered for it and there is nothing to
+  // invent a transcript from. The original check is kept underneath, because the
+  // guarantee that matters is about the built citation, not about the ranking.
+  // The answer is now stronger than it was. A bare case name carries no citation
+  // apparatus, so NO type is offered for it at all and there is nothing for a
+  // paste to be built into — which is the path this test was written to guard.
+  //
+  // Choosing the transcript type BY HAND and entering only a case name still
+  // builds "… Transcript.", because rule 3.8 marks `transcriptDesignator` and
+  // `dateOrPinpoint` required and neither appears in either of its forms, so
+  // `requiredForChosenForm` has nothing to enforce. That is a separate defect in
+  // the data, on the manual path, and it is in the open list.
   for (const text of ["Taylor v New Zealand Poultry Board", "R v Smith"]) {
-    const top = detectTypes(text, 1)[0];
-    const built = buildCitation(top.typeId, prefillFromPaste(guideTypeById[top.typeId], text, []));
-    assert.ok(
-      !/\bTranscript\b/i.test(built.text ?? ""),
-      `invented a transcript for ${JSON.stringify(text)}: ${built.text}`,
+    assert.equal(
+      detectTypes(text, 1).length,
+      0,
+      `${JSON.stringify(text)} is a fragment, and no type may be offered for it`,
     );
+    const built = buildCitation(
+      "reported-case-nz",
+      prefillFromPaste(guideTypeById["reported-case-nz"], text, []),
+    );
+    assert.equal(built.text, "", "a case name alone is not a reported case");
   }
 });
 

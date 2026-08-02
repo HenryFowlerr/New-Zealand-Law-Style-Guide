@@ -1,6 +1,6 @@
 # Handoff
 
-Written by `npm run checkpoint` at 2026-08-02 00:41 UTC, on branch `main`.
+Written by `npm run checkpoint` at 2026-08-02 01:23 UTC, on branch `main`.
 Delete nothing here by hand — the next checkpoint overwrites it.
 
 ## State
@@ -10,11 +10,11 @@ Unit tests: 466 passed, 0 failed.
 
 ## Last done
 
-Read a FULL CAPS paste: restore the Guide's casing for ranking and the field split, keep the reader's capitals in the citation; strip a footnote marker from rule 2.3's short forms
+A fragment is no longer turned into a citation: gate detection on citation apparatus, require rule 2.3's pinpoint, and hand the words on when the reader picks a format
 
 ## Next step
 
-Open list in docs/START-HERE.md — 8 robustness failures left; rule 6.2 place question; journal-abbreviation table needs the Guide's appendix
+Open list in docs/START-HERE.md — rule 3.8's inert required flags; offer a type for a fragment; rule 6.2 place question
 
 ## Where every measurement stands
 
@@ -25,22 +25,26 @@ THE GUARANTEE — correct fields in, the Guide's citation out
   worked examples uncovered  0                  must stay 0
   declared template gaps     1                  knownGap in field-truth
   published-Guide audit      154/154            the only non-self-referential one
-  render invariants          637/637            
-  render omission            583/583            
+  render invariants          635/635            
+  render omission            578/578            
 CONVENIENCE — reading a paste
   READ fields                215/216            
   READ output exact          215/216            
   PICK type ranked first     156/216            weakest layer
-  robustness                 1499/1507          perturbed pastes
+  robustness                 1500/1507          perturbed pastes
   fixed point                155/155            re-pasting our own output
 PARTIAL — a shorter paste (realistic omissions only)
   corrupted                  25                 shows a FALSE value — worst
   dropped                    16                 loses a present one
-  retyped                    11                 type rank changed
+  retyped                    10                 type rank changed
 FOREIGN FORMAT — a reference written in some other style
   PICK type ranked first     15/18              
   READ fields                18/18              
   OUTPUT citation exact      18/18              APA, Bluebook, Chicago
+FRAGMENT — part of a reference, not the whole of one
+  never built from a fragment 11/11              must stay at full
+  type offered in top 6      6/11               
+  what it carries, read      10/11              
 LINK — a pasted URL
   right KIND of source       21/21              
   exact citation             8/8                
@@ -62,6 +66,7 @@ WHAT IS FAILING — by defect shape
 Recent commits:
 
 ```
+18c7719 Checkpoint: Read a FULL CAPS paste: restore the Guide's casing for ranki
 ac19c0e Correct the unit-test count in START-HERE
 5bd90a5 Correct the unit-test count in START-HERE
 4c4e1fd Checkpoint: Read APA 7, Harvard and MLA; have each reader name the field
@@ -69,17 +74,23 @@ e215e06 Checkpoint: Tell the reader which foreign style was recognised and what
 cc8f2be Checkpoint: Read APA, Bluebook, Chicago and database-listing references
 70b3a0a Checkpoint: Correct a hyphenated day span, stop the dash perturbation re
 5657284 Checkpoint: Recognise CanLII — cases, statutes, and rule 8.3.3's forbidd
-d325a37 Checkpoint: Read a paragraph-numbered report locus and a bracketed year
 ```
 
 Uncommitted when this ran (the checkpoint commits them next):
 
 ```
 M docs/START-HERE.md
+ M package.json
+ M scripts/status.ts
+ M src/App.tsx
+ M src/data/styleGuide.json
  M src/engine/build.ts
- M src/engine/render.ts
-?? src/engine/shouted.ts
-?? tests/engine-shouted.test.ts
+ M src/styles.css
+ M tests/e2e/interface.spec.ts
+ M tests/engine-scan.test.ts
+?? scripts/fragment-report.ts
+?? scripts/patch-subsequent-reference-pinpoint.mjs
+?? tests/fixtures/fragments.ts
 ```
 
 ## Picking this up

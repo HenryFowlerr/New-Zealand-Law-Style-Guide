@@ -61,6 +61,7 @@ before pushing UI changes.
 | `partial-report` | a SHORTER paste still lands right | yes, the "realistic" block only |
 | `link-report` / `link-coverage` | a pasted URL | yes |
 | `foreign-format-report` | a paste in APA / Bluebook / Chicago | yes |
+| `fragment-report` | PART of a reference — the SAFE row must stay full | **yes — a safety measure** |
 | `render-truth` | template parses its own example | no — mostly extractor mis-splits |
 | `accuracy-report` | — | **no — cannot fail** |
 
@@ -81,6 +82,14 @@ scripts/               every measurement; none of them ship
 
 ## Open work, roughly by value
 
+0. **A fragment must never come back as a citation.** `fragment-report`'s SAFE
+   row is the one number here that is a safety property rather than an accuracy
+   one, and it must stay at full. Several rules require a single free-text box —
+   2.3's identifier, 4.3.4's title, the Cabinet Manual's — and their templates
+   are near the identity function, so any run of words used to fill one and come
+   back finished ("Andrew Burrows.", "394."). The gate is in
+   `pasteCarriesCitationApparatus`: all 216 worked examples carry a letter AND a
+   digit, a web address or a publication parenthesis. Do not weaken it.
 1. **PICK is the weakest layer (156/216).** Domestic shape ambiguity now, not
    jurisdiction — "At 535." against Laws of New Zealand. More markers would be
    fitting the corpus rather than the Guide, so this needs a different idea.
@@ -125,6 +134,18 @@ scripts/               every measurement; none of them ship
    Guide abbreviates it from its own appendix ("Law Quarterly Review" → "LQR").
    Without the table that conversion is unreachable, and it is reported as lossy
    rather than guessed.
+9a. **Rule 3.8's required flags are inert.** `transcriptDesignator` and
+   `dateOrPinpoint` are marked required and appear in NEITHER of its forms, so
+   `requiredForChosenForm` enforces nothing: choose the transcript type by hand,
+   enter only a case name, and you get "X Transcript." — a Supreme Court
+   transcript invented out of a case name. Fix by naming the components the
+   forms actually use, through a `scripts/patch-*.mjs`. Worth auditing every
+   type for required components that no form contains.
+9b. **A fragment is offered no type at all** (`fragment-report` PICK 6/11).
+   That is the safe answer, not the best one: "Taylor v New Zealand Poultry
+   Board" could offer the case types with `caseName` filled. The interface now
+   hands the words on when the reader picks a format, so this is a ranking
+   improvement, not a correctness one.
 9. **Bluebook district courts.** "S.D.N.Y." becomes "SDNY"; the Guide writes
    "SD NY". Splitting a court from its state needs Appendix 3, not a pattern.
 

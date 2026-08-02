@@ -8449,7 +8449,7 @@
         {
           "id": "pinpoint",
           "label": "Pinpoint",
-          "required": false,
+          "required": true,
           "italic": false,
           "order": 3,
           "separatorBefore": "' at '",

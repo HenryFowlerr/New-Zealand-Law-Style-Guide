@@ -218,3 +218,21 @@ test("APA 7 omits the place, so the tool asks for it instead of inventing one", 
     "R Carter Burrows and Carter Statute Law in New Zealand (5th ed, LexisNexis, Wellington, 2015).",
   );
 });
+
+test("a fragment is not turned into a citation, but still fills the boxes", async ({ page }) => {
+  await page.getByRole("tab", { name: /Check what I have/ }).click();
+  // A case name with no citation in it: no year, no report, no pinpoint.
+  await page.locator("textarea").fill("Taylor v New Zealand Poultry Board");
+  // No type is offered, and nothing is built…
+  await expect(page.locator(".no-match")).toContainText(/part of a reference/i);
+  await expect(page.locator(".suggestion-card")).toHaveCount(0);
+  await expect(page.locator(".citation-preview")).toHaveCount(0);
+  // …but the words are kept: choosing the format reads them into the boxes.
+  await page.getByRole("button", { name: /Choose a format/ }).click();
+  await page.locator(".search-field input").fill("Reported case");
+  await page.locator('.type-card:has(strong:text-is("Reported case (New Zealand)"))').click();
+  await expect(page.locator("#citation-form")).toBeVisible();
+  await expect(page.locator("#input-caseName")).toHaveValue("Taylor v New Zealand Poultry Board");
+  // And it stays fail-closed until the report citation is given.
+  await expect(page.locator(".result-status.ready")).toHaveCount(0);
+});
