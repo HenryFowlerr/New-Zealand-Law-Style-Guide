@@ -600,7 +600,17 @@ export function referencePrefixLength(raw: string): number {
   }
   // Never eat the whole paste: if nothing recognisable is left, this was not a
   // prefix at all.
-  return raw.slice(cut).replace(/[^\p{L}\p{N}]/gu, "").length >= 6 ? cut : 0;
+  //
+  // Rule 2.3's shortest form is shorter than that floor. "At 535." carries five
+  // letters and digits, so a footnote marker in front of it — "3. At 535.", the
+  // commonest thing in a set of footnotes — was never stripped, and the marker
+  // stayed in the citation and misclassified it. A remainder that opens the way
+  // a subsequent reference opens is a real citation however short it is, so it
+  // is admitted on its shape rather than on its length.
+  const rest = raw.slice(cut);
+  const isShortForm = /^\s*(?:at\s+\S|(?:above|below)\s+n\s*\d)/i.test(rest);
+  const substantial = rest.replace(/[^\p{L}\p{N}]/gu, "").length >= 6;
+  return substantial || isShortForm ? cut : 0;
 }
 
 /**

@@ -34,6 +34,7 @@ import {
 import { fieldShapeViolations } from "./shapes";
 import { applyGuideRules, normaliseForComparison } from "./rules";
 import { normaliseForeignFormat } from "./foreignFormat";
+import { restoreCaseForDetection } from "./shouted";
 
 export type CitationFields = Record<string, string>;
 
@@ -255,9 +256,44 @@ export function prefillFromPaste(
   // shape before extraction. A rewritten paste no longer lines up with the
   // rich-paste italic offsets — the words have moved — so those are dropped
   // rather than applied to whatever now sits at the old position.
-  const foreign = normaliseForeignFormat(rawText);
-  const sourceText = foreign.style ? foreign.text : rawText;
+  /**
+   * A shouted paste is EXTRACTED from its case-restored form and then written
+   * back in the reader's own capitals.
+   *
+   * The anchors that split the fields are case-sensitive — a regnal year is
+   * "4 Vict", not "4 VICT" — so on a shouted paste they mis-split, and rule
+   * 4.1.3's ordinance came out with its title's last word repeated as its
+   * regnal year: "…ORDINANCE 1841 ORDINANCE 4 VICT 5". Restoring the case fixes
+   * the SPLIT; putting the capitals back afterwards keeps rule 3.2's promise
+   * that the parties' names are the reader's to confirm, not ours to guess.
+   *
+   * Restoration only ever changes the case of a character, so the two strings
+   * are the same length and a value found in one is the same span of the other.
+   * That equality is asserted rather than assumed.
+   */
+  const restored = restoreCaseForDetection(rawText);
+  const alignsWithOriginal = restored.length === rawText.length;
+  const reshout = (value: string): string => {
+    if (!value) return value;
+    const at = restored.indexOf(value);
+    const original = at >= 0 ? rawText.slice(at, at + value.length) : value;
+    // …except the "v" between parties, which rule 3.2 puts in lowercase because
+    // it is the Guide's own connective rather than part of either name. It is
+    // the one character in a shouted case name that is not the reader's to
+    // confirm, and `normalizePaste` already lowercases it on the ordinary path.
+    return original.replace(/(\s)V(\s)/g, "$1v$2");
+  };
+
+  const foreign = normaliseForeignFormat(alignsWithOriginal ? restored : rawText);
+  const sourceText = foreign.style ? foreign.text : alignsWithOriginal ? restored : rawText;
   const usableRuns = foreign.style ? [] : italicRuns;
+  /** Put the reader's capitals back over a finished set of fields. */
+  const keepReadersCapitals = (fields: CitationFields): CitationFields => {
+    if (!alignsWithOriginal || restored === rawText || foreign.style) return fields;
+    const out: CitationFields = {};
+    for (const [id, value] of Object.entries(fields)) out[id] = reshout(value);
+    return out;
+  };
   /**
    * A recognised foreign reader parsed the reference into named parts, so those
    * are the last word for whichever of them this type actually has — the
@@ -296,7 +332,7 @@ export function prefillFromPaste(
   // anchors (a neutral citation, a reporter locus, a pinpoint, an edition, a
   // quoted title, an "X v Y" case name) recognised anywhere in the text.
   if (italicIds.length === 0 || runs.length !== italicIds.length) {
-    return applyForeignFields(
+    return keepReadersCapitals(applyForeignFields(
       reconcileAgainstSource(
         type,
         fillReportLocusTail(
@@ -306,7 +342,7 @@ export function prefillFromPaste(
         ),
         text,
       ),
-    );
+    ));
   }
   const base = { ...positional };
   // Assign each italic run, in order, to each italic component, in order.
@@ -330,11 +366,13 @@ export function prefillFromPaste(
     refined[id] = base[id];
   });
   if (priorId && before) refined[priorId] = before;
-  return applyForeignFields(
-    reconcileAgainstSource(
-      type,
-      fillReportLocusTail(type, splitNeutralCitationParts(type, refined, text), text),
-      text,
+  return keepReadersCapitals(
+    applyForeignFields(
+      reconcileAgainstSource(
+        type,
+        fillReportLocusTail(type, splitNeutralCitationParts(type, refined, text), text),
+        text,
+      ),
     ),
   );
 }
@@ -454,7 +492,13 @@ export function detectionCandidates(
   // against. Nothing here learns a new format; the pre-pass hands it one it
   // already knows. A paste that is not in a recognised foreign style comes
   // through untouched.
-  const trimmed = normalizePaste(normaliseForeignFormat(text).text).text;
+  // A shouted paste has its case restored FIRST, because every anchor the
+  // foreign-format readers and the extractor key on tells an abbreviation from
+  // a word by its case. Ranking only — the citation still carries the reader's
+  // capitals, which is what rule 3.2 requires.
+  const trimmed = normalizePaste(
+    normaliseForeignFormat(restoreCaseForDetection(text)).text,
+  ).text;
   if (!trimmed) return [];
   const lower = trimmed.toLowerCase();
   const normalise = (s: string) =>

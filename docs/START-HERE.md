@@ -29,7 +29,7 @@ several hundred lines.
 npm run check && npm test
 ```
 
-Typecheck and 461 unit tests. `npm run qa` before committing, `npm run test:e2e`
+Typecheck and 467 unit tests. `npm run qa` before committing, `npm run test:e2e`
 before pushing UI changes.
 
 ## The five rules that cost real work to learn
@@ -67,6 +67,7 @@ before pushing UI changes.
 ## Layout
 
 ```
+src/engine/shouted.ts  a FULL CAPS paste → the Guide's casing, for ranking and the split
 src/engine/foreignFormat.ts  APA/Bluebook/Chicago → the Guide's shape, BEFORE detection
 src/engine/render.ts   templates, forms, separators, italics, splitting a paste
 src/engine/scan.ts     shape anchors — the field-level extraction
@@ -93,11 +94,14 @@ scripts/               every measurement; none of them ship
    instrument the fields do not corroborate — a penalty that is load-bearing,
    since without it a bare "Crimes Act" becomes the Charter. It fails CLOSED,
    which is the right failure.
-5. **34 robustness failures**, now mostly ALL CAPS (19 misclassified, 7 wrong
-   output) — a case list pasted out of a database. The en-dash item is closed: a
-   day span is corrected to the en dash rule 3.2.8 requires, and a dash inside a
-   quoted TITLE is reproduced as its author wrote it, which is why the
-   perturbation no longer reaches inside one.
+5. **8 robustness failures**, down from 34. ALL CAPS went 26 → 4 (1 misclassified,
+   3 wrong output) by restoring the Guide's own casing for RANKING and the field
+   SPLIT, then writing the reader's capitals back over the result — rule 3.2
+   still says the names are theirs to confirm, so only the "v" is lowercased.
+   Footnote markers went 6 → 4: rule 2.3's "At 535." is shorter than the
+   "never eat the whole paste" floor, so the marker in front of it was never
+   stripped. The 4 that remain are a bare "12 " before a citation that itself
+   opens with a number.
 6. **CanLII legislation beyond `/laws/stat/`** — regulations (`/laws/regu/`) and
    constitutional documents (`/laws/const/`) still fall through to the generic
    resolvers. Cases and statutes are read from the path.
